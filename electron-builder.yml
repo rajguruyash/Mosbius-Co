@@ -1,4 +1,4 @@
-appId: local.mosbiusandco.app
+appId: com.mosbiusandco.desktop
 productName: "Mosbius & Co"
 copyright: Copyright © 2026 Chaitanya Giri
 
@@ -8,8 +8,8 @@ copyright: Copyright © 2026 Chaitanya Giri
 # knows which repo to poll.
 publish:
   provider: github
-  owner: chaitanyagiri
-  repo: munder-difflin
+  owner: rajguruyash
+  repo: Mosbius-Co
 
 # Bake the update toast's "What's new" list straight into latest*.yml.
 #
@@ -130,7 +130,7 @@ mac:
       arch: [universal]
     - target: zip
       arch: [universal]
-  artifactName: Munder-Difflin-${version}-mac-${arch}.${ext}
+  artifactName: Mosbius-Co-${version}-mac-${arch}.${ext}
 
 dmg:
   title: Mosbius & Co ${version}
@@ -148,11 +148,11 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
-  artifactName: Munder-Difflin-${version}-win-x64-setup.exe
+  artifactName: Mosbius-Co-${version}-win-x64-setup.exe
   shortcutName: Mosbius & Co
 
 portable:
-  artifactName: Munder-Difflin-${version}-win-x64-portable.exe
+  artifactName: Mosbius-Co-${version}-win-x64-portable.exe
 
 # ---- Linux ----
 linux:
@@ -161,4 +161,4 @@ linux:
   target:
     - target: AppImage
       arch: [x64]
-  artifactName: Munder-Difflin-${version}-linux-x86_64.AppImage
+  artifactName: Mosbius-Co-${version}-linux-x86_64.AppImage

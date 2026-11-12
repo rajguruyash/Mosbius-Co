@@ -111,7 +111,14 @@ def write(w):
     meta = {
         'tile': T, 'width': WORLD_W, 'height': WORLD_H,
         'order': ['rooftop', 'apartment', 'bedrooms', 'maclarens', 'gnb', 'barney', 'columbia', 'lasertag'],
-        'hq': {n: w.extra[n]['hq'] for n in ('barney', 'columbia', 'lasertag')},
+        'hq': dict(
+            {n: {'boss': w.extra[n]['hq']['boss'], 'seats': w.extra[n]['hq']['seats'], 'cast': w.extra[n]['hq']['cast'][:1]}
+             for n in ('barney', 'columbia', 'lasertag')},
+            apartment={'boss': 'desk-ceo', 'seats': ['pc-%d' % i for i in range(1, 12)], 'cast': ['ted']},
+            rooftop={'boss': 'roof-1', 'seats': ['roof-2', 'roof-3', 'roof-4'], 'cast': ['robin']},
+            maclarens={'boss': 'cafe-seat-9', 'seats': ['cafe-seat-%d' % i for i in range(10, 17)], 'cast': ['carl']},
+            gnb={'boss': 'pc-12', 'seats': ['pc-%d' % i for i in range(13, 21)] + ['conf-%d' % i for i in range(1, 7)], 'cast': ['arthur']},
+        ),
         'locations': w.locations, 'portals': pairs,
         'seats': w.seats, 'occluders': occ, 'errands': w.errands,
         'primarySeatNames': primary, 'cafeSeatNames': cafe,

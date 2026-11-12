@@ -284,6 +284,9 @@ interface State {
   /** The location the crew is based in. It decides who is boss and how the agents are cast. */
   hqLocation: string;
   setHqLocation: (id: string) => void;
+  /** agent id → the location it was added in. Rosters are per location; execution stays global. */
+  agentLocations: Record<string, string>;
+  setAgentLocation: (agentId: string, locationId: string) => void;
   setFloorLocation: (id: string) => void;
   setOfficeTheme: (theme: ThemeId) => void;
   /** Mirror of config.webhookTriggers — the inbound HTTP endpoints. Webhooks are
@@ -678,6 +681,14 @@ function newQueuedId(): string {
   return `q-${Date.now()}-${queuedSeq}`;
 }
 
+const AGENT_LOC_KEY = 'mosbius.agentLocations';
+function loadAgentLocations(): Record<string, string> {
+  try { return JSON.parse(window.localStorage.getItem(AGENT_LOC_KEY) ?? '{}') as Record<string, string>; } catch { return {}; }
+}
+function saveAgentLocations(v: Record<string, string>): void {
+  try { window.localStorage.setItem(AGENT_LOC_KEY, JSON.stringify(v)); } catch { /* noop */ }
+}
+
 export const useStore = create<State>((set, get) => ({
   agents: initialAgents,
   archivedAgents: initialArchivedAgents,
@@ -890,6 +901,12 @@ export const useStore = create<State>((set, get) => ({
   floorLocation: 'apartment',
   hqLocation: 'apartment',
   setHqLocation: (id) => set({ hqLocation: id }),
+  agentLocations: loadAgentLocations(),
+  setAgentLocation: (agentId, locationId) => set((s) => {
+    const next = { ...s.agentLocations, [agentId]: locationId };
+    saveAgentLocations(next);
+    return { agentLocations: next };
+  }),
   setFloorLocation: (id) => set({ floorLocation: id }),
   setOfficeTheme: (theme) => set({ officeTheme: theme }),
   webhookTriggers: [],
@@ -1056,3 +1073,18 @@ export function selectedAgent(s: State): Agent | undefined {
 export function triggerHistoryVisible(s: State): boolean {
   return s.webhookTriggers.length > 0 || s.orgTrigger.apiKey.trim() !== '';
 }
+
+// Location rosters. An agent belongs to the location that was open when it was
+// added. Agents that already existed when the app started (from before rosters,
+// or restored after a restart with no saved assignment) belong to Ted's place.
+// Only the VIEW is per location: sessions, terminals and tasks are untouched.
+let rosterSeeded = false;
+useStore.subscribe((s) => {
+  const missing = s.agents.filter((a) => !a.isGod && !s.agentLocations[a.id]);
+  if (!missing.length) { if (s.agents.length) rosterSeeded = true; return; }
+  const next = { ...s.agentLocations };
+  for (const a of missing) next[a.id] = rosterSeeded ? s.hqLocation : 'apartment';
+  rosterSeeded = true;
+  saveAgentLocations(next);
+  useStore.setState({ agentLocations: next });
+});

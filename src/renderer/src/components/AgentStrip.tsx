@@ -14,10 +14,16 @@ export interface AgentStripProps {
   config?: HarnessConfig | null;
 }
 
+const LOCATION_NAME: Record<string, string> = {
+  rooftop: 'Rooftop', apartment: 'Ted\u2019s place', bedrooms: 'Bedrooms', maclarens: 'MacLaren\u2019s', gnb: 'GNB',
+  barney: 'Barney\u2019s', columbia: 'Columbia', lasertag: 'Laser tag',
+};
+
 export function AgentStrip({ config }: AgentStripProps) {
   const { t } = useTranslation();
   const rtl = useRtl();
   const agents = useStore(s => s.agents);
+  const locs = useStore(s => s.agentLocations);
   const restorableAgents = useStore(s => s.restorableAgents);
   const selectedId = useStore(s => s.selectedId);
   const select = useStore(s => s.select);
@@ -138,7 +144,7 @@ export function AgentStrip({ config }: AgentStripProps) {
             accent={a.accent}
             status={a.status}
             ptyId={a.ptyId}
-            project={a.project}
+            project={a.isGod ? a.project : `${LOCATION_NAME[locs[a.id] ?? 'apartment'] ?? 'Ted\u2019s place'}${a.project ? ' · ' + a.project : ''}`}
             action={a.action}
             progress={a.progress}
             contextTokens={a.contextTokens}

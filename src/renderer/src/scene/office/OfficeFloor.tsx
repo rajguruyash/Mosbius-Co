@@ -311,14 +311,14 @@ export function OfficeFloor() {
       };
       const castFor = (agent: Agent): { name: string; label?: string } | null => {
         if (!hqCfg) return null;
+        // Only the boss is cast by the location. Everyone else is who you made them.
         if (agent.isGod) return { name: hqCfg.cast[0], label: theme.cast.byName[hqCfg.cast[0]]?.displayName };
-        const k = useStore.getState().agents.filter((a) => !a.isGod).findIndex((a) => a.id === agent.id);
-        const named = hqCfg.cast[k + 1];
-        if (named) return { name: named, label: theme.cast.byName[named]?.displayName };
-        const pool = hqCfg.crowd ? CROWDS[hqCfg.crowd] : undefined;
-        return pool ? { name: pool[Math.max(k, 0) % pool.length] } : null;
+        return null;
       };
-      const entranceName = hqCfg ? `entrance@${hqLocation}` : 'entrance';
+      void CROWDS;
+      const entranceName = hqCfg && hqLocation !== 'apartment' ? `entrance@${hqLocation}` : 'entrance';
+      // This location's roster: its boss (the orchestrator, wearing the local boss) and the agents added here.
+      const inRoster = (a: Agent): boolean => !meta || a.isGod || (useStore.getState().agentLocations[a.id] ?? 'apartment') === hqLocation;
 
       const mapRenderer = new TiledMapRenderer(resolveThemeMap(theme), tilesetTextures, backdropTex);
       world.addChild(mapRenderer.getContainer());
@@ -423,7 +423,7 @@ export function OfficeFloor() {
       let trans: { to: string; t: number; swapped: boolean; axis: 'x' | 'y'; dir: 1 | -1; cab: boolean; street: boolean; hold: number } | null = null;
       const T_IN = 0.34, T_OUT = 0.34;
       const BUILDING = ['rooftop', 'apartment', 'bedrooms', 'maclarens'];
-      const isBase = (id: string): boolean => id === 'apartment' || !!meta?.hq?.[id];
+      const isBase = (id: string): boolean => !!meta?.hq?.[id];
       const SUBTITLE: Record<string, string> = {
         rooftop: 'out the window, up the fire escape', apartment: 'apartment 4C', bedrooms: 'down the hall',
         maclarens: 'downstairs, as always', gnb: 'a cab ride downtown', barney: 'the Fortress of Barnitude',
@@ -495,6 +495,7 @@ export function OfficeFloor() {
             streetPhase = 'reveal'; streetT = 0;
             shownLocation = 'maclarens';
             frameLocation('maclarens', true);
+            if (hqLocation !== 'maclarens') { useStore.getState().setHqLocation('maclarens'); return; }
           }
         } else if (streetPhase === 'reveal') {
           push = 1;
@@ -1950,7 +1951,7 @@ export function OfficeFloor() {
       };
 
       const syncAgents = () => {
-        const { agents } = useStore.getState();
+        const agents = useStore.getState().agents.filter(inRoster);
         const present = new Set(agents.map((a) => a.id));
         for (const id of Array.from(runtimes.keys())) {
           if (!present.has(id)) removeCharacter(id);
@@ -1969,7 +1970,7 @@ export function OfficeFloor() {
 
       let lastSelected: string | null = useStore.getState().selectedId;
       const unsubscribe = useStore.subscribe((s, prev) => {
-        if (s.agents !== prev.agents) syncAgents();
+        if (s.agents !== prev.agents || s.agentLocations !== prev.agentLocations) syncAgents();
         if (s.selectedId !== lastSelected) {
           lastSelected = s.selectedId;
           const rt = s.selectedId ? runtimes.get(s.selectedId) : undefined;
