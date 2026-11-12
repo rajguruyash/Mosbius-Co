@@ -1,8 +1,8 @@
-# Mosby & Co
+# Mosbius & Co
 
 A How I Met Your Mother world for running a crew of coding agents on your own machine: Ted's apartment, the bedrooms, MacLaren's (entered from the street), GNB, the rooftop, Barney's apartment, Columbia and the laser tag arena, each with its own boss and cast.
 
-**Mosby & Co is a fork of [Munder Difflin](https://github.com/chaitanyagiri/munder-difflin) by Chaitanya Giri, used under the MIT License (see `LICENSE`).** The agent engine is theirs; the world, the cast and the pixel art in `src/renderer/src/assets/himym/` are new and original to this fork. The upstream project's paid LimeZu tile pack is not included.
+**Mosbius & Co is a fork of [Munder Difflin](https://github.com/chaitanyagiri/munder-difflin) by Chaitanya Giri, used under the MIT License (see `LICENSE`).** The agent engine is theirs; the world, the cast and the pixel art in `src/renderer/src/assets/himym/` are new and original to this fork. The upstream project's paid LimeZu tile pack is not included.
 
 This is a fan-made parody, not affiliated with or endorsed by the makers or owners of How I Met Your Mother.
 

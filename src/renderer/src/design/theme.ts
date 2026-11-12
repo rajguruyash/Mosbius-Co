@@ -24,7 +24,7 @@ function load(): AppTheme {
     const v = window.localStorage.getItem(LS_KEY) ?? window.localStorage.getItem(LEGACY_LS_KEY);
     if (v === 'dark' || v === 'light') return v;
   } catch { /* noop */ }
-  return 'dark'; // Mosby & Co opens in the dark theme unless you have chosen otherwise
+  return 'dark'; // Mosbius & Co opens in the dark theme unless you have chosen otherwise
 }
 
 let theme: AppTheme = load();

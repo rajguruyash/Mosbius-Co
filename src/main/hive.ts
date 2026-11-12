@@ -1569,7 +1569,7 @@ export class HiveManager {
     // us) was invisible to every investigation.
     const rt = this.runtimeInfo();
     const runtimeLine = rt
-      ? `RUNNING BUILD: Mosby & Co v${rt.version}, ${rt.packaged ? 'packaged app' : 'local dev build'}${rt.appPath ? `, from ${rt.appPath}` : ''}. Say this version if asked which one is running, and do not assume behaviour from an older one. A local dev build inherits the launching shell's environment (umask included) where a packaged app does not, so file modes and inherited env can legitimately differ between the two. \`log.jsonl\` records an \`app-start\` event on every launch, which is how you spot a restart or a build switch.`
+      ? `RUNNING BUILD: Mosbius & Co v${rt.version}, ${rt.packaged ? 'packaged app' : 'local dev build'}${rt.appPath ? `, from ${rt.appPath}` : ''}. Say this version if asked which one is running, and do not assume behaviour from an older one. A local dev build inherits the launching shell's environment (umask included) where a packaged app does not, so file modes and inherited env can legitimately differ between the two. \`log.jsonl\` records an \`app-start\` event on every launch, which is how you spot a restart or a build switch.`
       : '';
     // Item 11: god could not find the spawn queue. The mechanism has worked since
     // v0.4.4, but nothing told him it existed — the prompt said "spawn" without
@@ -2922,7 +2922,7 @@ export class HiveManager {
 // ─── Generated hive docs (written into the hive for every agent) ─────────────
 
 const GENERATED_DOC_NOTICE =
-  '<!-- Generated and managed by Mosby & Co. Local edits may be replaced during hive bootstrap. -->';
+  '<!-- Generated and managed by Mosbius & Co. Local edits may be replaced during hive bootstrap. -->';
 
 /** The Claude Code command reference written to <hive>/COMMANDS.md, rendered from
  *  the SAME source as the UI "commands" tab so they never drift. Leads with the

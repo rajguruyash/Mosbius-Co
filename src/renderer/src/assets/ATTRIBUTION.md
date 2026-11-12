@@ -14,5 +14,5 @@ fork removed the tiles, the two maps built on them, and the tools that read
 them. The fonts in `assets/fonts/` keep their own licence (see `LICENSE.txt`
 there).
 
-Mosby & Co is a fan-made parody. It is not affiliated with or endorsed by the
+Mosbius & Co is a fan-made parody. It is not affiliated with or endorsed by the
 makers or owners of How I Met Your Mother.

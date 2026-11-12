@@ -16,7 +16,7 @@ const loadTs = require('./load-ts.cjs');
 
 const { HiveManager } = loadTs('src/main/hive.ts');
 
-const GENERATED_NOTICE_PREFIX = '<!-- Generated and managed by Mosby & Co.';
+const GENERATED_NOTICE_PREFIX = '<!-- Generated and managed by Mosbius & Co.';
 const GENERATED_DOCS = [
   { filename: 'PROTOCOL.md', sentinel: 'PROTOCOL_SENTINEL\n', heading: '# Hive protocol' },
   { filename: 'COMMANDS.md', sentinel: 'COMMANDS_SENTINEL\n', heading: '# Claude Code commands' }
