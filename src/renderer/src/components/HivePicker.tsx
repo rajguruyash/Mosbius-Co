@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SpritePortrait } from './SpritePortrait';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
 import { Icon } from './Icon';
@@ -64,30 +65,37 @@ export function HivePicker({ config, onOpenCurrent }: HivePickerProps) {
   };
 
   return (
-    <div style={{
+    <div className="cth-night-bg" style={{
       position: 'fixed', inset: 0,
-      background: 'var(--cth-cream-200)',
-      backgroundImage:
-        `repeating-linear-gradient(45deg, rgba(232, 217, 160, 0.4) 0 1px, transparent 1px 8px)`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 200,
       padding: 32
     }}>
       <div style={{ width: 560, maxWidth: '94vw' }}>
-        <PixelPanel variant="dialog" title="SELECT A HARNESS CONFIG" noPadding>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+          <div style={{ background: '#969aa6', boxShadow: '0 0 0 2px #1a1320, 0 0 0 4px #3d2e4a', lineHeight: 0, padding: 2 }}>
+            <SpritePortrait character="ted" scale={3} />
+          </div>
+          <div>
+            <div style={{ fontFamily: 'var(--cth-font-display)', fontSize: 18, color: '#fff8e7', letterSpacing: 1 }}>MOSBIUS &amp; CO.</div>
+            <div style={{ fontSize: 13, color: '#d9cfe0', marginTop: 8, lineHeight: '19px' }}>
+              “Kids, every great story starts somewhere. Pick where this one lives and I’ll get the crew.” — Ted
+            </div>
+          </div>
+        </div>
+        <PixelPanel variant="dialog" title="CHOOSE YOUR WORKSPACE" noPadding>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <p style={{ margin: 0, fontSize: 12, lineHeight: '19px', color: 'var(--cth-ink-700)' }}>
-              A <strong>harness config</strong> is the folder where the app keeps everything for one
-              workspace — its settings, your agents and their memory, tasks, triggers, and history.
-              Each config is separate and self-contained, so you can run different setups side by side.
-              Open the one you were working in, switch to another, or start a new one.
+              A <strong>workspace</strong> is a folder on your Mac where Mosbius &amp; Co keeps everything for one
+              crew: your agents and their memory, tasks, triggers, settings and history. Workspaces are
+              separate, and opening or creating one never changes or deletes another.
             </p>
 
             {/* CURRENT — the last-used home, the one-click default. */}
             {current && (
               <div>
                 <div style={{ fontFamily: 'var(--cth-font-display)', fontSize: 9, color: 'var(--cth-ink-500)', marginBottom: 4 }}>
-                  CURRENT
+                  YOUR CURRENT WORKSPACE · everything in it is kept
                 </div>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
@@ -167,12 +175,12 @@ export function HivePicker({ config, onOpenCurrent }: HivePickerProps) {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <PixelButton variant="secondary" size="md" onClick={browse} disabled={!!busy}>
                 <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                  <Icon name="folder" /> open existing config…
+                  <Icon name="folder" /> open existing workspace…
                 </span>
               </PixelButton>
               <PixelButton variant="secondary" size="md" onClick={browse} disabled={!!busy}>
                 <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                  <Icon name="plus" /> create new config…
+                  <Icon name="plus" /> create new workspace…
                 </span>
               </PixelButton>
             </div>

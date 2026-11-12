@@ -19,14 +19,18 @@ html, body, #root {
   overflow: hidden;
 }
 
-body {
-  /* tiny diagonal cream noise — pure CSS, no images */
+/* The night behind every setup and empty screen: a dark sky, a faint glow on the
+   horizon and the New York skyline along the bottom. No stripes anywhere. */
+.cth-night-bg {
+  background-color: #14141f;
   background-image:
-    repeating-linear-gradient(
-      45deg,
-      rgba(232, 217, 160, 0.20) 0 1px,
-      transparent 1px 6px
-    );
+    radial-gradient(ellipse at 50% 108%, rgba(255, 190, 110, 0.14), transparent 55%),
+    url('../assets/himym/skyline.png'),
+    linear-gradient(#10101a, #1b1c2c 60%, #26243a);
+  background-repeat: no-repeat, repeat-x, no-repeat;
+  background-position: center, left bottom, center;
+  background-size: auto, auto 330px, auto;
+  image-rendering: pixelated;
 }
 
 button, input, textarea, select {
