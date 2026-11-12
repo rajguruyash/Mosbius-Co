@@ -1,0 +1,7 @@
+NOTE ON ART ASSETS
+
+The MIT License in LICENSE applies to the source code, which is forked from
+Munder Difflin (c) 2026 Chaitanya Giri. The pixel art under
+src/renderer/src/assets/himym/ is original to this fork and is offered under
+the same MIT terms. The upstream project's LimeZu tile pack is NOT included.
+See src/renderer/src/assets/ATTRIBUTION.md.
