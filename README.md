@@ -22,11 +22,25 @@ Windows and Linux downloads will be added once those builds have been tested. Ma
 
 ## What it does
 
-- **Many coding agents, one place.** Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI, Grok, Qwen, Kimi Code, OpenCode, Crush, Pi and Antigravity, or any custom command. Each runs as its own process with its own terminal, using the subscriptions and logins you already have.
+- **Many coding agents, one place.** Detected automatically (see below). Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI, Grok, Qwen, Kimi Code, OpenCode, Crush, Pi and Antigravity, or any custom command. Each runs as its own process with its own terminal, using the subscriptions and logins you already have.
 - **Several locations, separate teams.** An agent belongs to the location that was open when you added it, and only that location shows it. Agents keep running whichever location you are looking at.
 - **A boss per location.** Ted at his apartment and at Columbia, Barney at his apartment and at laser tag, Robin on the rooftop, Carl at MacLaren's, Arthur at GNB.
 - **A command centre.** Terminal, tasks, triggers, memory, activity and an "ask me" queue for the selected agent, whatever location it is in.
 - **Agents that move.** They sit down to work, walk between locations through the doors, take breaks in the booth at MacLaren's and say the odd line.
+
+## Bring your own coding agents
+
+Mosbius & Co works with the coding agents already installed on your computer, each signed in through its own official login. **You only need one.** Any single signed-in agent runs the whole crew; the rest are optional and can be added later.
+
+![Meet your coding team](screenshots/meet-your-team.png)
+
+- **Found automatically.** On first launch, and any time in **Settings → Coding agents**, the app looks for Claude Code, Codex and Gemini CLI and shows the version, where each is installed and whether it is signed in.
+- **Sign-in checked honestly.** Claude Code and Codex are asked through their own status commands, so "signed in" is confirmed. Gemini CLI has no status command, so it is only ever shown as *probably* signed in.
+- **Nothing happens without you.** Install and Update show the exact command and run only after you approve it. Sign in opens the agent's own login in a Terminal window. Mosbius never asks for your password, never reads login files, and does not need an API key for an agent you have already signed in to.
+- **Optional providers.** Codex and Gemini CLI are marked optional. Each card says what signing in needs; plans and free allowances are set by each provider, so the app points to them rather than promising limits.
+- **Mix and match.** Agents from different providers can work at the same time, in the same location or in different ones, each in its own terminal.
+
+![Settings → Coding agents](screenshots/settings-coding-agents.jpg)
 
 ## The locations
 
