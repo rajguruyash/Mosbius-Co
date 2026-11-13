@@ -9,15 +9,15 @@ A desktop app that runs a crew of coding agents on your own machine, inside a pi
 | Platform | Package | Status |
 |---|---|---|
 | **macOS** (Apple Silicon) | `.dmg` | Built and tested; the first release is not published yet. It will appear on the [Releases page](https://github.com/rajguruyash/Mosbius-Co/releases). Until then, [build it yourself](#development). |
-| **Windows** | `.exe` installer | Coming soon |
+| **Windows** (x64) | `.exe` installer | Built, but **not yet tested on a Windows PC**, and not published yet. |
 | **Linux** | AppImage / `.deb` | Coming soon |
 
-Windows and Linux downloads will be added once those builds have been tested. Mac builds are for Apple Silicon (M1 and later) only.
+The Windows installer will be published once it has been tested on a Windows PC; Linux will follow. Mac builds are for Apple Silicon (M1 and later) only.
 
 ### Installing
 
 - **macOS:** open the `.dmg` and drag **Mosbius & Co** into Applications. The app is not yet signed with an Apple Developer ID, so the first time, right-click it in Applications and choose **Open**.
-- **Windows** (when available): run the installer and follow the steps. Windows SmartScreen may warn about an unsigned app; choose **More info → Run anyway**.
+- **Windows** (once published): run the installer and follow the steps. Windows SmartScreen may warn about an unsigned app; choose **More info → Run anyway**.
 - **Linux** (when available): make the AppImage executable (`chmod +x Mosbius-Co-*.AppImage`) and run it, or install the `.deb` with `sudo apt install ./Mosbius-Co-*.deb`.
 
 ## What it does

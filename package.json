@@ -25,6 +25,7 @@
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
+    "dist:win-on-mac": "sh tools/build-win-on-mac.sh",
     "dist:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
