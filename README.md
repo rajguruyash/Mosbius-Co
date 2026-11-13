@@ -6,18 +6,18 @@ A desktop app that runs a crew of coding agents on your own machine, inside a pi
 
 ## Download Mosbius & Co.
 
-| Platform | Package | Status |
-|---|---|---|
-| **macOS** (Apple Silicon) | `.dmg` | Built and tested; the first release is not published yet. It will appear on the [Releases page](https://github.com/rajguruyash/Mosbius-Co/releases). Until then, [build it yourself](#development). |
-| **Windows** (x64) | `.exe` installer | Built, but **not yet tested on a Windows PC**, and not published yet. |
-| **Linux** | AppImage / `.deb` | Coming soon |
+**[⬇ Download for macOS](https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0/Mosbius-Co-1.0.0-mac-arm64.dmg)** &nbsp;·&nbsp; **[⬇ Download for Windows](https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0.0/Mosbius-Co-1.0.0.0-win-x64-setup.exe)**
 
-The Windows installer will be published once it has been tested on a Windows PC; Linux will follow. Mac builds are for Apple Silicon (M1 and later) only.
+| Platform | Package | Release | Notes |
+|---|---|---|---|
+| **macOS** | `.dmg` (Apple Silicon, ARM64) | [v1.0.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0) | Unsigned and not notarized. Apple Silicon (M1 and later) only. |
+| **Windows** | `.exe` installer (64-bit) | [v1.0.0.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0.0) | Unsigned. Built, but not yet tested on physical Windows hardware. |
+| **Linux** | AppImage / `.deb` | — | Coming soon |
 
 ### Installing
 
 - **macOS:** open the `.dmg` and drag **Mosbius & Co** into Applications. The app is not yet signed with an Apple Developer ID, so the first time, right-click it in Applications and choose **Open**.
-- **Windows** (once published): run the installer and follow the steps. Windows SmartScreen may warn about an unsigned app; choose **More info → Run anyway**.
+- **Windows:** run the installer and follow the steps. Windows SmartScreen may warn about an unsigned app; choose **More info → Run anyway**.
 - **Linux** (when available): make the AppImage executable (`chmod +x Mosbius-Co-*.AppImage`) and run it, or install the `.deb` with `sudo apt install ./Mosbius-Co-*.deb`.
 
 ## What it does
