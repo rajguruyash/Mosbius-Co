@@ -4,6 +4,22 @@ A desktop app that runs a crew of coding agents on your own machine, inside a pi
 
 ![Ted's apartment](screenshots/apartment.png)
 
+## Download Mosbius & Co.
+
+| Platform | Package | Status |
+|---|---|---|
+| **macOS** (Apple Silicon) | `.dmg` | Built and tested; the first release is not published yet. It will appear on the [Releases page](https://github.com/rajguruyash/Mosbius-Co/releases). Until then, [build it yourself](#development). |
+| **Windows** | `.exe` installer | Coming soon |
+| **Linux** | AppImage / `.deb` | Coming soon |
+
+Windows and Linux downloads will be added once those builds have been tested. Mac builds are for Apple Silicon (M1 and later) only.
+
+### Installing
+
+- **macOS:** open the `.dmg` and drag **Mosbius & Co** into Applications. The app is not yet signed with an Apple Developer ID, so the first time, right-click it in Applications and choose **Open**.
+- **Windows** (when available): run the installer and follow the steps. Windows SmartScreen may warn about an unsigned app; choose **More info → Run anyway**.
+- **Linux** (when available): make the AppImage executable (`chmod +x Mosbius-Co-*.AppImage`) and run it, or install the `.deb` with `sudo apt install ./Mosbius-Co-*.deb`.
+
 ## What it does
 
 - **Many coding agents, one place.** Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI, Grok, Qwen, Kimi Code, OpenCode, Crush, Pi and Antigravity, or any custom command. Each runs as its own process with its own terminal, using the subscriptions and logins you already have.
@@ -21,11 +37,9 @@ A desktop app that runs a crew of coding agents on your own machine, inside a pi
 | ![Barney's apartment](screenshots/barney.png) Barney's apartment | ![The bedrooms](screenshots/bedrooms.png) The bedrooms |
 | ![Columbia](screenshots/columbia.png) Columbia: Architecture 101 | ![Laser tag](screenshots/lasertag.png) Laser tag |
 
-## Install
+## Run from source
 
-**macOS (Apple Silicon).** Build the app yourself (below) or use a DMG from the Releases page when one is published. The app is not yet signed with an Apple Developer ID, so macOS will warn the first time: right-click the app and choose Open.
-
-**From source.** You need Node 22.
+You need Node 22.
 
 ```bash
 git clone https://github.com/rajguruyash/Mosbius-Co.git
