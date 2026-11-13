@@ -56,7 +56,9 @@ function drawShot(ctx: CanvasRenderingContext2D, s: Shot, faces: Map<string, HTM
   const x0 = (w - (fw + gap * (s.who.length - 1))) / 2;
   s.who.forEach((n, i) => {
     const f = faces.get(n)!;
-    ctx.drawImage(f, Math.round(x0 + i * gap), Math.round(h - fh + (s.scene === 'group' && i % 2 ? 3 : 0)), fw, fh);
+    // Marshall stands a head taller than everyone
+    const lift = n === 'marshall' ? Math.round(fh * 0.14) : (s.scene === 'group' && i % 2 ? -3 : 0);
+    ctx.drawImage(f, Math.round(x0 + i * gap), Math.round(h - fh - lift), fw, fh);
   });
   if (s.scene === 'umbrella') {
     const cx = w / 2 + 2, top = h - fh - 16;
