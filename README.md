@@ -10,15 +10,16 @@ A desktop app that runs a crew of coding agents on your own machine, inside a pi
 
 | Platform | Package | Release | Notes |
 |---|---|---|---|
-| **macOS** | `.dmg` (Apple Silicon, ARM64) | [v1.0.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0) | Unsigned and not notarized. Apple Silicon (M1 and later) only. |
-| **Windows** | `.exe` installer (64-bit) | [v1.0.0.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0.0) | Unsigned. Built, but not yet tested on physical Windows hardware. |
-| **Linux** | AppImage / `.deb` | — | Coming soon |
+| **macOS** | `.dmg` (Apple Silicon, ARM64) | [v1.0.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0) | Optimised for Apple Silicon (M1 and later). |
+| **Windows** | `.exe` installer (64-bit) | [v1.0.0.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0.0) | Windows 10/11 (x64). Initial release; community testing welcome. |
+| **Linux** | AppImage / `.deb` | — | Linux support is in development coming soon. |
 
 ### Installing
 
 - **macOS:** open the `.dmg` and drag **Mosbius & Co** into Applications. The app is not yet signed with an Apple Developer ID, so the first time, right-click it in Applications and choose **Open**.
 - **Windows:** run the installer and follow the steps. Windows SmartScreen may warn about an unsigned app; choose **More info → Run anyway**.
 - **Linux** (when available): make the AppImage executable (`chmod +x Mosbius-Co-*.AppImage`) and run it, or install the `.deb` with `sudo apt install ./Mosbius-Co-*.deb`.
+Note: macOS and Windows installers are currently unsigned, so your operating system may display a security prompt during installation.
 
 ## What it does
 
