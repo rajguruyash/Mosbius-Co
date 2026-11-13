@@ -26,6 +26,15 @@ interface Status {
 // Who wears each engine on the floor, purely for flavour.
 const FACE: Record<Status['id'], OfficeCharacterName> = { claude: 'ted', codex: 'marshall', gemini: 'lily' };
 
+// What it takes to use each one. Kept deliberately general: plans and free
+// allowances are set by each provider and change, so this points to them rather
+// than promising numbers.
+const ACCESS: Record<Status['id'], string> = {
+  claude: 'Signs in with your Claude account or an Anthropic API key. Which plans include Claude Code, and their usage limits, are set by Anthropic.',
+  codex: 'Optional. Signs in with your ChatGPT account or an OpenAI API key. Whether your plan includes Codex, and how much, is set by OpenAI; you don\u2019t need it to use Mosbius & Co.',
+  gemini: 'Optional. Signs in with a Google account or a Gemini API key. Google has offered a free tier with daily request limits for personal accounts; check Google\u2019s page for the current limits. You don\u2019t need it to use Mosbius & Co.',
+};
+
 function badge(s: Status): { text: string; bg: string; fg: string } {
   if (s.install === 'not-installed') return { text: 'NOT INSTALLED', bg: '#3d2e4a', fg: '#d9cfe0' };
   if (s.install === 'broken') return { text: 'WON’T START', bg: '#5a2020', fg: '#ffd0c8' };
@@ -87,11 +96,10 @@ export function AgentManager({ compact = false }: { compact?: boolean }): JSX.El
   const ink = '#fff8e7', dim = '#a899b5';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, color: ink }}>
-      {!compact && (
-        <div style={{ color: '#d9cfe0', lineHeight: '18px' }}>
-          Mosbius & Co uses the coding agents already installed on this computer, signed in with their own official logins. It never asks for your password or reads your login files.
-        </div>
-      )}
+      <div style={{ color: compact ? 'var(--cth-ink-900)' : '#d9cfe0', lineHeight: '18px' }}>
+        {!compact && <>Mosbius & Co uses the coding agents already installed on this computer, signed in with their own official logins. It never asks for your password or reads your login files. </>}
+        <b>You only need one.</b> Any single signed-in agent runs the whole crew; the others are optional and nothing installs or signs in unless you click it.
+      </div>
       {!list && <div style={{ color: dim }}>Looking for coding agents on this computer…</div>}
       {list?.map((s) => {
         const b = badge(s);
@@ -105,6 +113,7 @@ export function AgentManager({ compact = false }: { compact?: boolean }): JSX.El
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 11 }}>{s.label.toUpperCase()}</span>
                 <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 7, padding: '3px 6px', background: b.bg, color: b.fg }}>{b.text}</span>
+                {s.id !== 'claude' && s.auth !== 'signed-in' && <span style={{ fontFamily: 'var(--cth-font-display)', fontSize: 7, padding: '3px 6px', boxShadow: 'inset 0 0 0 1px #6b5878', color: '#a899b5' }}>OPTIONAL</span>}
                 {s.version && <span style={{ fontFamily: 'var(--cth-font-mono)', color: dim }}>v{s.version}</span>}
               </div>
               {s.path && <div style={{ fontFamily: 'var(--cth-font-mono)', fontSize: 11, color: dim, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.path}{s.via && s.via !== 'unknown' ? `  ·  via ${s.via}` : ''}</div>}
@@ -113,6 +122,7 @@ export function AgentManager({ compact = false }: { compact?: boolean }): JSX.El
                 <span style={{ color: dim }}> — {s.authHow}</span>
               </div>}
               {s.install === 'not-installed' && <div style={{ marginTop: 3, color: '#d9cfe0' }}>Not found on this computer.</div>}
+              <div style={{ marginTop: 4, color: dim, lineHeight: '16px' }}>{ACCESS[s.id]}</div>
               {s.error && <div style={{ marginTop: 3, color: '#ffb4b4' }}>{s.error}</div>}
               {(busy || (log[s.id]?.length ?? 0) > 0) && (
                 <pre style={{ margin: '6px 0 0', padding: 6, background: '#0f0d14', color: '#b4e5bd', fontSize: 10, lineHeight: '14px', maxHeight: 96, overflow: 'auto', whiteSpace: 'pre-wrap' }}>

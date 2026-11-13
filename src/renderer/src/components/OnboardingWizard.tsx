@@ -369,7 +369,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             {step === 'team' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ fontSize: 13, lineHeight: '20px' }}>
-                  Your crew works through the coding agents already on this computer. Here is who turned up. Install or sign in to the ones you want; you can skip any of them and come back later in Settings → Coding agents.
+                  Your crew works through the coding agents already on this computer. Here is who turned up. You can carry on with just one: skip the rest, or add them later in Settings → Coding agents.
                 </div>
                 <AgentManager compact />
               </div>
