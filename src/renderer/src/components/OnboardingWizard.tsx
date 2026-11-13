@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
+import { AlbumBackdrop } from './AlbumBackdrop';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
 import { Icon, type IconName } from './Icon';
@@ -242,6 +243,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       zIndex: 200,
       padding: 32
     }}>
+      <AlbumBackdrop />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(8, 8, 5, 0.22)', zIndex: -1 }} />
       {/* `margin: auto` centers, NOT `align-items: center`. A centered flex item
           that overflows its container is clipped at the TOP and unreachable by
           scrolling (the overflow spills past the scroll origin); auto margins

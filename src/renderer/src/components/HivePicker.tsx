@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SpritePortrait } from './SpritePortrait';
+import { AlbumBackdrop } from './AlbumBackdrop';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
 import { Icon } from './Icon';
@@ -71,7 +72,9 @@ export function HivePicker({ config, onOpenCurrent }: HivePickerProps) {
       zIndex: 200,
       padding: 32
     }}>
-      <div style={{ width: 560, maxWidth: '94vw' }}>
+      <AlbumBackdrop />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(8, 8, 5, 0.22)', zIndex: -1 }} />
+      <div style={{ width: 560, maxWidth: '94vw', position: 'relative', zIndex: 1, background: 'rgba(8, 8, 5, 0.70)', padding: 14, boxShadow: '0 0 0 2px #2a2410' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
           <div style={{ background: '#969aa6', boxShadow: '0 0 0 2px #1a1320, 0 0 0 4px #3d2e4a', lineHeight: 0, padding: 2 }}>
             <SpritePortrait character="ted" scale={3} />
