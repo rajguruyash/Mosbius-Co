@@ -11,6 +11,7 @@ import { homedir } from 'node:os';
 import { request as httpsRequest } from 'node:https';
 import { PtyManager, type SpawnOptions } from './pty';
 import { resolveCommand as resolveCliCommand, isSafeCommandName } from './shellEnv';
+import { agentStatuses, runAgentAction, openAgentSignIn, type ProviderId } from './agentManager';
 import { initAutoUpdater, abortPendingRestart } from './updater';
 import { RealtimeFloorWatcher } from './realtimeFloorWatcher';
 import {
@@ -3625,6 +3626,22 @@ ipcMain.handle('skills:reveal', (_evt, path: unknown) => {
  * Finder-launched app) and knows whether the palace is initialised, so it is
  * authoritative and reused rather than re-probed differently here.
  */
+// ─── Agent Manager: detect, check sign-in, and run approved actions ──────────
+// The renderer names a provider and an action; the command itself is chosen
+// here, from agentManager's fixed table, and only after the user approved it.
+const AGENT_IDS: ProviderId[] = ['claude', 'codex', 'gemini'];
+ipcMain.handle('agents:status', () => agentStatuses());
+ipcMain.handle('agents:run', async (evt, id: unknown, kind: unknown) => {
+  if (!AGENT_IDS.includes(id as ProviderId) || (kind !== 'install' && kind !== 'update')) return { ok: false, code: -1 };
+  return runAgentAction(id as ProviderId, kind, (line) => {
+    if (!evt.sender.isDestroyed()) evt.sender.send('agents:progress', { id, line });
+  });
+});
+ipcMain.handle('agents:signin', (_evt, id: unknown) => {
+  if (!AGENT_IDS.includes(id as ProviderId)) return { ok: false, how: 'unknown provider' };
+  return openAgentSignIn(id as ProviderId);
+});
+
 ipcMain.handle('tools:status', (): ToolStatus[] => {
   const win = process.platform === 'win32';
   const mem = (() => { try { memory.resetBinCache(); return memory.status(); } catch { return null; } })();

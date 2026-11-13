@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { AlbumBackdrop } from './AlbumBackdrop';
+import { AgentManager } from './AgentManager';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
 import { Icon, type IconName } from './Icon';
@@ -19,7 +20,7 @@ export interface OnboardingWizardProps {
 }
 
 type Audience = 'technical' | 'non-technical';
-type Step = 'persona' | 'welcome' | 'home' | 'orchestrator' | 'repos' | 'permissions' | 'done';
+type Step = 'persona' | 'welcome' | 'team' | 'home' | 'orchestrator' | 'repos' | 'permissions' | 'done';
 
 // First-run showcase "— the highest-value features a brand-new user should grasp
 // before any setup. Labels and copy live in i18n (two registers: `desc` for the
@@ -255,6 +256,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           title={
             step === 'persona' ? t('onboarding.titles.persona')
             : step === 'welcome' ? t('onboarding.titles.welcome')
+            : step === 'team' ? t('onboarding.titles.team')
             : step === 'home' ? (plain ? t('onboarding.titles.homePlain') : t('onboarding.titles.home'))
             : step === 'orchestrator' ? (plain ? t('onboarding.titles.orchestratorPlain') : t('onboarding.titles.orchestrator'))
             : step === 'repos' ? (plain ? t('onboarding.titles.reposPlain') : t('onboarding.titles.repos'))
@@ -362,6 +364,15 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   ))}
                 </div>
               </>
+            )}
+
+            {step === 'team' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 13, lineHeight: '20px' }}>
+                  Your crew works through the coding agents already on this computer. Here is who turned up. Install or sign in to the ones you want; you can skip any of them and come back later in Settings → Coding agents.
+                </div>
+                <AgentManager compact />
+              </div>
             )}
 
             {step === 'home' && (
@@ -873,7 +884,7 @@ function ToggleRow({ icon, label, desc, on, tint, edge, onChange }: {
 }
 
 function Dots({ step }: { step: Step }) {
-  const order: Step[] = ['persona', 'welcome', 'home', 'orchestrator', 'repos', 'permissions'];
+  const order: Step[] = ['persona', 'welcome', 'team', 'home', 'orchestrator', 'repos', 'permissions'];
   return (
     <div style={{ display: 'flex', gap: 4 }}>
       {order.map((s) => (
@@ -889,7 +900,8 @@ function Dots({ step }: { step: Step }) {
 
 function nextStep(s: Step): Step {
   return s === 'persona' ? 'welcome'
-    : s === 'welcome' ? 'home'
+    : s === 'welcome' ? 'team'
+    : s === 'team' ? 'home'
     : s === 'home' ? 'orchestrator'
     : s === 'orchestrator' ? 'repos'
     : s === 'repos' ? 'permissions'
@@ -899,7 +911,8 @@ function prevStep(s: Step): Step {
   return s === 'permissions' ? 'repos'
     : s === 'repos' ? 'orchestrator'
     : s === 'orchestrator' ? 'home'
-    : s === 'home' ? 'welcome'
+    : s === 'home' ? 'team'
+    : s === 'team' ? 'welcome'
     : s === 'welcome' ? 'persona'
     : 'persona';
 }

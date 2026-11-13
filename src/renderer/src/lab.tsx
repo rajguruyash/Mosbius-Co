@@ -33,5 +33,17 @@ if (params.get('live') !== '0') {
 }
 (window as any).lab = useStore;
 
-const { OfficeFloor } = await import('./scene/office/OfficeFloor');
-createRoot(document.getElementById('root')!).render(<OfficeFloor />);
+if (params.get('screen') === 'wizard') {
+  // Replays a status captured from the real Agent Manager (?status=<json>) so the
+  // setup step can be looked at without touching a real workspace.
+  const real = JSON.parse(decodeURIComponent(params.get('status') ?? '[]'));
+  (window as any).cth = new Proxy({}, {
+    get: (_t, prop: string) => prop === 'agentsStatus' ? async () => real
+      : prop.startsWith('on') ? () => () => {} : async () => null,
+  });
+  const { OnboardingWizard } = await import('./components/OnboardingWizard');
+  createRoot(document.getElementById('root')!).render(<OnboardingWizard onComplete={() => {}} />);
+} else {
+  const { OfficeFloor } = await import('./scene/office/OfficeFloor');
+  createRoot(document.getElementById('root')!).render(<OfficeFloor />);
+}

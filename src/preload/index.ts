@@ -1,3 +1,4 @@
+import type { ProviderStatus as AgentProviderStatus } from '../main/agentManager';
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
 import type { AgentProvider } from '../shared/agentProvider';
 import type { HireManifest } from '../shared/hire';
@@ -787,6 +788,17 @@ const api = {
   /** Which external tools (uv, mempalace, git, each agent engine) are actually
    *  present on this machine, with a platform-resolved install command each. */
   toolsStatus: (): Promise<ToolStatus[]> => ipcRenderer.invoke('tools:status'),
+  /** Agent Manager: installed / version / path / sign-in state per coding agent. No personal data. */
+  agentsStatus: (): Promise<AgentProviderStatus[]> => ipcRenderer.invoke('agents:status'),
+  /** Run an install or update the user approved. The command is chosen by the main process. */
+  agentsRun: (id: string, kind: 'install' | 'update'): Promise<{ ok: boolean; code: number }> => ipcRenderer.invoke('agents:run', id, kind),
+  /** Open the provider's own sign-in in a terminal window. */
+  agentsSignIn: (id: string): Promise<{ ok: boolean; how: string }> => ipcRenderer.invoke('agents:signin', id),
+  onAgentsProgress: (cb: (e: { id: string; line: string }) => void): (() => void) => {
+    const h = (_e: unknown, p: { id: string; line: string }) => cb(p);
+    ipcRenderer.on('agents:progress', h);
+    return () => { ipcRenderer.removeListener('agents:progress', h); };
+  },
   /** Settings hero payload — plan + sponsor, fetched from the repo and cached. */
   heroPayload: (force?: boolean): Promise<{ hero: HeroPayload; fetchedAt: number; stale: boolean }> =>
     ipcRenderer.invoke('hero:payload', force),

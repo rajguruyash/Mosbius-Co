@@ -211,7 +211,8 @@
       "autonomyBudgets": "Autonomy & Budgets",
       "connections": "Connections",
       "voice": "Voice",
-      "memoryKnowledge": "Memory & Knowledge"
+      "memoryKnowledge": "Memory & Knowledge",
+      "codingAgents": "Coding agents"
     },
     "changeHome": {
       "newHome": "New home folder",
@@ -587,7 +588,8 @@
       "repos": "STEP 3 OF 4 · YOUR REPOS",
       "reposPlain": "STEP 3 OF 4 · YOUR PROJECTS",
       "permissions": "STEP 4 OF 4 · PERMISSIONS & RELIABILITY",
-      "done": "ALL SET"
+      "done": "ALL SET",
+      "team": "MEET YOUR CODING TEAM"
     },
     "persona": {
       "headline": "A CLONE OF YOU, WORKING 24/7",
