@@ -38,8 +38,6 @@ def portals(w):
         for j in range(i + 1, len(street)):
             pairs.append([street[i], street[j]])
     pairs.append([w.extra['apartment']['fireEscape'], L['rooftop']['door']])
-    # the hall door in the apartment's back wall leads to the bedrooms
-    pairs.append([{'x': L['apartment']['x'] + 8, 'y': L['apartment']['y'] + 3}, L['bedrooms']['door']])
     return pairs
 
 
@@ -103,14 +101,14 @@ def write(w):
     json.dump(tmj, open(os.path.join(OUT_DIR, 'world.tmj'), 'w'))
 
     seat_names = [s['name'] for s in w.seats]
-    primary = ['desk-ceo'] + ['pc-%d' % i for i in range(1, 21)] + ['conf-%d' % i for i in range(1, 7)] + ['roof-%d' % i for i in range(1, 5)] + ['room-1', 'room-2']
+    primary = ['desk-ceo'] + ['pc-%d' % i for i in range(1, 21)] + ['conf-%d' % i for i in range(1, 7)] + ['roof-%d' % i for i in range(1, 5)]
     cafe = ['cafe-seat-%d' % i for i in range(1, 17)]
     missing = [n for n in primary + cafe if n not in seat_names]
     if missing:
         raise SystemExit('MISSING SEATS: ' + ', '.join(missing))
     meta = {
         'tile': T, 'width': WORLD_W, 'height': WORLD_H,
-        'order': ['rooftop', 'apartment', 'bedrooms', 'maclarens', 'gnb', 'barney', 'columbia', 'lasertag'],
+        'order': ['rooftop', 'apartment', 'maclarens', 'gnb', 'barney', 'columbia', 'lasertag'],
         'hq': dict(
             {n: {'boss': w.extra[n]['hq']['boss'], 'seats': w.extra[n]['hq']['seats'], 'cast': w.extra[n]['hq']['cast'][:1]}
              for n in ('barney', 'columbia', 'lasertag')},
@@ -129,6 +127,12 @@ def write(w):
     json.dump(meta, open(os.path.join(OUT_DIR, 'world.json'), 'w'))
     import street
     street.paint().save(os.path.join(OUT_DIR, 'street.png'))
+    # the near handrail, kept apart so a scene can draw it over the cast
+    street.paint_overlay().save(os.path.join(OUT_DIR, 'street-ov.png'))
     street.cab().save(os.path.join(OUT_DIR, 'cab.png'))
+    # Where the pub door, the stoop and Ted's door are on that elevation. The
+    # scene walks characters to these, so the coordinates are exported rather
+    # than copied by hand into a second codebase and left to drift.
+    json.dump(street.ANCHORS, open(os.path.join(OUT_DIR, 'street.json'), 'w'), indent=2)
     print('wrote', OUT_DIR, '| bg', w.bg.img.size, '| atlas', atlas.size, '|', len(occ), 'occluders |',
           len(w.seats), 'seats |', len(w.errands), 'errands | all reachable')

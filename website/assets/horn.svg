@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" width="120" height="100" role="img" aria-label="French horn">
+  <!-- The French blue horn. Drawn here rather than traced from anything: coiled
+       tubing, three valves, a lead pipe and a flared bell, in the app's blue. -->
+  <g fill="none" stroke="#0066CC" stroke-linecap="round" stroke-linejoin="round">
+    <!-- bell: a cone flaring out to the right, filled so it reads at small sizes -->
+    <path d="M62 38 L96 20 Q110 50 96 80 L62 62 Z" fill="#0066CC" stroke-width="3"/>
+    <!-- coiled tubing -->
+    <circle cx="46" cy="50" r="26" stroke-width="7"/>
+    <circle cx="46" cy="50" r="15" stroke-width="6"/>
+    <!-- lead pipe out to the mouthpiece -->
+    <path d="M40 24 C 22 16 8 24 10 38" stroke-width="6"/>
+    <circle cx="10" cy="41" r="4" fill="#0066CC" stroke-width="2"/>
+    <!-- three valve stems across the top of the coil -->
+    <path d="M34 25 L34 14 M46 23 L46 11 M58 26 L58 15" stroke-width="5"/>
+  </g>
+</svg>

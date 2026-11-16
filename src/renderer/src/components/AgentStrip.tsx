@@ -15,7 +15,7 @@ export interface AgentStripProps {
 }
 
 const LOCATION_NAME: Record<string, string> = {
-  rooftop: 'Rooftop', apartment: 'Ted\u2019s place', bedrooms: 'Bedrooms', maclarens: 'MacLaren\u2019s', gnb: 'GNB',
+  rooftop: 'Rooftop', apartment: 'Ted\u2019s place', maclarens: 'MacLaren\u2019s', gnb: 'GNB',
   barney: 'Barney\u2019s', columbia: 'Columbia', lasertag: 'Laser tag',
 };
 

@@ -391,8 +391,9 @@ test('reset cleanup removes only exposed Munder rollouts', (t) => {
 });
 
 test('Gemini gets isolated lifecycle settings and an interactive protocol seed', async (t) => {
-  const home = tmpHome();
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  // The person's home is redirected: the agent's own Gemini home is built from THEIR ~/.gemini, which a test must not read.
+  const { home: userHome, harness } = isolatedHomes(t);
+  const home = harness;
   const hive = new HiveManager(() => home);
   const injection = await hive.ensureAgent({
     id: 'gemini-1',
@@ -401,9 +402,14 @@ test('Gemini gets isolated lifecycle settings and an interactive protocol seed',
     cwd: home
   });
 
-  const settingsPath = injection.env.GEMINI_CLI_SYSTEM_SETTINGS_PATH;
-  assert.equal(typeof settingsPath, 'string');
-  assert.ok(settingsPath.startsWith(path.join(home, 'hive', 'agents', 'gemini-1')));
+  // Measured on Gemini CLI 0.68.0: a SYSTEM settings file is refused unless its parent directories are owned by root, so
+  // the lifecycle settings live in the user layer of an isolated GEMINI_CLI_HOME instead (see installGeminiHooks).
+  assert.equal('GEMINI_CLI_SYSTEM_SETTINGS_PATH' in injection.env, false);
+  const geminiHome = injection.env.GEMINI_CLI_HOME;
+  assert.equal(typeof geminiHome, 'string');
+  assert.ok(geminiHome.startsWith(path.join(home, 'hive', 'agents', 'gemini-1')));
+  assert.equal(injection.env.GEMINI_CLI_TRUSTED_FOLDERS_PATH, path.join(userHome, '.gemini', 'trustedFolders.json'));
+  const settingsPath = path.join(geminiHome, '.gemini', 'settings.json');
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   assert.deepEqual(
     Object.keys(settings.hooks),

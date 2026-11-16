@@ -8,14 +8,24 @@ import {
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { join, resolve, sep, basename, dirname, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { request as httpsRequest } from 'node:https';
 import { PtyManager, type SpawnOptions } from './pty';
-import { resolveCommand as resolveCliCommand, isSafeCommandName } from './shellEnv';
-import { agentStatuses, runAgentAction, openAgentSignIn, type ProviderId } from './agentManager';
+import { resolveCommand as resolveCliCommand, isSafeCommandName, userShellPath } from './shellEnv';
+import { agentStatuses, runAgentAction, openAgentSignIn, runMcpSignIn, cancelMcpSignIn, type ProviderId } from './agentManager';
+import { McpAuthVault, bridgeArgs, revokeAtProvider } from './mcpAuthVault';
+import { disconnectBridged, removeSecrets } from './mcpDisconnect';
+import { engineFor } from './mcpEngine';
+import { OAuthController } from './oauth/controller';
+import { safeLog } from './oauth/types';
+import {
+  MCP_CATALOG, mcpCatalogEntry, mcpNeedsSecret, mcpNeedsOauthClient, mcpSecretRefs, mcpPackageOf
+} from '../shared/mcpCatalog';
 import { initAutoUpdater, abortPendingRestart } from './updater';
 import { RealtimeFloorWatcher } from './realtimeFloorWatcher';
 import {
-  readConfig, writeConfig, setAgentTokenCap, resetConfig, onConfigWritten, ensureHarnessHome, ensureClaudePermissionsAccepted,
+  readConfig, writeConfig, setAgentTokenCap, setMcpEngineFor, setMcpGrants, setRestGrants, setConnectClientId, setMcpTrustHints, resetConfig, onConfigWritten, ensureHarnessHome, ensureClaudePermissionsAccepted,
+  setScrubSecretsOnWrite,
   modelForRole, OPS_STANDUP_MISSION, HEARTBEAT_MISSION, COMPACT_MAINTENANCE_MISSION, type HarnessConfig, type ScheduledMission
 } from './config';
 import { listDir, readFileText, readFileBinary, writeFileText, statAbs, expandTilde } from './fs';
@@ -60,6 +70,27 @@ import { CostLedgerTotals } from './costLifetime';
 import { analytics, isRendererMessageSurface } from './analytics';
 import type { SpawnFailReason } from './analytics';
 import { IntegrationBroker } from './integrationBroker';
+import { AuditLog } from './broker/audit';
+import { AuditStore, type AuditInput } from './broker/audit-store';
+import { StdioHost, type StdioLaunch } from './broker/stdio-host';
+import { DISCOVERY_AGENT } from './broker/mcp-route';
+import { PackageStore, type EnsureResult } from './mcpPackages';
+import { createMcpCredentialProvider, localServerEnv, localServerSecrets, serverBaseEnv } from './mcpCredentials';
+import { ConnectionManager } from './connect/manager';
+import { isPlausibleClientId, type ConnectMethod } from '../shared/connect';
+import { resolveLaunch } from './mcpLaunch';
+import type { ConnectionState } from './oauth/provider';
+import type { McpGrants } from './broker/permissions';
+import { isTrustedSender } from './ipcSender';
+import {
+  WEBHOOK_ID_RE, hasWebhookSecret, migrateSecretsToVault, publicConfig, publicWebhooks, readConfigSecret,
+  readWebhookSecret, webhookSecretRef, configSecretRef, withoutSecretKeys,
+  type ConfigSecretName, type SecretVault
+} from './configSecrets';
+import {
+  applyGrantUpdate, brokerExposure, eligibleIntegrationIds, mcpIntegrationFor, noLongerServed, restEligibleIds,
+  sanitizeMcpGrants, sanitizeRestGrants, withoutGrantsFor, withoutProtectedKeys
+} from './mcpWiring';
 import * as integrations from './integrations';
 import { validateBaseUrl, buildAuthHeaders, resolveUpstreamUrl, secretRefFor, INTEGRATION_TEMPLATES } from '../shared/integrations';
 import { RosterStore } from './roster';
@@ -84,6 +115,8 @@ import { buildMissingCliScript, chooseInstallRung } from './cliInstall';
 import { detectNodeVersion, nodeIsUsable, resolveNodeInstaller } from './nodeInstall';
 import { toolCatalog, type ToolStatus } from '../shared/toolCatalog';
 import { listLocalSkills, loadCatalog, installSkill, uninstallSkill, type LocalSkill } from './skills';
+import { applyUpdate as applySkillUpdate, checkUpdate as checkSkillUpdate, discardUpdate as discardSkillUpdate, forgetSkillRecord, listManagedSkills, rollbackSkill, verifySkill, type ManagerDeps } from './skillManager';
+import { agentsForTarget, type SkillTarget } from '../shared/agentCompat';
 import { loadHero } from './hero';
 import { loadModelCatalog } from './modelCatalog';
 import {
@@ -384,13 +417,288 @@ interface WorkerRec {
  *  force-removed) when it holds unintegrated work — god is the sole integrator. */
 const liveWorkers = new Map<string, WorkerRec>();
 
-/** The loopback secret broker (Phase 2). Workers reach registered integrations through
- *  it without ever seeing a credential. getRecord/getSecret are injected so the broker
+/** The loopback broker. Workers reach registered REST integrations through it without
+ *  ever seeing a credential, and (when an integration's engine is `broker`) agents reach
+ *  its MCP server through it the same way. getRecord/getSecret are injected so the broker
  *  stays electron-free + unit-testable. Started in bootstrapHiveServices; each worker is
- *  granted a per-worker capability token at spawn (revoked in teardownPty). */
+ *  granted a per-worker REST capability at spawn, each Claude agent an MCP capability
+ *  (both revoked in teardownPty).
+ *
+ *  The MCP route serves ONLY integrations whose engine is `broker`, whose consent is ON,
+ *  and for which the agent holds a grant; every integration starts with none of these.
+ *  The credential is the in-app OAuth engine's token provider, defined further down:
+ *  these closures only run when a request arrives, long after it exists. */
+const mcpAudit = new AuditLog();
+
+/**
+ * The durable audit trail (src/main/broker/audit-store.ts): an append-only, hash-chained
+ * file in the app's data folder, so what agents were allowed or refused, and what the
+ * user changed, outlives a restart. Metadata only. Created on first use because the key
+ * that seals its chain lives in the encrypted store, which needs the app to be ready.
+ */
+let auditStoreInst: AuditStore | null = null;
+function auditStore(): AuditStore {
+  if (auditStoreInst) return auditStoreInst;
+  let key: Buffer | undefined;
+  try {
+    const stored = integrations.getSecret('audit:key');
+    if (stored) key = Buffer.from(stored, 'base64');
+    else if (integrations.encryptionIsReal()) {
+      const fresh = randomBytes(32);
+      if (integrations.setSecret('audit:key', fresh.toString('base64')).ok) key = fresh;
+    }
+  } catch { /* an unkeyed chain is still a chain */ }
+  // The anchor (src/main/broker/audit-store.ts) is also kept in the encrypted store, out of reach of
+  // anyone who can edit the log folder: that is what lets a cut-off tail or a deleted file be noticed.
+  auditStoreInst = new AuditStore({
+    dir: join(app.getPath('userData'), 'audit'), key,
+    anchor: {
+      read: () => integrations.getSecret('audit:head'),
+      write: (v) => integrations.setSecret('audit:head', v).ok
+    }
+  });
+  return auditStoreInst;
+}
+/** Record one audit event. Never throws and never blocks anything else. */
+function recordAudit(e: AuditInput): void {
+  try { auditStore().append(e); } catch { /* the trail must never break what it records */ }
+}
+// Every credential the user stores or removes leaves a record, whichever screen did it. The
+// observer is handed the REF (a name such as `mcp:github`), never a value. Sign-in tokens
+// that the app rotates by itself (`:oauth`, `:tokens`) and the audit key are not events.
+integrations.setSecretObserver((ref, change) => {
+  if (ref === 'audit:key' || ref === 'audit:head' || /:(oauth|tokens)$/.test(ref)) return;
+  recordAudit({ kind: 'secret', actor: 'user', action: change, detail: ref });
+});
+
+// ─── Secrets that used to sit in config.json (F2; see configSecrets.ts) ─────────────────
+// The Slack signing secret and bot token, the Groq key, the org key and every webhook
+// endpoint's secret live in the encrypted store under `cfg:*`. Main code reads them with
+// the two helpers below; the renderer is only ever given `forRenderer(...)`, a config with
+// no secret value in it.
+const cfgVault: SecretVault = {
+  get: (ref) => integrations.getSecret(ref),
+  set: (ref, value) => integrations.setSecret(ref, value),
+  has: (ref) => integrations.hasSecret(ref),
+  delete: (ref) => integrations.deleteSecret(ref),
+  available: () => { try { return integrations.encryptionIsReal(); } catch { return false; } }
+};
+type StoredCfg = Record<string, unknown>;
+const storedCfg = (): StoredCfg => readConfig() as unknown as StoredCfg;
+/** MAIN-ONLY: a secret the config used to hold. The vault first, then any plaintext an
+ *  unmigrated file still has. */
+const cfgSecret = (name: ConfigSecretName): string | undefined => readConfigSecret(name, storedCfg(), cfgVault);
+const webhookSecretOf = (id: string): string | undefined => readWebhookSecret(id, storedCfg(), cfgVault);
+/** The config as a window may see it: no secret value anywhere, plus `secretsSet` booleans. */
+const forRenderer = (cfg?: HarnessConfig): ReturnType<typeof publicConfig<HarnessConfig>> =>
+  publicConfig(cfg ?? readConfig(), cfgVault);
+/**
+ * Startup, once: move every plaintext secret in config.json into the encrypted store. The
+ * plaintext is dropped only for a secret whose stored copy reads back; one that cannot be
+ * stored (no OS encryption, a Keychain that said no) stays where it is, the app keeps
+ * working with it, and the Settings screen is told (`secretsSet.plaintextRemaining`). Only
+ * when nothing is left behind does config.json start being written WITHOUT the secret
+ * fields; before that, a write keeps what the file held rather than lose the only copy.
+ */
+function migrateConfigSecretsAtStartup(): void {
+  try {
+    const r = migrateSecretsToVault(storedCfg(), cfgVault);
+    if (Object.keys(r.patch).length > 0) writeConfig(r.patch as Partial<HarnessConfig>);
+    setScrubSecretsOnWrite(r.failed.length === 0);
+    if (r.moved.length > 0) {
+      recordAudit({ kind: 'secret', actor: 'system', action: 'migrated', count: r.moved.length, detail: 'config secrets moved to the encrypted store' });
+    }
+    if (r.failed.length > 0) {
+      console.error(`[secrets] ${r.failed.length} secret(s) could not be moved to the encrypted store and were left in config.json`);
+    }
+  } catch (e) {
+    console.error('[secrets] migration failed:', e instanceof Error ? e.message : 'error');
+  }
+}
+/** Set (non-empty string), clear (null) or leave alone (anything else) one of the named secrets.
+ *  An empty string is "unchanged", never "clear": a form that was not touched must not wipe a key. */
+function applyConfigSecret(name: ConfigSecretName, value: unknown): { ok: boolean; error?: string } {
+  const ref = configSecretRef(name);
+  if (value === null) {
+    const r = integrations.deleteSecret(ref);
+    return r.ok ? { ok: true } : { ok: false, error: r.error ?? 'could not remove' };
+  }
+  if (typeof value !== 'string' || !value.trim()) return { ok: true };
+  const r = integrations.setSecret(ref, value.trim());
+  return r.ok ? { ok: true } : { ok: false, error: r.error ?? 'could not save' };
+}
+let brokerConfigCache: { at: number; value: HarnessConfig } | null = null;
+/** The config as the broker reads it on every request: re-read after any write (below)
+ *  and at least every two seconds, so a grant or a switch takes effect on the next call. */
+function brokerConfig(): HarnessConfig {
+  const now = Date.now();
+  if (!brokerConfigCache || now - brokerConfigCache.at > 2000) brokerConfigCache = { at: now, value: readConfig() };
+  return brokerConfigCache.value;
+}
+let grantsMemo: { cfg: HarnessConfig; value: McpGrants } | null = null;
+function currentMcpGrants(): McpGrants {
+  const cfg = brokerConfig();
+  if (!grantsMemo || grantsMemo.cfg !== cfg) grantsMemo = { cfg, value: sanitizeMcpGrants(cfg.mcpGrants) };
+  return grantsMemo.value;
+}
+// ─── Local MCP servers: installed from a pinned lock, run BY THE APP (Stage B, F1 + F4) ───────────
+// An agent never starts one of these. The app installs each package from the hash-pinned lock in
+// resources/mcp-locks into its own folder, starts it as a child of THIS process with only the
+// environment it needs (and its own credential, if it has one), and the agent reaches it through the
+// broker. See src/main/mcpPackages.ts and src/main/broker/stdio-host.ts.
+const mcpLocksRoot = (): string =>
+  app.isPackaged ? join(process.resourcesPath, 'mcp-locks') : join(app.getAppPath(), 'resources', 'mcp-locks');
+const whichTool = (name: string): string | undefined => {
+  const found = resolveCliCommand(name);
+  return found !== name ? found : undefined;
+};
+const packageStore = new PackageStore({
+  root: join(app.getPath('userData'), 'mcp-packages'),
+  locksRoot: mcpLocksRoot(),
+  which: (name) => whichTool(name),
+  // an installer gets the same short allow-list as a server, never the app's whole environment
+  env: () => serverBaseEnv(process.env, userShellPath())
+});
+/** Each agent's working directory, for the servers the app runs for it (`<cwd>` and roots). */
+const agentCwds = new Map<string, string>();
+const mcpScratchDir = (): string => {
+  const d = join(app.getPath('userData'), 'mcp-scratch');
+  try { mkdirSync(d, { recursive: true, mode: 0o700 }); } catch { /* the launch will fail without it */ }
+  return d;
+};
+/** How to start a local server for one agent, or undefined when it must not run: switched off,
+ *  not installed from the lock, no workspace known, or its credential missing. */
+function launchFor(integrationId: string, agentId: string): StdioLaunch | undefined {
+  const entry = mcpCatalogEntry(integrationId);
+  if (!entry || entry.spec.transport === 'http' || entry.spec.transport === 'bridge') return undefined;
+  if (readConfig().mcpDefaults?.[integrationId]?.enabled !== true) return undefined;
+  const installed = packageStore.readyLaunch(integrationId, entry.spec.package);
+  if (!installed) return undefined;
+  const cwd = agentId === DISCOVERY_AGENT ? mcpScratchDir() : agentCwds.get(agentId);
+  if (!cwd) return undefined;
+  // The environment is an allow-list with no credential in it. The credential, if the server has one,
+  // goes down a private pipe and is set inside the server process (see mcpLaunch.ts).
+  const env = localServerEnv(entry, process.env, userShellPath());
+  const secrets = localServerSecrets(entry, integrations.getSecret(`mcp:${integrationId}`));
+  if (!env || !secrets) return undefined;
+  return resolveLaunch(entry, installed, cwd, env, secrets);
+}
+const stdioHost = new StdioHost({ launch: launchFor });
+/** Whether the broker can serve an integration to a NEW agent right now. */
+function mcpStatusOf(id: string): ConnectionState {
+  const entry = mcpCatalogEntry(id);
+  if (!entry) return 'unconfigured';
+  if (entry.spec.transport === 'bridge') return oauthController.status(id);
+  if (entry.spec.transport === 'http' && entry.spec.connect) {
+    // signed in with an account, or (where the server takes one) a stored token
+    const st = connections.status(id);
+    if (st === 'connected') return 'connected';
+    if (entry.spec.secretHeader && integrations.hasSecret(`mcp:${id}`)) return 'connected';
+    return st === 'signed-out' ? 'unconfigured' : st;
+  }
+  if (mcpNeedsSecret(entry) && !integrations.hasSecret(`mcp:${id}`)) return 'unconfigured';
+  if (entry.spec.transport !== 'http' && !packageStore.readyLaunch(id, entry.spec.package)) return 'unconfigured';
+  return 'connected';
+}
+/** Install a local server from its lock, and say in the audit trail how that went. */
+async function ensureLocalServer(id: string): Promise<EnsureResult> {
+  const entry = mcpCatalogEntry(id);
+  const pkg = entry ? mcpPackageOf(entry) : undefined;
+  if (!entry || !pkg) return { ok: false, error: 'no-lock' };
+  const r = await packageStore.ensure(id, pkg);
+  recordAudit({
+    kind: 'integration', actor: 'system', integrationId: id, action: 'install',
+    decision: r.ok ? 'allow' : 'deny', reason: r.ok ? undefined : r.error, detail: `${pkg.name}@${pkg.version}`
+  });
+  return r;
+}
+function ensureConsentedLocalServers(): void {
+  for (const e of MCP_CATALOG) {
+    const pkg = mcpPackageOf(e);
+    if (pkg && readConfig().mcpDefaults?.[e.id]?.enabled === true && !packageStore.readyLaunch(e.id, pkg)) void ensureLocalServer(e.id);
+  }
+}
+
+let restGrantsMemo: { cfg: HarnessConfig; value: McpGrants } | null = null;
+/** The REST grants as the broker reads them on every request (same rule as the MCP ones). */
+function currentRestGrants(): McpGrants {
+  const cfg = brokerConfig();
+  if (!restGrantsMemo || restGrantsMemo.cfg !== cfg) restGrantsMemo = { cfg, value: sanitizeRestGrants(cfg.restGrants) };
+  return restGrantsMemo.value;
+}
 const integrationBroker = new IntegrationBroker({
   getRecord: integrations.getRecord,
   getSecret: integrations.getSecret
+}, {
+  // A worker reaches a REST integration only through a grant that covers each request's
+  // method and path; every request, allowed or refused, is recorded (metadata only).
+  rest: {
+    grants: currentRestGrants,
+    audit: (e) => recordAudit({
+      kind: 'rest', actor: `agent:${e.agentId}`, agentId: e.agentId, integrationId: e.integrationId,
+      action: `${e.method} ${e.path}`, decision: e.decision, reason: e.reason
+    })
+  },
+  mcp: {
+    resolve: (id) => mcpIntegrationFor(id, brokerConfig()),
+    // Where each kind of server gets its credential (src/main/mcpCredentials.ts): the OAuth engine,
+    // a header the BROKER adds on its own request to GitHub, or nothing at all because an app-run
+    // server holds its own in its own environment. The agent holds none of them.
+    credentials: createMcpCredentialProvider({
+      entry: mcpCatalogEntry,
+      token: (id) => integrations.getSecret(`mcp:${id}`),
+      oauth: {
+        accessHeaders: (subject) => oauthController.provider.accessHeaders(subject),
+        rejected: (subject, used) => oauthController.provider.rejected(subject, used)
+      },
+      connections: {
+        status: (id) => connections.status(id),
+        accessHeaders: (subject) => connections.accessHeaders(subject),
+        rejected: (subject, used) => connections.rejected(subject, used)
+      }
+    }),
+    hosted: {
+      handle: (integrationId, agentId, body, signal) => stdioHost.handle(integrationId, agentId, body, signal),
+      close: (agentId, integrationId) => stdioHost.close(agentId, integrationId)
+    },
+    grants: currentMcpGrants,
+    audit: (e) => {
+      mcpAudit.push(e);
+      recordAudit({
+        kind: 'mcp', actor: `agent:${e.agentId}`, agentId: e.agentId, integrationId: e.integrationId,
+        action: e.tool ?? e.method, decision: e.decision, reason: e.reason
+      });
+    }
+  }
+});
+/** Which agent (hive id) holds the MCP capability, and for which PTY: a PTY that is torn
+ *  down after its agent has been respawned must not revoke the NEW process's capability. */
+const mcpCapabilityOwner = new Map<string, string>();
+/** Integrations that were on the in-app engine with consent, by id: when one stops being
+ *  so (switched off, or back to the bridge) agent access ends at once, not at the next request. */
+let exposure: Record<string, boolean> | null = null;
+/** Which servers the user has switched on, as last seen: a change to it is audited. */
+const consentOf = (cfg: HarnessConfig): Record<string, boolean> =>
+  Object.fromEntries(MCP_CATALOG.map((e) => [e.id, cfg.mcpDefaults?.[e.id]?.enabled === true]));
+let lastConsent: Record<string, boolean> | null = (() => { try { return consentOf(readConfig()); } catch { return null; } })();
+onConfigWritten((cfg) => {
+  brokerConfigCache = null;
+  const next = brokerExposure(cfg);
+  for (const id of noLongerServed(exposure, next)) {
+    try { integrationBroker.revokeIntegration(id); } catch { /* best-effort */ }
+  }
+  exposure = next;
+  const consent = consentOf(cfg);
+  if (lastConsent) {
+    for (const id of Object.keys(consent)) {
+      if (consent[id] !== lastConsent[id]) {
+        recordAudit({ kind: 'consent', actor: 'user', integrationId: id, action: consent[id] ? 'on' : 'off' });
+        // Switching a local server ON installs it (from the pinned lock) in the background.
+        if (consent[id]) { const e = mcpCatalogEntry(id); if (e && mcpPackageOf(e)) void ensureLocalServer(id); }
+      }
+    }
+  }
+  lastConsent = consent;
 });
 
 /** BYOK backend model-providers whose API keys the non-Claude CLI engines
@@ -442,6 +750,9 @@ const preservedWorktrees = new Map<string, PreservedWorktree>();
  * handler or node-pty's onExit).
  */
 function teardownPty(id: string): void {
+  // Seal and wipe the plaintext tokens of any bridged MCP server this PTY was
+  // the last user of. First, so no later step can skip it.
+  try { mcpVault.release(id); } catch (e) { console.error('[mcp] vault release failed:', e instanceof Error ? e.message : 'error'); }
   // Ephemeral-worker flag, read BEFORE the cleanup below deletes the entry. All
   // worker deaths (done-release, idle/token reap, manual stop, crash) funnel
   // through here, so this is the one place their floor card gets archived
@@ -451,6 +762,18 @@ function teardownPty(id: string): void {
   // 0) Revoke this id's broker capability (if any). Idempotent + harmless for a
   //    non-worker PTY; ensures a dead worker's token can never reach an integration.
   try { integrationBroker.revoke(id); } catch { /* best-effort */ }
+  //    ...and its MCP capability, and the config file that carries it. Only if THIS PTY is the
+  //    one that holds it: a respawn of the same agent may already have minted a newer one.
+  try {
+    const agent = ptyToAgent.get(id);
+    if (agent && mcpCapabilityOwner.get(agent) === id) {
+      mcpCapabilityOwner.delete(agent);
+      integrationBroker.revokeMcp(agent);
+      hive.removeMcpConfig(agent);
+      agentCwds.delete(agent);
+      recordAudit({ kind: 'capability', actor: 'system', agentId: agent, action: 'revoke' });
+    }
+  } catch { /* best-effort */ }
   // 1) Archive the agent — retained + flagged; only live-PTY agents are active.
   const agentId = ptyToAgent.get(id);
   if (agentId) {
@@ -1611,7 +1934,7 @@ function slackDoneSummary(task: HiveTask): string {
  *  never throw into the timer, and the bot token never leaves this function. */
 async function pollSlackDoneTasks(): Promise<void> {
   if (slackDonePolling) return;
-  const botToken = readConfig().slackBotToken;
+  const botToken = cfgSecret('slackBotToken');
   if (!botToken) return; // can't post without the token — nothing to do
   let tasks: HiveTask[];
   try {
@@ -1688,13 +2011,14 @@ function stopSlackDoneObserver(): void {
  *  disabled or the signing secret is unset. */
 async function startSlackServer(): Promise<{ ok: boolean; url?: string; error?: string }> {
   const cfg = readConfig();
-  if (!cfg.slackEnabled || !cfg.slackSigningSecret) {
+  const signingSecret = cfgSecret('slackSigningSecret');
+  if (!cfg.slackEnabled || !signingSecret) {
     return { ok: false, error: 'slack disabled or missing signing secret' };
   }
   slackServer?.stop();
   slackServer = new SlackWebhookServer({
     port: cfg.slackPort && cfg.slackPort > 0 ? cfg.slackPort : 3847,
-    signingSecret: cfg.slackSigningSecret,
+    signingSecret,
     channelId: cfg.slackChannelId,
     // Fires from the HTTP server's event loop (not the IPC thread); route through
     // liveWebContents() so a message arriving during window teardown can't throw.
@@ -1702,7 +2026,7 @@ async function startSlackServer(): Promise<{ ok: boolean; url?: string; error?: 
     onMessage: async (m) => {
       const localFiles = await downloadSlackFiles(
         m._rawFiles ?? [],
-        readConfig().slackBotToken
+        cfgSecret('slackBotToken')
       );
       // `text` stays the user's RAW Slack text → drives the readable kanban card
       // title. `autonomyPreamble` is the authoritative policy block the renderer
@@ -1744,7 +2068,7 @@ async function startSlackReplyServer(): Promise<void> {
   const token = randomBytes(24).toString('hex');
   slackReplyServer = new SlackReplyServer({
     token,
-    getBotToken: () => readConfig().slackBotToken,
+    getBotToken: () => cfgSecret('slackBotToken'),
     // An agent posted a DIRECT substantive reply into this thread → record it so the
     // done-summary poller skips it (the poller is a fallback, not a duplicator).
     onReplied: (thread_ts) => { directlyRepliedThreads.add(thread_ts); }
@@ -1791,8 +2115,16 @@ const WEBHOOK_DEFAULT_PORT = 3849;
 /** The endpoints the operator has switched on. A disabled webhook is not merely
  *  rejected at the door — it is never handed to the server, so its id does not
  *  exist on the wire and its secret is not in memory on the request path. */
-function enabledWebhookEndpoints(): WebhookTrigger[] {
-  return (readConfig().webhookTriggers ?? []).filter((t) => t.enabled && !!t.secret);
+function enabledWebhookEndpoints(): Array<WebhookTrigger & { secret: string }> {
+  // The secret is attached here, from the encrypted store, and goes straight to the server:
+  // the stored list has none, and this copy never leaves the main process.
+  const out: Array<WebhookTrigger & { secret: string }> = [];
+  for (const t of readConfig().webhookTriggers ?? []) {
+    if (!t.enabled) continue;
+    const secret = webhookSecretOf(t.id);
+    if (secret) out.push({ ...t, secret });
+  }
+  return out;
 }
 
 /** SHA-256 hex of a capability token. The raw token is returned to the caller
@@ -2642,6 +2974,8 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   // record and downstream provider-aware steps agree on one value.
   const provider = inferAgentProvider(opts.command, opts.provider ?? opts.hive?.provider);
   const claudeProvider = isClaudeProvider(provider);
+  const codexProvider = provider === 'codex';
+  const geminiProvider = provider === 'gemini';
   opts.provider = provider;
   if (opts.hive) opts.hive = { ...opts.hive, provider };
   // Activation-funnel entry (v0.4.6): every spawn REQUEST, so (attempted − spawned)
@@ -2776,6 +3110,33 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   // seedDelivery:'type-into-tui') rather than passed on argv. Surfaced in the spawn
   // result so the renderer types it through the per-pty write-chain. (ondev-b)
   let seedPrompt: string | undefined;
+  // The in-app MCP broker: a Claude agent is given an entry for an integration only when its
+  // engine is `broker`, the user switched it ON, signed in, and granted THIS agent some access.
+  // What it holds is a capability (a revocable handle for this one agent), never a credential.
+  let mcpToken: string | undefined;
+  let mcpIds: string[] = [];
+  const dropMcpCapability = (): void => {
+    if (!opts.hive?.id || mcpToken === undefined) return;
+    try {
+      if (mcpCapabilityOwner.get(opts.hive.id) === opts.id) {
+        mcpCapabilityOwner.delete(opts.hive.id);
+        integrationBroker.revokeMcp(opts.hive.id);
+        hive.removeMcpConfig(opts.hive.id);
+      }
+    } catch { /* best-effort */ }
+    mcpToken = undefined;
+  };
+  if (opts.hive && hive.enabled() && (claudeProvider || codexProvider || geminiProvider) && integrationBroker.running()) {
+    try {
+      mcpIds = eligibleIntegrationIds(readConfig(), opts.hive.id, mcpStatusOf, Date.now());
+      if (mcpIds.length > 0) {
+        agentCwds.set(opts.hive.id, opts.cwd);          // where the app-run servers for this agent work
+        mcpToken = integrationBroker.grantMcp(opts.hive.id, mcpIds);
+        mcpCapabilityOwner.set(opts.hive.id, opts.id);
+        recordAudit({ kind: 'capability', actor: 'system', agentId: opts.hive.id, action: 'grant', detail: mcpIds.join(','), count: mcpIds.length });
+      }
+    } catch (e) { mcpToken = undefined; console.error('[mcp] capability not minted:', e instanceof Error ? e.message : 'error'); }
+  }
   if (opts.hive && hive.enabled()) {
     try {
       const inj = await hive.ensureAgent(
@@ -2791,6 +3152,26 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
           theme: readConfig().terminalTheme ?? 'light',
           // W3 — default-MCP consent state + the bundled skills source dir.
           mcpDefaults: readConfig().mcpDefaults,
+          // A bridged server reads its OAuth client and tokens from the vault,
+          // which writes them out for the life of this PTY and seals them again
+          // in teardownPty. Nothing is handed over until the user has signed in.
+          mcpBridge: (catalogId: string) => {
+            const entry = mcpCatalogEntry(catalogId);
+            if (!entry || entry.spec.transport !== 'bridge') return undefined;
+            // An integration on the in-app engine never reaches mcp-remote: no client file,
+            // no token file, no bridge process. (Agent access through the broker is a later phase.)
+            if (engineFor(readConfig(), entry) === 'broker') return undefined;
+            const client = mcpOauthClient(catalogId);
+            return client ? mcpVault.checkout(catalogId, opts.id, client, entry.spec.scope) : undefined;
+          },
+          // the secret store's backup mirrors the same ciphertext, so it is denied too
+          // An integration on the in-app engine: the broker's loopback address and this agent's
+          // capability, and nothing else. Not written at all unless the agent was granted access.
+          mcpBroker: (catalogId: string) =>
+            mcpToken !== undefined && mcpIds.includes(catalogId) && integrationBroker.running()
+              ? { url: `${integrationBroker.url()}/m/${catalogId}`, authorization: `Bearer ${mcpToken}` }
+              : undefined,
+          denyReadPaths: [mcpVault.root(), integrations.secretsFilePath(), `${integrations.secretsFilePath()}.bak`],
           skillsDir: skillsResourceDir(),
           // The shared palace is mutated by the agent's own `mempalace` calls, so
           // the OS sandbox must let it through (empty when memory is off).
@@ -2809,6 +3190,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
     } catch (e) {
       // Hive provisioning is best-effort; never block a spawn on it.
       console.error('[hive] ensureAgent failed:', e);
+      dropMcpCapability();
     }
   }
   // Long-run guardrails + tiering (Lane A #6.4/#6.6). All additive to the args
@@ -2934,6 +3316,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
     }
   }
   if (opts.requireResume === true && !didResume) {
+    dropMcpCapability();
     return {
       ok: false,
       error: 'Existing session could not be resumed; no replacement process was started.',
@@ -3023,6 +3406,8 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   const res = ptyManager.spawn(opts, owner);
   if (res.ok) analytics.track('agent_spawned', { provider });
   else analytics.track('agent_spawn_failed', { provider, reason: spawnFailReason(res.error) });
+  // A process that did not start holds no capability: take the one minted for it back at once.
+  if (!res.ok) dropMcpCapability();
   syncKeepAwake(); // arm the power-save blocker while ≥1 agent PTY is alive (#18)
   // Hand the resolved worktree path back to the renderer so it can persist it on
   // the agent (only set when isolation actually provisioned a worktree above).
@@ -3138,7 +3523,15 @@ ipcMain.handle('terminal:openAtFolder', async (_evt, cwd: unknown) => {
 // returned over IPC. `list` redacts secretRef to a `hasSecret` boolean.
 ipcMain.handle('integrations:list', () => integrations.listRecordsRedacted());
 ipcMain.handle('integrations:templates', () => INTEGRATION_TEMPLATES);
-ipcMain.handle('integrations:upsert', (_evt, record: unknown) => integrations.upsertRecord(record));
+ipcMain.handle('integrations:upsert', (_evt, record: unknown) => {
+  const r = integrations.upsertRecord(record);
+  if (r.ok) {
+    recordAudit({ kind: 'integration', actor: 'user', integrationId: r.record.id, action: r.record.enabled ? 'enable' : 'disable' });
+    // Switching one off takes it away from every worker at once.
+    if (!r.record.enabled) { try { integrationBroker.revokeIntegration(r.record.id); } catch { /* best-effort */ } }
+  }
+  return r;
+});
 ipcMain.handle('integrations:setSecret', (_evt, payload: unknown) => {
   const p = (payload ?? {}) as { id?: unknown; secret?: unknown };
   if (typeof p.id !== 'string' || !p.id) return { ok: false, error: 'id required' };
@@ -3148,8 +3541,36 @@ ipcMain.handle('integrations:setSecret', (_evt, payload: unknown) => {
 ipcMain.handle('integrations:remove', (_evt, payload: unknown) => {
   const p = (payload ?? {}) as { id?: unknown };
   if (typeof p.id !== 'string' || !p.id) return { ok: false, error: 'id required' };
-  return integrations.removeRecord(p.id);
+  const removed = integrations.removeRecord(p.id);
+  if (removed.ok) {
+    // Gone means gone: workers lose it now, and its grants go with it (a later integration that
+    // reuses the id must not inherit them).
+    try { integrationBroker.revokeIntegration(p.id); } catch { /* best-effort */ }
+    try { setRestGrants(withoutGrantsFor(readConfig().restGrants, p.id)); } catch { /* best-effort */ }
+    recordAudit({ kind: 'integration', actor: 'user', integrationId: p.id, action: 'remove' });
+  }
+  return removed;
 });
+/** What each worker may do through the REST broker. Like the MCP grants, this decides what an
+ *  agent can reach, so it answers only the app's own page and checks every field. */
+ipcMain.handle('rest:grants:get', (evt) => (fromAppPage(evt) ? { ok: true, grants: currentRestGrants() } : FORBIDDEN));
+ipcMain.handle('rest:grants:set', (evt, payload: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const r = applyGrantUpdate(readConfig().restGrants, payload, (id) => !!integrations.getRecord(id));
+  if (!r.ok) return { ok: false, error: r.error };
+  try { setRestGrants(r.grants); } catch { return { ok: false, error: 'could not save' }; }
+  const g = payload as { id?: string; agentId?: string | null; grant?: { preset?: string; allow?: unknown[]; deny?: unknown[] } | null };
+  recordAudit({
+    kind: 'grant', actor: 'user', integrationId: g.id, agentId: g.agentId ?? undefined,
+    action: g.grant ? g.grant.preset : 'removed', detail: g.agentId ? 'rest' : 'rest, all agents',
+    count: (g.grant?.allow?.length ?? 0) + (g.grant?.deny?.length ?? 0)
+  });
+  // Taking access away applies to the very next request (the route re-reads the grants).
+  return { ok: true, grants: r.grants };
+});
+/** How every credential removal is done: the delete's own result AND a check that
+ *  the secret is really gone. See mcpDisconnect.ts for why. */
+const secretRemover = { delete: integrations.deleteSecret, has: integrations.hasSecret };
 // ─── IPC: per-CLI-provider BYOK keys (write-only) ────────────────────────────
 // API keys for the backend model-providers the non-Claude CLIs use are stored
 // WRITE-ONLY under `apikey:<backend>` in the same encrypted broker. The renderer
@@ -3166,9 +3587,380 @@ ipcMain.handle('providerKey:has', (_evt, backend: unknown) =>
   typeof backend === 'string' ? integrations.hasSecret(providerKeyRef(backend)) : false);
 ipcMain.handle('providerKey:clear', (_evt, backend: unknown) => {
   if (typeof backend !== 'string' || !(backend in BACKEND_KEY_ENV)) return { ok: false, error: 'unknown backend' };
-  try { integrations.deleteSecret(providerKeyRef(backend)); return { ok: true }; }
-  catch (e) { return { ok: false, error: e instanceof Error ? e.message : String(e) }; }
+  // deleteSecret REPORTS failure (it does not throw), so the result is what decides.
+  const removed = removeSecrets(secretRemover, [providerKeyRef(backend)]);
+  return removed.ok ? { ok: true } : { ok: false, error: removed.error };
 });
+
+// ─── Bridged MCP servers: where their OAuth tokens live ──────────────────────
+// Encrypted in the same safeStorage file as every other secret while idle;
+// written to <userData>/mcp-auth/<id> only while an agent is using the server.
+const mcpVault = new McpAuthVault(
+  () => join(app.getPath('userData'), 'mcp-auth'),
+  { get: integrations.getSecret, set: integrations.setSecret, delete: integrations.deleteSecret }
+);
+/**
+ * The in-app OAuth engine (src/main/oauth/). Used only for an integration whose
+ * `config.mcpEngine[id]` is `broker`; every other integration keeps the bridge.
+ * Tokens live in the encrypted store under `mcp:<id>:oauth` and never leave this
+ * process. The endpoints are the catalogue's pinned https ones: no `policy` is
+ * passed, so nothing here can be pointed at a plain-http or loopback provider.
+ */
+const oauthController = new OAuthController({
+  entry: mcpCatalogEntry,
+  secrets: {
+    get: integrations.getSecret, set: integrations.setSecret,
+    has: integrations.hasSecret, readable: integrations.secretStoreReadable
+  },
+  fetch: (url, init) => fetch(url, init),
+  openUrl: async (url) => {
+    if (!/^https:\/\//i.test(url)) throw new Error('refused');
+    await shell.openExternal(url);
+  },
+  now: () => Date.now(),
+  log: safeLog((line) => console.log('[oauth]', line))
+});
+/**
+ * Connections that need no key and no OAuth app of the user's own (src/main/connect/): the app registers a
+ * public client for itself, or shows a device code. The client and the tokens live in the encrypted store
+ * (`mcp:<id>:conn`, `mcp:<id>:oauth`) and never leave this process; the page is told facts and statuses.
+ * Nothing is passed as `policy`, so every endpoint must be https and on a host the catalogue pins.
+ */
+const connections = new ConnectionManager({
+  entry: mcpCatalogEntry,
+  secrets: {
+    get: integrations.getSecret, set: integrations.setSecret,
+    has: integrations.hasSecret, readable: integrations.secretStoreReadable,
+    delete: (ref) => integrations.deleteSecret(ref).ok
+  },
+  fetch: (url, init) => fetch(url, init),
+  openUrl: async (url) => {
+    if (!/^https:\/\//i.test(url)) throw new Error('refused');
+    await shell.openExternal(url);
+  },
+  now: () => Date.now(),
+  log: safeLog((line) => console.log('[connect]', line)),
+  userClientId: (id) => readConfig().connectClientIds?.[id],
+  audit: (e) => recordAudit({ kind: 'integration', actor: 'user', integrationId: e.id, action: e.action, decision: e.decision, reason: e.reason })
+});
+function mcpOauthClient(id: string): { clientId: string; clientSecret: string } | undefined {
+  const clientId = integrations.getSecret(`mcp:${id}:client_id`)?.trim();
+  const clientSecret = integrations.getSecret(`mcp:${id}:client_secret`)?.trim();
+  return clientId && clientSecret ? { clientId, clientSecret } : undefined;
+}
+
+// ─── IPC: credentials for catalog MCP servers (write-only) ───────────────────
+// A secret-tier server keeps one token at `mcp:<id>`; a bridged one keeps the
+// two halves of the user's own OAuth client at `mcp:<id>:client_id` and
+// `:client_secret`. Same rules as every other secret here: the renderer can SET
+// a value and ASK whether one is set, and can never read the plaintext back.
+// Values are materialised main-only, at spawn, into the agent's 0600 config.
+ipcMain.handle('mcp:setSecret', (_evt, payload: unknown) => {
+  const p = (payload ?? {}) as { id?: unknown; field?: unknown; secret?: unknown };
+  const entry = typeof p.id === 'string' ? mcpCatalogEntry(p.id) : undefined;
+  if (!entry) return { ok: false, error: 'unknown server' };
+  if (typeof p.secret !== 'string' || !p.secret.trim()) return { ok: false, error: 'secret required' };
+  if (mcpNeedsOauthClient(entry)) {
+    if (p.field !== 'client_id' && p.field !== 'client_secret') return { ok: false, error: 'field required' };
+    return integrations.setSecret(`mcp:${entry.id}:${p.field}`, p.secret.trim());
+  }
+  if (p.field !== undefined) return { ok: false, error: 'this server takes a single token' };
+  const saved = integrations.setSecret(`mcp:${entry.id}`, p.secret.trim());
+  // A server already running holds the OLD credential in its environment: stop it, so the next
+  // request starts it with the new one.
+  if (saved.ok) stdioHost.closeIntegration(entry.id);
+  return saved;
+});
+/** Which of each server's credentials are stored — booleans only, never values. `engine` and
+ *  `state` say which sign-in implementation an integration uses and where it stands. */
+ipcMain.handle('mcp:secretStatus', () => {
+  const cfg = readConfig();
+  return MCP_CATALOG.filter(mcpNeedsSecret).map((e) => {
+    const engine = engineFor(cfg, e);
+    const stored = mcpSecretRefs(e).map((ref) => integrations.hasSecret(ref));
+    const ready = stored.every(Boolean);
+    const pair = mcpNeedsOauthClient(e);
+    const isConnected = pair ? (engine === 'broker' ? oauthController.status(e.id) === 'connected' : mcpVault.isConnected(e.id)) : false;
+    return {
+      id: e.id,
+      needsOauthClient: pair,
+      stored,
+      ready,
+      connected: isConnected,
+      engine,
+      /** Whether this integration can use the in-app engine at all. */
+      inAppCapable: oauthEngineEntry(e.id) !== undefined,
+      state: !pair ? undefined : engine === 'broker' ? oauthController.status(e.id) : !ready ? 'unconfigured' : isConnected ? 'connected' : 'signed-out'
+    };
+  });
+});
+ipcMain.handle('mcp:clearSecret', async (_evt, id: unknown) => {
+  const entry = typeof id === 'string' ? mcpCatalogEntry(id) : undefined;
+  if (!entry) return { ok: false, error: 'unknown server' };
+  // A bridged server has more to forget than its client: route it to the full
+  // disconnect so no caller can leave tokens behind.
+  if (entry.spec.transport === 'bridge') return disconnectMcp(entry.id);
+  const removed = removeSecrets(secretRemover, mcpSecretRefs(entry));
+  // Forgetting a credential ends every agent's use of the server NOW, not at the next request.
+  if (removed.ok) { integrationBroker.revokeIntegration(entry.id); stdioHost.closeIntegration(entry.id); }
+  return removed.ok ? { ok: true } : { ok: false, error: removed.error };
+});
+/** Which local servers are installed from their lock, installing, or failed. Names and states only. */
+ipcMain.handle('mcp:packageStatus', (evt) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const packages: Record<string, { state: string; name: string; version: string }> = {};
+  for (const e of MCP_CATALOG) {
+    const pkg = mcpPackageOf(e);
+    if (pkg) packages[e.id] = { state: packageStore.state(e.id, pkg), name: pkg.name, version: pkg.version };
+  }
+  return { ok: true, packages };
+});
+/** (Re)install one local server from its pinned lock. */
+ipcMain.handle('mcp:packageInstall', async (evt, id: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const entry = capableMcpEntry(id);
+  if (!entry || !mcpPackageOf(entry)) return { ok: false, error: 'unknown server' };
+  const r = await ensureLocalServer(entry.id);
+  return r.ok ? { ok: true } : { ok: false, error: r.error };
+});
+/**
+ * The one-time browser sign-in a bridged server needs before any agent can use
+ * it. Runs as a child of the app; resolves when tokens exist (then sealed into
+ * the encrypted store) or with a fixed error code. Never returns child output.
+ */
+ipcMain.handle('mcp:signIn', async (_evt, id: unknown) => {
+  const r = await signInMcp(id);
+  if (typeof id === 'string' && mcpCatalogEntry(id)) {
+    recordAudit({
+      kind: 'integration', actor: 'user', integrationId: id, action: 'sign-in',
+      decision: r.ok ? 'allow' : 'deny', reason: r.ok ? undefined : String((r as { error?: string }).error ?? 'failed')
+    });
+  }
+  return r;
+});
+async function signInMcp(id: unknown): Promise<{ ok: boolean; error?: string }> {
+  const entry = typeof id === 'string' ? mcpCatalogEntry(id) : undefined;
+  if (!entry || entry.spec.transport !== 'bridge') return { ok: false, error: 'failed' };
+  // The in-app engine signs in without mcp-remote: no child process, no token file.
+  if (engineFor(readConfig(), entry) === 'broker') return oauthController.signIn(entry.id);
+  const client = mcpOauthClient(entry.id);
+  if (!client) return { ok: false, error: 'no-client' };
+  if (mcpVault.isConnected(entry.id)) return { ok: true };
+  const spec = entry.spec;
+  const paths = mcpVault.beginSignIn(entry.id, client, spec.scope);
+  let res: Awaited<ReturnType<typeof runMcpSignIn>>;
+  try {
+    res = await runMcpSignIn({
+      id: entry.id, args: bridgeArgs(spec, paths), configDir: paths.configDir,
+      port: spec.callbackPort, hasTokens: () => mcpVault.hasPlainTokens(entry.id)
+    });
+  } catch { res = { ok: false, error: 'failed' }; }
+  // 'in-progress' means another call owns the sign-in and the vault directory.
+  if (!res.ok && res.error === 'in-progress') return res;
+  const sealed = mcpVault.endSignIn(entry.id);
+  if (res.ok && !sealed) return { ok: false, error: 'not-stored' };
+  return res;
+}
+/** Disconnect, first step: agent access ends NOW (before any slow network call), then what was
+ *  learnt about the integration's tools and what was recorded of its use are forgotten. */
+function onMcpDisconnected(bid: string): void {
+  integrationBroker.revokeIntegration(bid);
+  integrationBroker.forgetMcpTools(bid);
+  mcpAudit.clear(bid);
+  recordAudit({ kind: 'integration', actor: 'user', integrationId: bid, action: 'disconnect' });
+}
+/** Disconnect a bridged server: revoke at the provider where it documents how,
+ *  then delete the tokens, the OAuth client and every plaintext file. `ok` is
+ *  true only when every local copy is really gone (see mcpDisconnect.ts). */
+async function disconnectMcp(id: string): Promise<{ ok: boolean; revoked: boolean; error?: string }> {
+  const entry = mcpCatalogEntry(id);
+  if (!entry || entry.spec.transport !== 'bridge') return { ok: false, revoked: false, error: 'unknown server' };
+  return disconnectBridged({
+    cancelSignIn: (sid) => { cancelMcpSignIn(sid); oauthController.cancel(sid); },
+    vault: mcpVault,
+    revoke: (spec, tokens) => revokeAtProvider(spec, tokens, (url, init) => fetch(url, init)),
+    secrets: secretRemover,
+    // both engines are always covered, whichever one is selected
+    broker: {
+      hasTokens: (bid) => oauthController.hasTokens(bid),
+      revoke: (bid) => oauthController.revoke(bid),
+      forget: (bid) => oauthController.forget(bid)
+    },
+    // agent access through the broker ends the moment Disconnect is pressed
+    onDisconnected: onMcpDisconnected
+  }, entry);
+}
+ipcMain.handle('mcp:disconnect', (_evt, id: unknown) =>
+  typeof id === 'string' ? disconnectMcp(id) : { ok: false, revoked: false, error: 'unknown server' });
+
+// ─── IPC: connect a hosted server with an account (src/main/connect/) ──────────────────────────────
+// Every handler answers only the app's own page, checks every field it is given, and returns facts and
+// fixed codes: never a token, a code, a client secret or a provider's text.
+const connectEntry = (id: unknown): ReturnType<typeof mcpCatalogEntry> => {
+  const e = typeof id === 'string' ? mcpCatalogEntry(id) : undefined;
+  return e && e.spec.transport === 'http' && e.spec.connect ? e : undefined;
+};
+ipcMain.handle('connect:list', (evt) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  return { ok: true, connections: MCP_CATALOG.filter((e) => connectEntry(e.id)).map((e) => connections.summary(e.id)) };
+});
+ipcMain.handle('connect:start', async (evt, payload: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const p = (payload ?? {}) as { id?: unknown; method?: unknown; clientId?: unknown; tier?: unknown };
+  const entry = connectEntry(p.id);
+  if (!entry) return { ok: false, error: 'not-available' };
+  const method = p.method === 'dcr' || p.method === 'device' ? (p.method as ConnectMethod['kind']) : undefined;
+  if (p.method !== undefined && !method) return { ok: false, error: 'not-available' };
+  const tier = p.tier === 'write' ? 'write' : 'read';
+  let clientId: string | undefined;
+  if (p.clientId !== undefined && p.clientId !== null && p.clientId !== '') {
+    if (!isPlausibleClientId((p.clientId as string).trim?.() ?? p.clientId)) return { ok: false, error: 'bad-client-id' };
+    clientId = (p.clientId as string).trim();
+    try { setConnectClientId(entry.id, clientId); } catch { /* the id still works for this attempt */ }
+  }
+  const r = await connections.connect(entry.id, { method, clientId, tier });
+  if (r.ok) integrationBroker.forgetMcpTools(entry.id);
+  return r;
+});
+ipcMain.handle('connect:cancel', (evt, id: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const entry = connectEntry(id);
+  if (!entry) return { ok: false, error: 'not-available' };
+  connections.cancel(entry.id);
+  return { ok: true };
+});
+ipcMain.handle('connect:disconnect', async (evt, id: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const entry = connectEntry(id);
+  if (!entry) return { ok: false, error: 'not-available' };
+  onMcpDisconnected(entry.id);                  // agent access ends NOW, before any slow network call
+  stdioHost.closeIntegration(entry.id);
+  return connections.disconnect(entry.id);
+});
+ipcMain.handle('connect:setClientId', (evt, payload: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const p = (payload ?? {}) as { id?: unknown; clientId?: unknown };
+  const entry = connectEntry(p.id);
+  if (!entry || !(entry.spec.transport === 'http' && entry.spec.connect?.methods.some((m) => m.kind === 'device' || m.kind === 'public'))) return { ok: false, error: 'not-available' };
+  if (p.clientId === null || p.clientId === '') { try { setConnectClientId(entry.id, null); } catch { return { ok: false, error: 'could not save' }; } return { ok: true }; }
+  if (!isPlausibleClientId(typeof p.clientId === 'string' ? p.clientId.trim() : p.clientId)) return { ok: false, error: 'bad-client-id' };
+  try { setConnectClientId(entry.id, (p.clientId as string).trim()); } catch { return { ok: false, error: 'could not save' }; }
+  return { ok: true };
+});
+/** "Believe the server's own hints" for one connection: off unless the user turns it on. */
+ipcMain.handle('mcp:trustHints:get', (evt) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const t = readConfig().mcpTrustHints ?? {};
+  return { ok: true, trust: Object.fromEntries(Object.entries(t).filter(([id, v]) => v === true && !!mcpCatalogEntry(id))) };
+});
+ipcMain.handle('mcp:trustHints:set', (evt, payload: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const p = (payload ?? {}) as { id?: unknown; trust?: unknown };
+  const entry = capableMcpEntry(p.id);
+  if (!entry || typeof p.trust !== 'boolean') return { ok: false, error: 'unknown server' };
+  try { setMcpTrustHints(entry.id, p.trust); } catch { return { ok: false, error: 'could not save' }; }
+  recordAudit({ kind: 'grant', actor: 'user', integrationId: entry.id, action: p.trust ? 'trust-hints-on' : 'trust-hints-off' });
+  return { ok: true };
+});
+
+// ─── IPC: the in-app MCP broker's switch, grants and tool list ───────────────
+// These decide what an agent can reach, so they answer only the app's own top-level page and
+// check every field they are given. `config:update` cannot write these settings at all.
+const trustedPages = (): { devOrigin?: string; prodFileUrl?: string } =>
+  isDev && process.env.ELECTRON_RENDERER_URL
+    ? { devOrigin: process.env.ELECTRON_RENDERER_URL }
+    : { prodFileUrl: pathToFileURL(join(__dirname, '../renderer/index.html')).href };
+const fromAppPage = (evt: Electron.IpcMainInvokeEvent): boolean => {
+  try { return isTrustedSender(evt.senderFrame, trustedPages()); } catch { return false; }
+};
+const FORBIDDEN = { ok: false as const, error: 'forbidden' };
+/** The catalogue entry for any integration the broker serves (all of them), or undefined. */
+function capableMcpEntry(id: unknown): ReturnType<typeof mcpCatalogEntry> {
+  return typeof id === 'string' ? mcpCatalogEntry(id) : undefined;
+}
+/** The entry for a bridged service whose sign-in can run on the in-app OAuth engine, or undefined. */
+function oauthEngineEntry(id: unknown): ReturnType<typeof mcpCatalogEntry> {
+  const e = capableMcpEntry(id);
+  return e && e.spec.transport === 'bridge' && e.spec.oauth ? e : undefined;
+}
+
+/** Choose which engine signs an integration in. Nothing stored is deleted either way: the way
+ *  back to the bridge is this same call. Going to `broker` copies an existing bridge sign-in
+ *  (never moves it); going back cuts agent access through the broker at once. */
+ipcMain.handle('mcp:setEngine', (evt, payload: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const p = (payload ?? {}) as { id?: unknown; engine?: unknown };
+  const entry = oauthEngineEntry(p.id);
+  if (!entry) return { ok: false, error: 'unknown server' };
+  if (p.engine !== 'bridge' && p.engine !== 'broker') return { ok: false, error: 'unknown engine' };
+  const before = engineFor(readConfig(), entry);
+  if (before === p.engine) return { ok: true, engine: before, imported: 'unchanged' };
+  // a sign-in still waiting in the browser belongs to the engine being left
+  try { cancelMcpSignIn(entry.id); oauthController.cancel(entry.id); } catch { /* best-effort */ }
+  let imported: 'copied' | 'copied-short' | 'none' | 'already' | 'failed' | 'n/a' = 'n/a';
+  if (p.engine === 'broker') {
+    const r = oauthController.importFromBridge(entry.id);
+    imported = r.kind === 'imported' ? (r.refreshable ? 'copied' : 'copied-short') : r.kind;
+  } else {
+    integrationBroker.revokeIntegration(entry.id);
+    integrationBroker.forgetMcpTools(entry.id);
+  }
+  try { setMcpEngineFor(entry.id, p.engine); } catch { return { ok: false, error: 'could not save' }; }
+  recordAudit({ kind: 'engine', actor: 'user', integrationId: entry.id, action: p.engine, detail: `from ${before}` });
+  return { ok: true, engine: p.engine, imported };
+});
+ipcMain.handle('mcp:grants:get', (evt) => (fromAppPage(evt) ? { ok: true, grants: currentMcpGrants() } : FORBIDDEN));
+ipcMain.handle('mcp:grants:set', (evt, payload: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const r = applyGrantUpdate(readConfig().mcpGrants, payload);
+  if (!r.ok) return { ok: false, error: r.error };
+  try { setMcpGrants(r.grants); } catch { return { ok: false, error: 'could not save' }; }
+  const g = payload as { id?: string; agentId?: string | null; grant?: { preset?: string; allow?: unknown[]; deny?: unknown[] } | null };
+  recordAudit({
+    kind: 'grant', actor: 'user', integrationId: g.id, agentId: g.agentId ?? undefined,
+    action: g.grant ? g.grant.preset : 'removed',
+    detail: g.agentId ? undefined : 'all agents',
+    count: (g.grant?.allow?.length ?? 0) + (g.grant?.deny?.length ?? 0)
+  });
+  return { ok: true, grants: r.grants };
+});
+/** The tools an integration is known to offer: names, classes, descriptions. Nothing else. */
+ipcMain.handle('mcp:tools:list', (evt, id: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const entry = capableMcpEntry(id);
+  return entry ? { ok: true, tools: integrationBroker.mcpTools(entry.id) } : { ok: false, error: 'unknown server' };
+});
+/** Ask the integration's server for its tools, as the app (not as an agent). */
+ipcMain.handle('mcp:tools:refresh', async (evt, id: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const entry = capableMcpEntry(id);
+  if (!entry) return { ok: false, error: 'unknown server' };
+  const r = await integrationBroker.discoverMcpTools(entry.id);
+  return r.ok ? { ok: true, tools: r.tools } : { ok: false, error: r.code };
+});
+/** What agents have used, newest first. Metadata only (see broker/audit.ts). */
+ipcMain.handle('mcp:activity', (evt, id: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const entry = capableMcpEntry(id);
+  return entry ? { ok: true, events: mcpAudit.recent(entry.id, 100) } : { ok: false, error: 'unknown server' };
+});
+/** The durable trail (src/main/broker/audit-store.ts): newest first, optionally one
+ *  integration or one kind of event. Metadata only, and it survives a restart. */
+ipcMain.handle('audit:recent', (evt, filter: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const f = (filter ?? {}) as { integrationId?: unknown; kind?: unknown; limit?: unknown };
+  const kinds = ['mcp', 'rest', 'grant', 'consent', 'secret', 'engine', 'capability', 'integration', 'skill', 'system'];
+  return {
+    ok: true,
+    events: auditStore().recent({
+      ...(typeof f.integrationId === 'string' ? { integrationId: f.integrationId } : {}),
+      ...(typeof f.kind === 'string' && kinds.includes(f.kind) ? { kind: f.kind as AuditInput['kind'] } : {}),
+      limit: typeof f.limit === 'number' && Number.isFinite(f.limit) ? f.limit : 100
+    })
+  };
+});
+/** Recompute the audit chain. Says only whether it holds and, if not, where it broke. */
+ipcMain.handle('audit:verify', (evt) => (fromAppPage(evt) ? { ok: true, result: auditStore().verify() } : FORBIDDEN));
 // Probe an integration's reachability through the broker's own auth path (admin-only;
 // runs in main, so the secret is used but never returned — only the upstream status).
 ipcMain.handle('integrations:test', async (_evt, payload: unknown) => {
@@ -3198,7 +3990,8 @@ ipcMain.handle('integrations:test', async (_evt, payload: unknown) => {
 });
 
 // ─── IPC: config ────────────────────────────────────────────────────────────
-ipcMain.handle('config:get', (): HarnessConfig => readConfig());
+// Every channel that carries the config to a window goes through `forRenderer`: no secret value, ever.
+ipcMain.handle('config:get', () => forRenderer());
 ipcMain.handle('config:update', (_evt, patch: Partial<HarnessConfig>) => {
   // FIRST RUN: every hive-bound service is started by bootstrapHiveServices(),
   // which runs once at app-ready and early-returns on `!hive.enabled()` — i.e.
@@ -3218,7 +4011,11 @@ ipcMain.handle('config:update', (_evt, patch: Partial<HarnessConfig>) => {
   // transition so ordinary config writes never re-enter it.
   const hiveWasEnabled = hive.enabled();
   const wasOnboarded = readConfig().onboardingComplete;
-  const next = writeConfig(patch);
+  // `mcpGrants` and `mcpEngine` decide what an agent can reach: they change only through the
+  // validated, sender-checked handlers below, never through this general update.
+  // ...and the secrets (and the trigger lists that carry one) change only through their own
+  // write-only handlers, never through this general update.
+  const next = writeConfig(patch && typeof patch === 'object' ? withoutSecretKeys(withoutProtectedKeys(patch)) : patch);
   // Live opt-in/out from Settings → Privacy (TELEMETRY.md).
   if (typeof patch?.telemetryEnabled === 'boolean') analytics.setEnabled(patch.telemetryEnabled);
   // Activation funnel (v0.4.6): onboarding just finished (false → true) — the top of
@@ -3235,10 +4032,10 @@ ipcMain.handle('config:update', (_evt, patch: Partial<HarnessConfig>) => {
     console.log('[hive] harnessHome configured — bootstrapping hive services');
     try { bootstrapHiveServices(); } catch (e) { console.error('[hive] bootstrap after onboarding:', e); }
   }
-  return next;
+  return forRenderer(next);
 });
 ipcMain.handle('config:setAgentTokenCap', (_evt, agentId: unknown, tokenCap: unknown) =>
-  setAgentTokenCap(agentId, tokenCap)
+  forRenderer(setAgentTokenCap(agentId, tokenCap))
 );
 ipcMain.handle('config:ensureHome', (_evt, path: unknown) => {
   if (typeof path !== 'string' || path.length === 0) return { ok: false, error: 'invalid path' };
@@ -3309,7 +4106,7 @@ ipcMain.handle('config:changeHome', async (_evt, payload: unknown) => {
       // repointed) so the user loses nothing, and surface the error — no relaunch.
       bootstrapHiveServices();
       const cfg = readConfig();
-      if (cfg.slackEnabled && cfg.slackSigningSecret) void startSlackServer();
+      if (cfg.slackEnabled && cfgSecret('slackSigningSecret')) void startSlackServer();
       reconcileWebhookServer();
       return { ok: false, error: `Could not copy data: ${e instanceof Error ? e.message : String(e)}` };
     }
@@ -3585,24 +4382,103 @@ ipcMain.handle('skills:catalog', async (_evt, force: unknown) => {
 
 /** Install one catalog skill into ~/.claude/skills. Structured refusals, never a
  *  throw: the UI distinguishes "not installable" from "install failed". */
-ipcMain.handle('skills:install', async (_evt, url: unknown, name: unknown) => {
+/** The folder a skill is installed into and the record folder that goes with it, for one target: Claude Code's own
+ *  `~/.claude/skills`, or the shared `~/.agents/skills` that Codex reads (and Gemini CLI, per its documentation).
+ *  Only the two the app knows; a target the renderer invents is refused, never turned into a path. */
+function skillDepsFor(target: unknown): ManagerDeps | null {
+  const base = join(app.getPath('userData'), 'skill-installs');
+  if (target === undefined || target === 'claude') return { recordDir: base };
+  if (target === 'agents') {
+    const t: SkillTarget = 'agents';
+    return { recordDir: join(base, 'agents'), root: join(homedir(), '.agents', 'skills'), agents: agentsForTarget(t) };
+  }
+  return null;
+}
+/** Install one catalog skill. Installing a skill never connects an integration and never grants anything: the
+ *  guard strips both (skillGuard.ts), and the result lists which integrations the skill mentions, as suggestions. */
+ipcMain.handle('skills:install', async (evt, url: unknown, name: unknown, target?: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
   if (typeof url !== 'string' || typeof name !== 'string') {
     return { ok: false as const, error: 'bad request' };
   }
-  return installSkill(url, name);
+  const deps = skillDepsFor(target);
+  if (!deps) return { ok: false as const, error: 'bad request' };
+  // Third-party instructions are copied in with the grants and run-on-load syntax taken out (see
+  // skillGuard.ts); where it came from and what exactly was written is kept outside the skill folder.
+  const r = await installSkill(url, name, deps);
+  recordAudit({
+    kind: 'skill', actor: 'user', action: 'install', decision: r.ok ? 'allow' : 'deny',
+    reason: r.ok ? undefined : r.error, detail: `${name}${target === 'agents' ? ' (agents)' : ''}`, count: r.ok ? r.stripped.length : undefined
+  });
+  return r;
+});
+/** What this app installed for one target, with each skill's integrity (does it still match what was installed). */
+ipcMain.handle('skills:managed', (evt, target?: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const deps = skillDepsFor(target);
+  return deps ? { ok: true as const, skills: listManagedSkills(deps) } : { ok: false as const, error: 'bad request' };
+});
+ipcMain.handle('skills:verify', (evt, target: unknown, dirName: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const deps = skillDepsFor(target);
+  if (!deps || typeof dirName !== 'string') return { ok: false as const, error: 'bad request' };
+  return { ok: true as const, integrity: verifySkill(deps, dirName) };
+});
+/** Look for a newer version of one skill. Nothing changes: the answer is a preview (every changed line, any tool the
+ *  new version asks for, any new script) and a token that `skills:applyUpdate` needs. */
+ipcMain.handle('skills:checkUpdate', async (evt, target: unknown, dirName: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const deps = skillDepsFor(target);
+  if (!deps || typeof dirName !== 'string') return { ok: false as const, error: 'bad request' };
+  const r = await checkSkillUpdate(deps, dirName);
+  recordAudit({ kind: 'skill', actor: 'user', action: 'check-update', decision: r.ok ? 'allow' : 'deny', reason: r.ok ? undefined : r.error, detail: dirName });
+  return r;
+});
+ipcMain.handle('skills:applyUpdate', (evt, target: unknown, dirName: unknown, token: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const deps = skillDepsFor(target);
+  if (!deps || typeof dirName !== 'string' || typeof token !== 'string') return { ok: false as const, error: 'bad request' };
+  const r = applySkillUpdate(deps, dirName, token);
+  recordAudit({ kind: 'skill', actor: 'user', action: 'update', decision: r.ok ? 'allow' : 'deny', reason: r.ok ? undefined : r.error, detail: dirName });
+  return r;
+});
+ipcMain.handle('skills:discardUpdate', (evt, token: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  if (typeof token === 'string') discardSkillUpdate(token);
+  return { ok: true as const };
+});
+ipcMain.handle('skills:rollback', (evt, target: unknown, dirName: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const deps = skillDepsFor(target);
+  if (!deps || typeof dirName !== 'string') return { ok: false as const, error: 'bad request' };
+  const r = rollbackSkill(deps, dirName);
+  recordAudit({ kind: 'skill', actor: 'user', action: 'rollback', decision: r.ok ? 'allow' : 'deny', reason: r.ok ? undefined : r.error, detail: dirName });
+  return r;
 });
 /** Delete an installed skill. The guard rails live in uninstallSkill — it refuses
  *  any path it cannot prove is a skill folder inside a skills root. */
-ipcMain.handle('skills:uninstall', (_evt, path: unknown) => {
+ipcMain.handle('skills:uninstall', (evt, path: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
   if (typeof path !== 'string') return { ok: false as const, error: 'bad request' };
   const cfg = readConfig();
-  return uninstallSkill(path, { cwds: cfg.registeredRepos ?? [] });
+  const r = uninstallSkill(path, { cwds: cfg.registeredRepos ?? [] });
+  // the install record (and its backups) go with the skill; a record for a folder that is gone would only mislead
+  // Only the folder the skill was in: the same name may be installed for the other target too, and that one stays.
+  if (r.ok) {
+    const abs = resolve(path);
+    const owner: SkillTarget | null = abs.startsWith(resolve(homedir(), '.agents', 'skills') + sep) ? 'agents'
+      : abs.startsWith(resolve(homedir(), '.claude', 'skills') + sep) ? 'claude' : null;
+    const d = owner ? skillDepsFor(owner) : null;
+    if (d) forgetSkillRecord(d, basename(abs));
+  }
+  recordAudit({ kind: 'skill', actor: 'user', action: 'uninstall', decision: r.ok ? 'allow' : 'deny', detail: basename(path) });
+  return r;
 });
 /** Reveal a skill on disk. `openExternal` is deliberately https-only, so a
  *  file:// URL cannot (and should not) be smuggled through it. */
 ipcMain.handle('skills:reveal', (_evt, path: unknown) => {
   if (typeof path !== 'string' || !path.trim()) return { ok: false, error: 'bad request' };
-  const skillRoots = [join(homedir(), '.claude', 'skills'), join(homedir(), '.config', 'opencode')];
+  const skillRoots = [join(homedir(), '.claude', 'skills'), join(homedir(), '.agents', 'skills'), join(homedir(), '.config', 'opencode')];
   const target = resolve(path);
   const inRoot = skillRoots.some((r) => target.startsWith(resolve(r) + sep))
     || (readConfig().registeredRepos ?? []).some((c) => target.startsWith(resolve(c) + sep));
@@ -3798,6 +4674,8 @@ function teardownAndQuit(): void {
   try { clearContextTimers(); } catch (e) { console.error('[quit] clearContextTimers:', e); }
   try { stopWebhookDoneObserver(); } catch (e) { console.error('[quit] stopWebhookDoneObserver:', e); }
   try { stopEphemeralWorkerWatcher(); } catch (e) { console.error('[quit] stopWorkerWatcher:', e); }
+  try { stdioHost.closeAll(); } catch (e) { console.error('[quit] stdioHost.closeAll:', e); }
+  try { auditStoreInst?.close(); } catch (e) { console.error('[quit] audit.close:', e); }
   try { integrationBroker.stop(); } catch (e) { console.error('[quit] broker.stop:', e); }
   try { hive.stopRouter(); } catch (e) { console.error('[quit] stopRouter:', e); }
   try { hookServer.stop(); } catch (e) { console.error('[quit] hookServer.stop:', e); }
@@ -3809,6 +4687,14 @@ function teardownAndQuit(): void {
   try { persist.close(); } catch (e) { console.error('[quit] persist.close:', e); }
   try { hive.stopAllProxyBridges(); } catch (e) { console.error('[quit] stopAllProxyBridges:', e); }
   try { ptyManager.killAll(); } catch (e) { console.error('[quit] killAll:', e); }
+  // After the agents are gone: stop any sign-in still waiting, then leave no
+  // OAuth token on disk in the clear.
+  try { cancelMcpSignIn(); } catch { /* best-effort */ }
+  // A refresh already on the wire is given a moment to finish (see will-quit): a refresh token
+  // the provider has already rotated must be saved, not lost. Nothing NEW starts from here.
+  try { oauthController.beginShutdown(); } catch (e) { console.error('[quit] oauthController.beginShutdown:', e instanceof Error ? e.message : 'error'); }
+  try { connections.beginShutdown(); } catch (e) { console.error('[quit] connections.beginShutdown:', e instanceof Error ? e.message : 'error'); }
+  try { mcpVault.sweep(); } catch (e) { console.error('[quit] mcpVault.sweep:', e instanceof Error ? e.message : 'error'); }
   app.quit();
 }
 ipcMain.handle('app:confirmClose', () => {
@@ -4083,7 +4969,7 @@ ipcMain.handle('github:ciRuns', (_evt, cwd: unknown) =>
 );
 
 // ─── IPC: desktop notifications toggle ──────────────────────────────────────
-ipcMain.handle('app:setNotifications', (_evt, val) => writeConfig({ notifications: val === true }));
+ipcMain.handle('app:setNotifications', (_evt, val) => forRenderer(writeConfig({ notifications: val === true })));
 
 // ─── IPC: onboarding reliability — open Settings deep-link + login-item toggle ─
 /** Open a System Settings deep-link (or https URL) in the OS default handler.
@@ -4142,7 +5028,7 @@ ipcMain.handle('slack:reply', (_evt, arg: unknown) => {
   // round-trip (done-poller) and an agent's own direct /reply are NOT routed
   // through here, so they are unaffected and always stay on.
   if (!cfg.slackProactivePosting) return { ok: false, error: 'app-initiated Slack posting disabled (enable in Settings → Slack)' };
-  const botToken = cfg.slackBotToken;
+  const botToken = cfgSecret('slackBotToken');
   if (!botToken) return { ok: false, error: 'no bot token' };
   if (typeof p.channel !== 'string' || typeof p.thread_ts !== 'string' || typeof p.text !== 'string') {
     return { ok: false, error: 'channel, thread_ts, text required' };
@@ -4161,9 +5047,14 @@ ipcMain.handle('slack:setConfig', (_evt, patch: unknown) => {
     proactivePosting?: unknown;
   };
   const next: Partial<HarnessConfig> = {};
+  // The two secrets are WRITE-ONLY: a non-empty string sets one, `null` removes it, anything
+  // else (including '') leaves it alone. They go to the encrypted store, never to config.json.
+  const results = [
+    applyConfigSecret('slackSigningSecret', p.signingSecret),
+    applyConfigSecret('slackBotToken', p.botToken)
+  ];
+  const failed = results.find((r) => !r.ok);
   // Trim string fields; an emptied field clears back to undefined.
-  if (typeof p.signingSecret === 'string') next.slackSigningSecret = p.signingSecret.trim() || undefined;
-  if (typeof p.botToken === 'string') next.slackBotToken = p.botToken.trim() || undefined;
   if (typeof p.channelId === 'string') next.slackChannelId = p.channelId.trim() || undefined;
   if (typeof p.port === 'number' && Number.isFinite(p.port)) next.slackPort = p.port;
   if (typeof p.enabled === 'boolean') next.slackEnabled = p.enabled;
@@ -4173,8 +5064,8 @@ ipcMain.handle('slack:setConfig', (_evt, patch: unknown) => {
   // deliberately do NOT auto-(re)start here — the user presses Start in Settings
   // to fetch the fresh (ephemeral) tunnel URL.
   const cfg = readConfig();
-  if (!cfg.slackEnabled || !cfg.slackSigningSecret) stopSlackServer();
-  return { ok: true };
+  if (!cfg.slackEnabled || !cfgSecret('slackSigningSecret')) stopSlackServer();
+  return failed ? { ok: false, error: failed.error } : { ok: true };
 });
 
 // ─── IPC: Triggers — context (auto-compact / auto-clear) ────────────────────
@@ -4211,7 +5102,18 @@ function sanitizeContextRule(patch: Partial<ContextRule> | undefined, current: C
 }
 
 // ─── IPC: Triggers — webhooks (many endpoints, one server, one tunnel) ──────
-ipcMain.handle('webhooks:list', () => readConfig().webhookTriggers ?? []);
+/** A fresh 256-bit secret for one webhook endpoint, straight into the encrypted store. The
+ *  value is never returned to anyone: the operator copies it with `webhooks:copySecret`. */
+function mintWebhookSecret(id: string): { ok: boolean; error?: string } {
+  if (!WEBHOOK_ID_RE.test(id)) return { ok: false, error: 'invalid id' };
+  const r = integrations.setSecret(webhookSecretRef(id), randomBytes(32).toString('hex'));
+  return r.ok ? { ok: true } : { ok: false, error: r.error ?? 'could not save' };
+}
+/** The webhook list as a window may see it: no secret, a `hasSecret` flag instead. */
+const webhooksForRenderer = (list: WebhookTrigger[]): ReturnType<typeof publicWebhooks<WebhookTrigger>> =>
+  publicWebhooks(list, storedCfg(), cfgVault);
+
+ipcMain.handle('webhooks:list', () => webhooksForRenderer(readConfig().webhookTriggers ?? []));
 ipcMain.handle('webhooks:save', (_evt, arg: unknown) => {
   const incoming = Array.isArray(arg) ? arg : [];
   const existing = readConfig().webhookTriggers ?? [];
@@ -4221,24 +5123,60 @@ ipcMain.handle('webhooks:save', (_evt, arg: unknown) => {
     const t = sanitizeWebhookTrigger(raw, existing);
     if (!t || seen.has(t.id)) continue; // an id is a URL path segment — one owner each
     seen.add(t.id);
+    // A new endpoint is given its own secret here, in the main process. One that cannot be
+    // stored leaves the endpoint switched off: no secret would be an open door.
+    if (!hasWebhookSecret(t.id, storedCfg(), cfgVault)) {
+      if (!mintWebhookSecret(t.id).ok) t.enabled = false;
+    } else if (!cfgVault.has(webhookSecretRef(t.id))) {
+      // Not migrated yet (no usable secure storage): keep the plaintext the file already
+      // holds rather than lose the only copy of the caller's secret.
+      const prior = existing.find((e) => e.id === t.id);
+      if (prior?.secret) t.secret = prior.secret;
+    }
     list.push(t);
   }
   writeConfig({ webhookTriggers: list });
+  // An endpoint that left the list takes its secret with it.
+  for (const old of existing) if (!seen.has(old.id)) integrations.deleteSecret(webhookSecretRef(old.id));
   reconcileWebhookServer();
-  return list;
+  return webhooksForRenderer(list);
 });
 ipcMain.handle('webhooks:delete', (_evt, arg: unknown) => {
   const id = typeof arg === 'string' ? arg : '';
   const list = (readConfig().webhookTriggers ?? []).filter((t) => t.id !== id);
   writeConfig({ webhookTriggers: list });
+  if (WEBHOOK_ID_RE.test(id)) integrations.deleteSecret(webhookSecretRef(id));
   // Revoking one endpoint must not disturb the others: the live server is
   // re-pointed, not restarted, so every remaining caller's URL keeps working.
   reconcileWebhookServer();
-  return list;
+  return webhooksForRenderer(list);
 });
-/** Mint a strong (256-bit) secret for the operator to paste into their caller.
- *  Not persisted here — it belongs to whichever endpoint the UI saves it onto. */
-ipcMain.handle('webhooks:generateSecret', () => randomBytes(32).toString('hex'));
+/** Replace an endpoint's secret with a fresh one. The old caller stops working at once; the
+ *  new value is never returned, only copied on request. */
+ipcMain.handle('webhooks:rotateSecret', (evt, arg: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const id = typeof arg === 'string' ? arg : '';
+  if (!(readConfig().webhookTriggers ?? []).some((t) => t.id === id)) return { ok: false, error: 'unknown webhook' };
+  const m = mintWebhookSecret(id);
+  if (m.ok) reconcileWebhookServer();
+  return m;
+});
+/** Put an endpoint's secret on the clipboard, from the main process, so the page that asked
+ *  never holds it. Cleared after a minute unless something else has been copied since. */
+ipcMain.handle('webhooks:copySecret', (evt, arg: unknown) => {
+  if (!fromAppPage(evt)) return FORBIDDEN;
+  const id = typeof arg === 'string' ? arg : '';
+  const secret = WEBHOOK_ID_RE.test(id) ? webhookSecretOf(id) : undefined;
+  if (!secret) return { ok: false, error: 'no secret' };
+  try {
+    clipboard.writeText(secret);
+    const timer = setTimeout(() => {
+      try { if (clipboard.readText() === secret) clipboard.clear(); } catch { /* clipboard unavailable */ }
+    }, 60_000);
+    timer.unref?.();
+    return { ok: true };
+  } catch { return { ok: false, error: 'could not copy' }; }
+});
 /** Server state + the tunnel root + one public URL per configured endpoint (the
  *  UI offers a copy button per webhook, so the root alone isn't enough). */
 ipcMain.handle('webhooks:status', () => ({
@@ -4259,14 +5197,15 @@ function sanitizeWebhookTrigger(raw: unknown, existing: WebhookTrigger[]): Webho
   // no encoded traversal, nothing that could make two endpoints alias.
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(id)) return null;
   const prior = existing.find((t) => t.id === id);
-  const secret = typeof r.secret === 'string' && r.secret.trim() ? r.secret.trim() : prior?.secret ?? '';
   const mode = isTriggerMode(r.mode) ? r.mode : prior?.mode ?? DEFAULT_TRIGGER_MODE;
+  // A secret is never taken from the renderer: whatever it sent in `secret` is ignored. The
+  // caller's secret is minted and kept in the main process (`webhooks:save` gives a new
+  // endpoint one, `webhooks:rotateSecret` replaces it), and an endpoint that ends up without
+  // one is switched off there — a secretless endpoint would be an open door.
   return {
     id,
     name: typeof r.name === 'string' && r.name.trim() ? r.name.trim() : prior?.name ?? id,
-    secret,
-    // A secretless endpoint can never be enabled — it would be an open door.
-    enabled: secret ? (typeof r.enabled === 'boolean' ? r.enabled : prior?.enabled ?? false) : false,
+    enabled: typeof r.enabled === 'boolean' ? r.enabled : prior?.enabled ?? false,
     mode,
     schema: typeof r.schema === 'string' && r.schema.trim() ? r.schema : prior?.schema ?? DEFAULT_WEBHOOK_SCHEMA,
     createdAt: typeof r.createdAt === 'number' && r.createdAt > 0 ? r.createdAt : prior?.createdAt ?? Date.now()
@@ -4278,20 +5217,29 @@ function isTriggerMode(v: unknown): v is TriggerMode {
 }
 
 // ─── IPC: Triggers — organisation (persistence only; no transport yet) ──────
-ipcMain.handle('org:getTrigger', () => readConfig().orgTrigger ?? DEFAULT_ORG_TRIGGER);
+/** The organisation trigger as a window may see it: the key itself is never sent, only whether one is set. */
+const orgForRenderer = (cfg: OrgTriggerConfig): OrgTriggerConfig => ({
+  enabled: cfg.enabled, mode: cfg.mode, apiKey: '', hasKey: cfgVault.has(configSecretRef('orgKey')) || !!(cfg.apiKey && cfg.apiKey.trim())
+});
+ipcMain.handle('org:getTrigger', () => orgForRenderer(readConfig().orgTrigger ?? DEFAULT_ORG_TRIGGER));
 ipcMain.handle('org:setTrigger', (_evt, arg: unknown) => {
   const current = readConfig().orgTrigger ?? DEFAULT_ORG_TRIGGER;
   const p = (arg ?? {}) as Partial<OrgTriggerConfig>;
   // PERSIST ONLY — the peer messaging service does not exist yet, so nothing
   // reads `apiKey` beyond the settings surface that shows it. Deliberately no
   // start/stop, no network, no side effect of any kind.
+  // The key is WRITE-ONLY: a non-empty string sets it, `null` removes it, anything else leaves
+  // it. It goes to the encrypted store; the config holds only the toggle and the trust mode.
+  const keyResult = applyConfigSecret('orgKey', (p as { apiKey?: unknown }).apiKey);
   const next: OrgTriggerConfig = {
-    apiKey: typeof p.apiKey === 'string' ? p.apiKey.trim() : current.apiKey,
+    apiKey: '',
     enabled: typeof p.enabled === 'boolean' ? p.enabled : current.enabled,
     mode: isTriggerMode(p.mode) ? p.mode : current.mode
   };
+  // A plaintext key that has not been migrated yet stays where it is until it is.
+  if (!cfgVault.has(configSecretRef('orgKey')) && current.apiKey) next.apiKey = current.apiKey;
   writeConfig({ orgTrigger: next });
-  return next;
+  return keyResult.ok ? orgForRenderer(next) : { ...orgForRenderer(next), error: keyResult.error };
 });
 
 // ─── IPC: Triggers — history ledger + the approval gate ─────────────────────
@@ -4355,25 +5303,17 @@ ipcMain.handle('webhook:start', () => startWebhookServer());
 ipcMain.handle('webhook:stop', () => { stopWebhookServer(); return { ok: true }; });
 /** Current state + last public endpoint URL, for the Settings badge/URL field. */
 ipcMain.handle('webhook:status', () => ({ running: webhookServer != null, url: lastWebhookUrl }));
-/** Mint a strong (256-bit) secret, persist it, and return it so Settings can show
- *  it for the user to copy into their client. The previous secret is replaced. */
-ipcMain.handle('webhook:generateSecret', () => {
-  const secret = randomBytes(32).toString('hex');
-  writeConfig({ webhookSecret: secret });
-  upsertLegacyWebhookTrigger({ secret });
-  return { ok: true, secret };
-});
+// (The old `webhook:generateSecret`, which returned a new secret to the renderer, is gone: a
+// secret is now minted and kept in the main process, and copied with `webhooks:copySecret`.)
 ipcMain.handle('webhook:setConfig', (_evt, patch: unknown) => {
-  const p = (patch ?? {}) as { secret?: unknown; port?: unknown; enabled?: unknown };
+  // A `secret` is not accepted here any more: it would have come from a page and gone into
+  // the config file. The legacy endpoint's secret is rotated with `webhooks:rotateSecret`.
+  const p = (patch ?? {}) as { port?: unknown; enabled?: unknown };
   const next: Partial<HarnessConfig> = {};
-  if (typeof p.secret === 'string') next.webhookSecret = p.secret.trim() || undefined;
   if (typeof p.port === 'number' && Number.isFinite(p.port)) next.webhookPort = p.port;
   if (typeof p.enabled === 'boolean') next.webhookEnabled = p.enabled;
   writeConfig(next);
-  upsertLegacyWebhookTrigger({
-    secret: typeof p.secret === 'string' ? p.secret.trim() : undefined,
-    enabled: typeof p.enabled === 'boolean' ? p.enabled : undefined
-  });
+  upsertLegacyWebhookTrigger({ enabled: typeof p.enabled === 'boolean' ? p.enabled : undefined });
   // Disabling (or clearing the secret) stops the public surface immediately; the
   // reconcile also picks up the case where OTHER endpoints are still enabled, in
   // which case the server stays up minus the legacy one.
@@ -4385,23 +5325,17 @@ ipcMain.handle('webhook:setConfig', (_evt, patch: unknown) => {
  *  `legacy` WebhookTrigger. Creates the row only once a secret exists — an
  *  enabled endpoint without a secret would be an open door, so a bare "enable"
  *  against a never-configured webhook is deliberately a no-op. */
-function upsertLegacyWebhookTrigger(patch: { secret?: string; enabled?: boolean }): void {
+function upsertLegacyWebhookTrigger(patch: { enabled?: boolean }): void {
   const list = readConfig().webhookTriggers ?? [];
   const prior = list.find((t) => t.id === 'legacy');
-  const secret = patch.secret !== undefined ? patch.secret : prior?.secret ?? '';
-  if (!secret) return;
+  // The row exists only because the config migration made it for a user who had the old
+  // webhook; nothing creates one here. Without a secret it can never be switched on.
+  if (!prior || !hasWebhookSecret('legacy', storedCfg(), cfgVault)) return;
   const row: WebhookTrigger = {
-    id: 'legacy',
-    name: prior?.name ?? 'Default webhook',
-    secret,
-    enabled: patch.enabled !== undefined ? patch.enabled : prior?.enabled ?? false,
-    mode: prior?.mode ?? DEFAULT_TRIGGER_MODE,
-    schema: prior?.schema ?? DEFAULT_WEBHOOK_SCHEMA,
-    createdAt: prior?.createdAt ?? Date.now()
+    ...prior,
+    enabled: patch.enabled !== undefined ? patch.enabled : prior.enabled
   };
-  writeConfig({
-    webhookTriggers: prior ? list.map((t) => (t.id === 'legacy' ? row : t)) : [...list, row]
-  });
+  writeConfig({ webhookTriggers: list.map((t) => (t.id === 'legacy' ? row : t)) });
 }
 
 // ─── IPC: Free Flow (voice dictation → message queue) ────────────────────────
@@ -4414,11 +5348,12 @@ ipcMain.handle('freeflow:setConfig', (_evt, patch: unknown) => {
   const p = (patch ?? {}) as { enabled?: unknown; apiKey?: unknown; model?: unknown };
   const next: Partial<HarnessConfig> = {};
   if (typeof p.enabled === 'boolean') next.freeflowEnabled = p.enabled;
-  // Trim string fields; an emptied key clears back to undefined.
-  if (typeof p.apiKey === 'string') next.groqApiKey = p.apiKey.trim() || undefined;
   if (typeof p.model === 'string') next.freeflowModel = p.model.trim() || DEFAULT_GROQ_MODEL;
   writeConfig(next);
-  return { ok: true };
+  // The key is WRITE-ONLY and lives in the encrypted store: a non-empty string sets it, `null`
+  // removes it, anything else leaves it.
+  const key = applyConfigSecret('groqApiKey', p.apiKey);
+  return key.ok ? { ok: true } : { ok: false, error: key.error };
 });
 
 /** Transcribe one captured audio clip via Groq. Gated on the flag + a key being
@@ -4427,13 +5362,14 @@ ipcMain.handle('freeflow:setConfig', (_evt, patch: unknown) => {
 ipcMain.handle('freeflow:transcribe', async (_evt, arg: unknown) => {
   const cfg = readConfig();
   if (!cfg.freeflowEnabled) return { ok: false, error: 'Free Flow is disabled' };
-  if (!cfg.groqApiKey) return { ok: false, error: 'no Groq API key set' };
+  const groqKey = cfgSecret('groqApiKey');
+  if (!groqKey) return { ok: false, error: 'no Groq API key set' };
   const a = (arg ?? {}) as { audio?: unknown; mimeType?: unknown; filename?: unknown; language?: unknown };
   if (!(a.audio instanceof ArrayBuffer) && !(a.audio instanceof Uint8Array)) {
     return { ok: false, error: 'no audio' };
   }
   const out = await transcribeWithGroq({
-    apiKey: cfg.groqApiKey,
+    apiKey: groqKey,
     audio: a.audio,
     mimeType: typeof a.mimeType === 'string' ? a.mimeType : undefined,
     filename: typeof a.filename === 'string' ? a.filename : undefined,
@@ -4778,9 +5714,15 @@ async function processSpawnRequest(filePath: string): Promise<void> {
   // is up; the grant is revoked in teardownPty (and below if the spawn fails).
   const brokerEnv: Record<string, string> = {};
   if (integrationBroker.running()) {
-    const token = integrationBroker.grant(workerId, integrations.enabledIds());
-    brokerEnv.MD_BROKER_URL = integrationBroker.url();
-    brokerEnv.MD_BROKER_TOKEN = token;
+    // Only the integrations this worker was GRANTED (the default is none), not every enabled one.
+    // What it may do with each is judged per request by the route.
+    const restIds = restEligibleIds(readConfig(), workerId, integrations.enabledIds(), Date.now());
+    if (restIds.length > 0) {
+      const token = integrationBroker.grant(workerId, restIds);
+      brokerEnv.MD_BROKER_URL = integrationBroker.url();
+      brokerEnv.MD_BROKER_TOKEN = token;
+      recordAudit({ kind: 'capability', actor: 'system', agentId: workerId, action: 'grant-rest', detail: restIds.join(','), count: restIds.length });
+    }
   }
   const spawnOpts: AgentSpawnOptions = {
     id: workerId, cwd, command: bin, cols: 120, rows: 32,
@@ -5126,6 +6068,10 @@ function bootstrapHiveServices(): void {
   if (!hive.enabled()) return;
   hive.ensureHive();
   hive.refreshGeneratedDocs();
+  // No agent is running yet, so none needs an MCP config left over from an earlier run. One may
+  // hold a capability for the in-app MCP broker; capabilities die with the app, and the file need
+  // not outlive it either.
+  try { hive.sweepMcpConfigs(); } catch (e) { console.error('[mcp] config sweep failed:', e instanceof Error ? e.message : 'error'); }
   // Tell the hive what it is running inside, BEFORE anything spawns: the prompt
   // builder reads this, so an agent spawned earlier would never learn it.
   hive.setRuntimeInfo({ version: app.getVersion(), packaged: app.isPackaged, appPath: app.getAppPath() });
@@ -5390,6 +6336,9 @@ function onSystemResume(reason: string): void {
 }
 
 app.whenReady().then(() => {
+  // F2: any secret still in plaintext in config.json moves into the encrypted store (write,
+  // read back, then remove), and from then on config.json is written without them.
+  migrateConfigSecretsAtStartup();
   // Realtime Ted mic-gate hygiene (rt-8 / Lily rt-10 nit): the voice session
   // opens the mic permission gate by persisting realtimeVoiceEnabled=true and
   // closes it on disconnect — but a hard crash/reload mid-session skips that
@@ -5431,6 +6380,14 @@ app.whenReady().then(() => {
   // never restarts on its own. Falls back to a notify-only releases/latest
   // check where native updating isn't possible (win-portable, dev-ish builds).
   initAutoUpdater(() => liveWebContents());
+  // A crash or a force-quit can leave a bridged server's OAuth tokens on disk in
+  // the clear. No agent is running yet, so seal them before anything else starts.
+  try { mcpVault.sweep(); } catch (e) { console.error('[mcp] vault sweep failed:', e instanceof Error ? e.message : 'error'); }
+  // Remember which integrations the in-app broker serves now, so turning one off ends agent access at once.
+  try { exposure = brokerExposure(readConfig()); } catch { exposure = null; }
+  // Local servers the user has switched on are installed from their pinned lock in the background
+  // (nothing is installed for a server that is off).
+  try { ensureConsentedLocalServers(); } catch (e) { console.error('[mcp] install check failed:', e instanceof Error ? e.message : 'error'); }
   // Bootstrap the hive (if harnessHome is configured) and start the message router.
   bootstrapHiveServices();
   // Survive sleep/lock. macOS freezes libuv timers during true system sleep, so a
@@ -5450,7 +6407,7 @@ app.whenReady().then(() => {
   // failure (offline) is logged, not fatal. The tunnel URL is ephemeral and
   // changes per restart, so the user re-pastes it via Settings → Start.
   const slackCfg = readConfig();
-  if (slackCfg.slackEnabled && slackCfg.slackSigningSecret) {
+  if (slackCfg.slackEnabled && cfgSecret('slackSigningSecret')) {
     void startSlackServer().then((r) => {
       if (!r.ok) console.error('[slack] auto-start failed:', r.error);
       else console.log('[slack] webhook listening', r.url ? `(tunnel: ${r.url})` : '(no tunnel)');
@@ -5486,9 +6443,11 @@ app.on('before-quit', (e) => {
 // Every window loads the config once at start-up, so tell them all when a
 // setting is saved — a floor left out would keep showing what it opened with.
 onConfigWritten((config) => {
+  // The same redacted view `config:get` returns: a broadcast must not carry a secret either.
+  const view = forRenderer(config);
   for (const w of allWindows) {
     if (w.isDestroyed() || w.webContents.isDestroyed()) continue;
-    w.webContents.send('config:changed', config);
+    w.webContents.send('config:changed', view);
   }
 });
 
@@ -5520,9 +6479,20 @@ app.on('will-quit', (e) => {
   if (analyticsFlushed) return;
   analyticsFlushed = true;
   e.preventDefault();
-  const finish = (): void => app.exit(0);
-  Promise.race([
-    analytics.endSession(),
-    new Promise<void>((r) => setTimeout(r, 1200))
-  ]).then(finish, finish);
+  // The in-app OAuth engine: stop new refreshes, let one on the wire finish (bounded), then
+  // drop every token held in memory.
+  try { oauthController.beginShutdown(); } catch { /* best-effort */ }
+  try { connections.beginShutdown(); } catch { /* best-effort */ }
+  Promise.all([
+    // exactly the bound the analytics flush always had: a hung network cannot wedge the quit…
+    Promise.race([analytics.endSession(), new Promise<void>((r) => setTimeout(r, 1200))]),
+    // …and a refresh on the wire gets its own, separate moment (nothing waits when there is none)
+    oauthController.drain(1500),
+    connections.drain(1500)
+  ]).then(() => undefined, () => undefined).then(() => {
+    // only now do the tokens held in memory go, and the process end
+    try { oauthController.dispose(); } catch { /* best-effort */ }
+    try { connections.dispose(); } catch { /* best-effort */ }
+    app.exit(0);
+  });
 });

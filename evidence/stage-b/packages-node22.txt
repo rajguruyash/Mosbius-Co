@@ -1,0 +1,14 @@
+node v22.12.0 (/usr/local/bin/node) · npm 10.9.0 · uv 0.10.12 (00d72dac7 2026-03-19 aarch64-apple-darwin) · darwin/arm64
+
+✓ sequential-thinking  install ok (521 ms) · 1 tools · sequentialthinking → PASS
+✓ time                 install ok (1464 ms) · 3 tools · get_current_time → PASS
+✓ fetch                install ok (1247 ms) · 1 tools · fetch → PASS
+✓ context7             install ok (1861 ms) · 2 tools · resolve-library-id → PASS
+✓ filesystem           install ok (639 ms) · 16 tools · read_text_file → PASS
+✓ git                  install ok (678 ms) · 14 tools · git_status → PASS
+✓ playwright           install ok (647 ms) · 25 tools · browser_navigate → PASS
+~ notion               install ok (3094 ms) · 24 tools · API-get-self → LIMITED: reached the provider with a fake credential and was refused; no real account was used
+~ brave-search         install ok (1325 ms) · 8 tools · brave_web_search → LIMITED: reached the provider with a fake credential and was refused; no real account was used
+✓ mcp-remote           install ok (737 ms) · 1 tools · echo → PASS
+
+10/10 as expected

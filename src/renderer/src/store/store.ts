@@ -682,8 +682,20 @@ function newQueuedId(): string {
 }
 
 const AGENT_LOC_KEY = 'mosbius.agentLocations';
+/** Locations that no longer exist, and where their agents go instead. The
+ *  bedrooms were folded back into the apartment; without this, anyone who had
+ *  an agent down the hall would find it in a room the floor cannot show. */
+const RETIRED_LOCATIONS: Record<string, string> = { bedrooms: 'apartment' };
 function loadAgentLocations(): Record<string, string> {
-  try { return JSON.parse(window.localStorage.getItem(AGENT_LOC_KEY) ?? '{}') as Record<string, string>; } catch { return {}; }
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(AGENT_LOC_KEY) ?? '{}') as Record<string, string>;
+    let moved = false;
+    for (const [id, loc] of Object.entries(raw)) {
+      if (RETIRED_LOCATIONS[loc]) { raw[id] = RETIRED_LOCATIONS[loc]; moved = true; }
+    }
+    if (moved) { try { window.localStorage.setItem(AGENT_LOC_KEY, JSON.stringify(raw)); } catch { /* noop */ } }
+    return raw;
+  } catch { return {}; }
 }
 function saveAgentLocations(v: Record<string, string>): void {
   try { window.localStorage.setItem(AGENT_LOC_KEY, JSON.stringify(v)); } catch { /* noop */ }

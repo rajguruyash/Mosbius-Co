@@ -1,5 +1,5 @@
-- **The interface speaks Chinese and Arabic.** Set it in Settings.
-- **Updates install themselves.** Download, restart, done.
-- **Fonts ship inside the app.** No Google Fonts fetch on launch.
-- **Hardened how engine commands launch.**
-- **Settings has one Save button.** Connections get their own tab.
+- **Integrations & Skills** is new in Settings.
+- **Account sign-in** for Notion, Linear and more. Not yet tried with real accounts.
+- **Codex and Gemini CLI agents** get integrations too.
+- **Off until you switch it on.** Agents get what you grant.
+- **Skills can be checked and rolled back.**

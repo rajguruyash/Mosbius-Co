@@ -79,6 +79,12 @@ export interface HarnessConfig {
   /** Per-server consent for the default MCP bundle, keyed by catalog id (mirrors
    *  src/main/config.ts; seeded from MCP_CATALOG). */
   mcpDefaults?: { [id: string]: { enabled: boolean } };
+  /** Which sign-in engine each bridged integration uses. Read-only here: changed with `mcpSetEngine`. */
+  mcpEngine?: { [id: string]: 'bridge' | 'broker' };
+  /** The public client id the user gave for a device sign-in. Read-only here: changed with `connectSetClientId`. */
+  connectClientIds?: { [id: string]: string };
+  /** What each agent may do through the in-app MCP broker. Read-only here: changed with `mcpGrantsSet`. */
+  mcpGrants?: import('@shared/mcpAccess').McpGrantsView;
   semanticMemory: boolean;
   embeddingModel: 'minilm' | 'embeddinggemma';
   missions?: ScheduledMission[];
@@ -96,8 +102,6 @@ export interface HarnessConfig {
    *  Mirrors the main-process field (src/main/config.ts). */
   telemetryEnabled?: boolean;
   slackEnabled?: boolean;
-  slackSigningSecret?: string;
-  slackBotToken?: string;
   slackChannelId?: string;
   slackPort?: number;
   /** Opt-in app/voice-initiated proactive Slack posting (default OFF). Mirrors
@@ -105,8 +109,16 @@ export interface HarnessConfig {
   slackProactivePosting?: boolean;
   /** Free Flow voice dictation (mirrors src/main/config.ts). */
   freeflowEnabled?: boolean;
-  groqApiKey?: string;
   freeflowModel?: string;
+  /** Which secrets are stored, as booleans. The VALUES never reach the renderer (Stage B,
+   *  F2): the Slack signing secret and bot token, the Groq key, the org key and every
+   *  webhook secret live in the main process's encrypted store. */
+  secretsSet?: {
+    slackSigningSecret: boolean; slackBotToken: boolean; groqApiKey: boolean; orgKey: boolean;
+    webhooks: Record<string, boolean>;
+    /** Secrets still in plaintext in the settings file because secure storage was unavailable. */
+    plaintextRemaining: number;
+  };
   /** Realtime voice idle auto-disconnect (ms); default 180000 (3 min), 0 = never.
    *  Tuned in Settings → Realtime Ted; the cost cap stays the runaway guard. */
   realtimeIdleDisconnectMs?: number;
@@ -137,8 +149,6 @@ export interface HarnessConfig {
    *  type locally.
    *  @deprecated Use `webhookTriggers`. */
   webhookEnabled?: boolean;
-  /** @deprecated Use `webhookTriggers[].secret`. */
-  webhookSecret?: string;
   /** @deprecated The port belongs to the shared server, not to any one trigger. */
   webhookPort?: number;
   /** Auto-compaction / auto-clearing of agent terminal context. Main deep-fills

@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-11-15T07:14:09.277Z",
+  "electron": "32.3.3",
+  "node": "20.18.1",
+  "platform": "darwin",
+  "mode": "real account",
+  "integration": "google-calendar",
+  "ok": false,
+  "failed": 1,
+  "skipped": 0,
+  "steps": [
+    {
+      "n": "1.0",
+      "step": "an OAuth client is stored for this integration",
+      "ok": false,
+      "detail": "status unconfigured"
+    },
+    {
+      "n": "N.1",
+      "step": "no token, client secret or capability appears in anything this run printed, kept or logged",
+      "ok": true,
+      "detail": "searched 2 secret values"
+    }
+  ],
+  "facts": {
+    "id": "google-calendar",
+    "target": "real",
+    "account": true,
+    "url": "https://calendarmcp.googleapis.com/mcp/v1",
+    "tools": [],
+    "framing": {},
+    "probes": {},
+    "notes": []
+  }
+}

@@ -90,6 +90,11 @@
      ink-900 here inverts with the theme and paints near-white on a pale accent,
      which is the one place the theme switch actively hurts legibility. */
   --cth-on-accent: #1A1320;
+  /* Status TEXT on a plain surface. Components already ask for these two (with a fallback colour that is dark in
+     BOTH themes, which is unreadable on the dark surface); defining them makes the theme switch do the right thing.
+     Measured against cream-50/100/200 in light and 1D1D22-ish surfaces in dark: both clear 7:1. */
+  --cth-danger:   #8C1D2B;
+  --cth-mint-700: #1F7A4D;
 
   --cth-panel-border-inset:    inset 0 0 0 1px var(--cth-ink-100);
   --cth-panel-border-terminal: inset 0 0 0 1px var(--cth-ink-300);
@@ -144,6 +149,7 @@
      without fluorescing */
   --cth-coral: #E08C82;       --cth-mint:  #74C096;
   --cth-sky:   #6FB3C4;       --cth-lemon: #CFAA57;
+  --cth-danger:   #F0A39A;    --cth-mint-700: #8FD3AB;   /* status text on dark surfaces */
   --cth-lilac: #A896E3;       --cth-peach: #DFA57F;
 
   /* Accent "-light" fills double as chip/selection backgrounds — deep muted

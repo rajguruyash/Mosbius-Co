@@ -98,21 +98,15 @@ export async function webhooksStatus(): Promise<WebhooksStatus> {
   }
 }
 
-/** 256 bits of hex, the shape main mints. Only reached if the mint call fails —
- *  a locally minted secret still persists through `saveWebhooks`, so "add
- *  webhook" never silently hands out a blank credential. */
-function localSecret(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+/** Replace an endpoint's secret with a fresh one. The main process mints and keeps it; the
+ *  value is NOT returned (copy it with `copyWebhookSecret`), so no page ever holds one. */
+export async function rotateWebhookSecret(id: string): Promise<{ ok: boolean; error?: string }> {
+  try { return await window.cth.webhooksRotateSecret(id); } catch { return { ok: false, error: 'could not rotate' }; }
 }
 
-export async function generateWebhookSecret(): Promise<string> {
-  try {
-    const secret = await window.cth.generateWebhookSecret();
-    if (secret) return secret;
-  } catch { /* fall through to a local mint */ }
-  return localSecret();
+/** Ask the main process to put an endpoint's secret on the clipboard. */
+export async function copyWebhookSecret(id: string): Promise<{ ok: boolean; error?: string }> {
+  try { return await window.cth.webhooksCopySecret(id); } catch { return { ok: false, error: 'could not copy' }; }
 }
 
 /**
@@ -126,11 +120,12 @@ export async function generateWebhookSecret(): Promise<string> {
  *    in — an endpoint that went live the instant it was created would be open
  *    before anyone had been told the address.
  */
-export function newWebhook(secret: string, index: number): WebhookTrigger {
+export function newWebhook(index: number): WebhookTrigger {
+  // No secret here: the main process gives a new endpoint one when the list is saved, and
+  // an endpoint that cannot be given one stays switched off.
   return {
     id: `wh-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     name: index === 0 ? 'inbound' : `inbound ${index + 1}`,
-    secret,
     enabled: false,
     mode: DEFAULT_TRIGGER_MODE,
     schema: DEFAULT_WEBHOOK_SCHEMA,
@@ -149,6 +144,15 @@ export async function getOrgTrigger(): Promise<OrgTriggerConfig | null> {
   }
 }
 
-export function setOrgTrigger(cfg: OrgTriggerConfig): void {
-  void window.cth.setOrgTrigger(cfg).catch(() => { /* optimistic */ });
+/** Save the organisation trigger. The key is WRITE-ONLY: pass it as `apiKey` to set it, `null`
+ *  to remove it, or leave it out to keep what is stored. Resolves to what main now holds
+ *  (a `hasKey` flag, never the key), or null if the call failed. */
+export async function setOrgTrigger(
+  cfg: Pick<OrgTriggerConfig, 'enabled' | 'mode'>, apiKey?: string | null
+): Promise<(OrgTriggerConfig & { error?: string }) | null> {
+  try {
+    return await window.cth.setOrgTrigger({
+      enabled: cfg.enabled, mode: cfg.mode, ...(apiKey !== undefined ? { apiKey } : {})
+    });
+  } catch { return null; }
 }

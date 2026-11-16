@@ -107,7 +107,7 @@ export function App() {
       // Mirror boolean key-presence ONLY (never the key value) so the composer can
       // show the voice button disabled-with-tooltip when Free Flow is on but no
       // Groq key is set (Settings keeps this in sync on save).
-      useStore.getState().setHasGroqKey(!!c.groqApiKey);
+      useStore.getState().setHasGroqKey(!!c.secretsSet?.groqApiKey);
       // Mirror the active office theme so OfficeFloor renders it (gated on the
       // tvShowOffices flag; off = always the office). Settings keeps this synced.
       useStore.getState().setOfficeTheme('himym');
@@ -138,7 +138,11 @@ export function App() {
 
   // Config subscription — the copy loaded above would otherwise go stale the
   // moment anything saves a setting.
-  useEffect(() => window.cth.onConfigChanged(setConfig), []);
+  useEffect(() => window.cth.onConfigChanged((c) => {
+    setConfig(c);
+    // presence only: the key itself never reaches this process
+    useStore.getState().setHasGroqKey(!!c.secretsSet?.groqApiKey);
+  }), []);
 
   // Quit warning subscription
   useEffect(() => window.cth.onCloseRequested((info) => setQuitWarn(info)), []);

@@ -38,6 +38,156 @@ import {
   type AgentProvider
 } from '../shared/agentProvider';
 import { MCP_CATALOG } from '../shared/mcpCatalog';
+import { bridgeArgs, type BridgePaths } from './mcpAuthVault';
+
+/** What the app hands the hive for one integration on the in-app MCP broker. */
+export interface BrokerEntry {
+  /** `http://127.0.0.1:<port>/m/<id>`: the broker's own address, never an upstream's. */
+  url: string;
+  /** `Bearer <capability>`: a revocable handle for THIS agent. Never an OAuth token. */
+  authorization: string;
+}
+
+const BROKER_URL = /^http:\/\/127\.0\.0\.1:\d{1,5}\/m\/[a-z0-9][a-z0-9-]{0,63}$/;
+const CAPABILITY_AUTH = /^Bearer [A-Za-z0-9_-]{43}$/;           // 32 random bytes, base64url: what the registry mints
+
+/**
+ * The MCP config entry for an integration reached through the broker. It is built from
+ * two checked strings and nothing else, so no command, no environment, no OAuth token
+ * and no client credential can end up in it by a mistake further up: a URL that is not
+ * the loopback broker's, or an Authorization value that is not shaped like a capability,
+ * is refused (the server is then simply not written).
+ */
+/** The environment variable that carries one integration's capability to a Codex agent. Every one starts with
+ *  `MOSBIUS_MCP_`, which is the pattern the shell policy below excludes. (The name also holds TOKEN and SECRET,
+ *  but that does NOT protect it: measured on Codex 0.142.2, the default policy keeps `*TOKEN*` and `*KEY*`
+ *  variables in the shell it runs for the model, so the exclusion has to be asked for.) */
+export function codexCapabilityVariable(id: string): string {
+  return `MOSBIUS_MCP_SECRET_TOKEN_${id.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+}
+
+/** What a Gemini agent's settings say about one broker route: the address, and the NAME of the variable that carries
+ *  the capability (never the capability itself). */
+export interface GeminiMcpServer { httpUrl: string; headers: { Authorization: string } }
+
+/** What the app adds to a Gemini agent's own settings file. */
+export interface GeminiAppSettings {
+  hooksConfig: { enabled: boolean; notifications: boolean };
+  hooks: Record<string, unknown[]>;
+  mcpServers: Record<string, GeminiMcpServer>;
+}
+
+/** Entries of a person's `~/.gemini` that are NOT linked into an agent's own Gemini home: the settings file (merged,
+ *  never linked: a link would let the app's keys be written into the person's own file), the trust file (shared through
+ *  `GEMINI_CLI_TRUSTED_FOLDERS_PATH`), what is per session (history, tmp, projects), and `skills` (linked on its own,
+ *  so the link exists before the folder does). Everything else is linked, so the agent is the Gemini they already use. */
+export const GEMINI_NOT_LINKED: ReadonlySet<string> = new Set(['settings.json', 'trustedFolders.json', 'history', 'tmp', 'projects.json', 'projects.json.lock', 'skills']);
+
+/** JSON the way Gemini CLI's own loader reads it: comments and trailing commas allowed. Never throws; anything
+ *  unreadable, or not an object, is an empty object. */
+export function parseJsonLoose(text: string): Record<string, unknown> {
+  if (typeof text !== 'string') return {};
+  const parse = (s: string): unknown => { try { return JSON.parse(s); } catch { return undefined; } };
+  let v = parse(text);
+  if (v === undefined) {
+    let out = '';
+    let i = 0;
+    let inString = false;
+    while (i < text.length) {
+      const c = text[i];
+      const n = text[i + 1];
+      if (inString) {
+        out += c;
+        if (c === '\\') { out += n ?? ''; i += 2; continue; }
+        if (c === '"') inString = false;
+        i++;
+        continue;
+      }
+      if (c === '"') { inString = true; out += c; i++; continue; }
+      if (c === '/' && n === '/') { while (i < text.length && text[i] !== '\n') i++; continue; }
+      if (c === '/' && n === '*') { i += 2; while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++; i += 2; continue; }
+      out += c;
+      i++;
+    }
+    v = parse(out.replace(/,(\s*[}\]])/g, '$1'));
+  }
+  return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
+}
+
+const isPlainObject = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
+
+/** A Gemini agent's settings: the person's own, with the app's added. Their hooks stay and ours follow them for each
+ *  event; their servers stay beside ours (ours are named `mosbius-<id>`); every other key of theirs, the login choice
+ *  included, is left exactly as it was. */
+export function mergeGeminiSettings(user: Record<string, unknown>, ours: GeminiAppSettings): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...user };
+  const userHooks = isPlainObject(user.hooks) ? user.hooks : {};
+  const hooks: Record<string, unknown> = { ...userHooks };
+  for (const [event, list] of Object.entries(ours.hooks)) {
+    hooks[event] = [...(Array.isArray(userHooks[event]) ? userHooks[event] as unknown[] : []), ...list];
+  }
+  out.hooks = hooks;
+  out.hooksConfig = { ...(isPlainObject(user.hooksConfig) ? user.hooksConfig : {}), ...ours.hooksConfig };
+  const servers = { ...(isPlainObject(user.mcpServers) ? user.mcpServers : {}), ...ours.mcpServers };
+  if (Object.keys(servers).length > 0) out.mcpServers = servers; else delete out.mcpServers;
+  return out;
+}
+
+/** Make `link` point at `target`. A real file or folder already at `link` is never touched; a link that points elsewhere
+ *  (an older home) is replaced. Where links need a privilege and are refused, a small file is copied and a folder is
+ *  skipped. Best effort: a missing link only means the agent lacks one of the person's extras. */
+function linkInto(target: string, link: string): void {
+  try {
+    let present = false;
+    let isLink = false;
+    try { const st = lstatSync(link); present = true; isLink = st.isSymbolicLink(); } catch { /* nothing there */ }
+    if (present) {
+      if (!isLink) return;
+      try { unlinkSync(link); } catch { try { rmSync(link, { force: true }); } catch { return; } }
+    }
+    mkdirSync(dirname(link), { recursive: true });
+    try { symlinkSync(target, link, process.platform === 'win32' ? 'junction' : undefined); }
+    catch { try { if (existsSync(target) && statSync(target).isFile()) copyFileSync(target, link); } catch { /* best effort */ } }
+  } catch { /* best effort */ }
+}
+
+/** The pattern Codex is told to keep out of the shell it runs for the model. */
+export const CODEX_CAPABILITY_PATTERN = 'MOSBIUS_MCP_*';
+
+/**
+ * The patterns a user's own Codex config already excludes from the agent's shell
+ * (`[shell_environment_policy] exclude = [...]`, or the same key in an inline table), so asking for ours does not
+ * drop theirs: a command-line override replaces the whole list. Reads the config's TEXT, because the app carries
+ * no TOML parser; it understands quoted strings in a single- or multi-line array and nothing cleverer, and
+ * returns what it could read. Never throws.
+ */
+export function codexUserShellExcludes(configText: string): string[] {
+  try {
+    const text = String(configText ?? '');
+    const start = text.search(/^\s*\[\s*shell_environment_policy\s*\]\s*$|^\s*shell_environment_policy\s*=/m);
+    if (start < 0) return [];
+    const rest = text.slice(start).replace(/^[^\n]*\n?/, (first) => (/^\s*shell_environment_policy\s*=/.test(first) ? first : ''));
+    // a table section ends at the next table header; an inline table is covered by the same slice
+    const nextHeader = rest.search(/^\s*\[/m);
+    const body = nextHeader >= 0 ? rest.slice(0, nextHeader) : rest;
+    const arr = /\bexclude\s*=\s*\[([\s\S]*?)\]/.exec(body);
+    if (!arr) return [];
+    const out: string[] = [];
+    const re = /"((?:[^"\\\n]|\\.)*)"|'([^'\n]*)'/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(arr[1])) !== null) {
+      const v = m[1] !== undefined ? m[1].replace(/\\(["\\])/g, '$1') : m[2];
+      if (v) out.push(v);
+    }
+    return out;
+  } catch { return []; }
+}
+
+export function brokerServerEntry(id: string, b: BrokerEntry): { type: 'http'; url: string; headers: { Authorization: string } } | null {
+  if (!BROKER_URL.test(b.url) || !b.url.endsWith(`/m/${id}`)) return null;
+  if (!CAPABILITY_AUTH.test(b.authorization)) return null;
+  return { type: 'http', url: b.url, headers: { Authorization: b.authorization } };
+}
 import { selectBroadcastTargets } from '../shared/broadcast';
 import { preferredAgentRole } from '../shared/agentRole';
 import { mergeTaskLedger } from '../shared/taskLedger';
@@ -236,7 +386,7 @@ function shortRand(): string {
 const PROXY_BIND_ATTEMPTS = 3;
 const PROXY_BIND_BACKOFF_MS = [250, 750];
 
-const MINE_IGNORE_LINES = ['settings.json', 'cursor.json', 'inbox/', 'outbox/', '.codex/'];
+const MINE_IGNORE_LINES = ['settings.json', 'cursor.json', 'inbox/', 'outbox/', '.codex/', 'mcp-config.json'];
 
 /** Idempotently ensure `<agentDir>/.gitignore` excludes the non-memory files.
  *  Append-only: writes only the missing lines, leaving any existing entries. */
@@ -725,6 +875,20 @@ export class HiveManager {
       /** Consent state for the default-MCP bundle (W3). Threaded from the live
        *  HarnessConfig by the caller; undefined → catalog defaults apply. */
       mcpDefaults?: { [id: string]: { enabled: boolean } };
+      /** Resolves a BRIDGED catalog id to the private files mcp-remote reads its
+       *  OAuth client and tokens from (src/main/mcpAuthVault.ts). Returns nothing
+       *  when the user has not signed in, and the server is then skipped — a
+       *  bridge with no tokens would open a browser by itself. */
+      mcpBridge?: (catalogId: string) => BridgePaths | undefined;
+      /** Resolves a catalog id to the agent's entry for the in-app MCP broker: the broker's own
+       *  loopback URL and this agent's capability, which is a revocable handle and NOT a
+       *  credential. Every server an agent uses comes this way. Returns nothing unless the
+       *  agent is allowed to use the integration, and the server is then not written at all. */
+      mcpBroker?: (catalogId: string) => BrokerEntry | undefined;
+      /** Absolute paths holding credentials (the bridge vault, the encrypted
+       *  secret file). The agent is denied reads of them: OS-enforced for its
+       *  sandboxed shell, by permission rule for its file tools. */
+      denyReadPaths?: string[];
       /** App-resources `skills/` source dir (W3). The bundled read-only skills are
        *  copied into the agent's `.claude/skills/` per spawn; undefined or missing
        *  is a no-op (tolerated until Ranjit populates the resource dir). */
@@ -879,6 +1043,10 @@ export class HiveManager {
               // that already vets hook sources"). Without it the hooks silently
               // never fire. Must precede the positional prompt.
               preArgs.push('--dangerously-bypass-hook-trust');
+              // The broker's routes, for the integrations this agent holds a grant for (see buildCodexBrokerWiring).
+              const codexMcp = this.buildCodexBrokerWiring(opts.mcpDefaults, opts.mcpBroker);
+              preArgs.push(...codexMcp.args);
+              Object.assign(env, codexMcp.env);
               // Auto mode keeps codex's OS sandbox (`-a never -s workspace-write`,
               // agentProvider.ts). workspace-write only covers cwd, so the agent
               // folder (inbox/.done, memory.md, outbox) and the shared hive root
@@ -908,9 +1076,15 @@ export class HiveManager {
               env.OPENCODE_CONFIG_DIR = this.installOpenCodePlugin(dir, opts.theme);
             }
             else if (desc.shim === 'gemini') {
-              // Point only this worker at a per-agent system settings file so
-              // the bridge is trusted and ~/.gemini/settings.json stays untouched.
-              env.GEMINI_CLI_SYSTEM_SETTINGS_PATH = this.installGeminiHooks(dir);
+              // This worker gets a Gemini home of its own (see installGeminiHooks for why a system settings file
+              // cannot be used), with the person's settings and login carried into it, so their real
+              // ~/.gemini/settings.json stays untouched. The broker's routes, for the integrations this agent holds a
+              // grant for, go into the same file.
+              const geminiMcp = this.buildGeminiBrokerWiring(opts.mcpDefaults, opts.mcpBroker);
+              env.GEMINI_CLI_HOME = this.installGeminiHooks(dir, geminiMcp.servers);
+              // Which folders Gemini trusts is the person's decision, made in Gemini and shared by every agent.
+              env.GEMINI_CLI_TRUSTED_FOLDERS_PATH = join(homedir(), '.gemini', 'trustedFolders.json');
+              Object.assign(env, geminiMcp.env);
             }
             else if (desc.shim === 'grok') this.installGrokHooks();
           } else if (desc.kind === 'proxy') {
@@ -1000,9 +1174,17 @@ export class HiveManager {
     if (sock && shim) {
       env.HIVE_SOCK = sock;
       const settingsPath = join(dir, 'settings.json');
-      this.writeJson(settingsPath, this.hookSettings(shim, meta.cwd, opts.mcpDefaults, opts.theme, this.sandboxWritableDirs(meta, dir, root, opts.extraWritableDirs)));
+      // The agent's own MCP config can carry a secret-tier token, so it joins
+      // the paths the agent may not read back.
+      const denyRead = [...(opts.denyReadPaths ?? []), join(dir, 'mcp-config.json'), ...this.otherAgentMcpConfigs(root, meta.id)];
+      this.writeJson(settingsPath, this.hookSettings(shim, opts.theme, this.sandboxWritableDirs(meta, dir, root, opts.extraWritableDirs), denyRead));
       args.push('--settings', settingsPath);
     }
+    // The default MCP bundle goes in its OWN file: `--settings` does not configure
+    // MCP servers (see hookSettings). Additive — without --strict-mcp-config the
+    // user's own servers still load alongside these.
+    const mcpPath = this.writeMcpConfig(dir, opts.mcpDefaults, opts.mcpBridge, opts.mcpBroker);
+    if (mcpPath) args.push('--mcp-config', mcpPath);
     return { args, env };
   }
 
@@ -1242,7 +1424,7 @@ export class HiveManager {
     return Array.from(new Set(out));
   }
 
-  private hookSettings(shim: string, cwd: string, cfg: McpDefaultsMap, theme?: 'light' | 'dark', writableDirs: string[] = []): unknown {
+  private hookSettings(shim: string, theme?: 'light' | 'dark', writableDirs: string[] = [], denyRead: string[] = []): unknown {
     // Bundled node, NOT bare `node` — see nodeLauncherPath(). Claude runs each of
     // these through `sh -c` with a stripped PATH, where `node` is often absent.
     const cmd = this.nodeRun(shim);
@@ -1250,7 +1432,6 @@ export class HiveManager {
       ...(matcher ? { matcher } : {}),
       hooks: [{ type: 'command', command: cmd }]
     });
-    const mcpServers = this.buildDefaultMcpServers(cwd, cfg);
     return {
       // Match the TUI's truecolor palette to the harness terminal theme —
       // PER SESSION, so the user's global Claude theme (their own terminals
@@ -1264,11 +1445,14 @@ export class HiveManager {
       // listens. The terminal reports the current theme the moment the CLI enables
       // 2031, so startup still matches without pinning anything.
       ...(theme ? { theme: 'auto' } : {}),
-      // W3 — default skills/MCP bundle. Written into the PER-SESSION settings file
-      // only (never ~/.claude), so the user's own MCP servers are never clobbered;
-      // Claude merges this additively. Omitted entirely when empty so a settings
-      // file with no enabled servers is unchanged from before.
-      ...(Object.keys(mcpServers).length ? { mcpServers } : {}),
+      // NOTE: MCP servers are NOT configured here. A `mcpServers` key in a
+      // settings file is not part of Claude Code's settings schema and is
+      // silently ignored — verified against claude 2.1.319 on 2026-11-13 by
+      // declaring a probe server both ways and reading the CLI's own
+      // `system`/`init` event: under `--settings` the probe was absent from
+      // `mcp_servers`, under `--mcp-config` it was listed. The default bundle
+      // therefore goes in its own file passed with `--mcp-config`; see
+      // writeMcpConfig below.
       // The status line gets the session status JSON after every response —
       // including context_window.{total_input_tokens,context_window_size},
       // the only clean programmatic source for the session's REAL context
@@ -1285,10 +1469,23 @@ export class HiveManager {
       // Edit/Write tools; with only one the agent deadlocks on its own inbox.
       // failIfUnavailable stays false: a platform without a sandbox (Windows)
       // runs as before rather than refusing to spawn.
+      //
+      // denyRead / permissions.deny keep the agent away from the files that hold
+      // credentials. Two layers because each covers what the other cannot: the
+      // sandbox is OS-enforced but only wraps shell commands; the Read rule
+      // covers the file tools, which run outside the sandbox. Neither is a hard
+      // boundary — the sandbox's unsandboxed-command escape hatch is still on —
+      // so this is defence in depth, not isolation.
       ...(writableDirs.length
         ? {
-            sandbox: { enabled: true, filesystem: { allowWrite: writableDirs } },
-            permissions: { additionalDirectories: writableDirs }
+            sandbox: {
+              enabled: true,
+              filesystem: { allowWrite: writableDirs, ...(denyRead.length ? { denyRead } : {}) }
+            },
+            permissions: {
+              additionalDirectories: writableDirs,
+              ...(denyRead.length ? { deny: denyRead.flatMap((p) => [`Read(/${p})`, `Read(/${p}/**)`]) } : {})
+            }
           }
         : {}),
       hooks: {
@@ -1308,36 +1505,200 @@ export class HiveManager {
   }
 
   /**
-   * W3 — build the per-agent `mcpServers` map from the default catalog. Includes a
-   * server only when it's enabled (catalog ∩ consent), scopes filesystem/git to the
-   * agent cwd (never whole-disk), and namespaces every id `munder-<id>` so a server
-   * of the same name in the user's own ~/.claude is never clobbered. A write/secret
-   * server is included ONLY on an explicit `enabled:true` consent — never via a
-   * default — so a malformed/partial config can't silently arm a keyed server.
+   * Build the per-agent MCP server map. EVERY server an agent is given is an HTTP entry that
+   * points at the app's own loopback broker and carries a capability (a revocable handle for
+   * THIS agent), and nothing else: no command, no arguments, no environment, no header with a
+   * credential (Stage B, F1). The local servers are run by the app itself and reach the agent
+   * only through the broker, which is also where its grants, tool classes and revocation apply;
+   * the credential of Notion, Brave and GitHub never leaves the app's encrypted store except
+   * into the one process, or the one request, that needs it.
+   *
+   * A server is written only when the user switched it ON (an explicit `enabled: true`: a missing
+   * or partial entry is off), and only when `getBroker` hands back an entry for it, which the
+   * app does only if the agent holds a grant, the server is ready, and its credential exists.
+   * Ids are namespaced `mosbius-<id>` so a server of the same name in the user's own Claude
+   * config is never clobbered.
+   *
+   * The one exception is a bridged service (Gmail, Calendar, Drive, Slack) whose sign-in engine
+   * is still the `mcp-remote` bridge, the fallback: it keeps its own private-file path.
    */
   private buildDefaultMcpServers(
-    cwd: string,
-    cfg: McpDefaultsMap
-  ): Record<string, { command: string; args: string[]; env?: Record<string, string> }> {
-    const out: Record<string, { command: string; args: string[]; env?: Record<string, string> }> = {};
+    cfg: McpDefaultsMap,
+    getBridge?: (catalogId: string) => BridgePaths | undefined,
+    getBroker?: (catalogId: string) => BrokerEntry | undefined
+  ): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
     for (const e of MCP_CATALOG) {
-      const consented = cfg?.[e.id]?.enabled;
-      const enabled = consented ?? e.defaultEnabled;
-      if (!enabled) continue;
-      // Defense-in-depth: a write/secret server requires an EXPLICIT opt-in; it can
-      // never ride in on a default (the catalog already ships these OFF, but this
-      // guards a hand-edited/partial mcpDefaults map too).
-      if (e.tier !== 'safe-readonly' && consented !== true) continue;
-      // Replace the `<cwd>` placeholder (filesystem/git) with the agent cwd at merge
-      // time so these stay strictly workspace-scoped.
-      const args = e.spec.args.map((a) => (a === '<cwd>' ? cwd : a));
-      out[`munder-${e.id}`] = {
-        command: e.spec.command,
-        args,
-        ...(e.spec.env ? { env: e.spec.env } : {})
-      };
+      // Every server is opt-in, whatever its tier: only an explicit `enabled: true` counts.
+      if (cfg?.[e.id]?.enabled !== true) continue;
+      const name = `mosbius-${e.id}`;
+
+      // Through the app's own broker: the agent talks to the loopback broker and presents a
+      // capability. No OAuth token, no client id or secret, no command and no environment.
+      const viaBroker = getBroker?.(e.id);
+      if (viaBroker) {
+        const entry = brokerServerEntry(e.id, viaBroker);
+        if (entry) out[name] = entry;
+        continue;
+      }
+
+      // The fallback for a bridged service: written only when the vault hands back its private
+      // files, which it does only once the user has stored an OAuth client AND signed in. Nothing
+      // secret goes into this config: mcp-remote reads the client and the tokens from the vault
+      // directory, so neither is in the argument vector, the environment (`ps eww` shows both to
+      // every process the user runs) or a file that could be committed.
+      if (e.spec.transport === 'bridge') {
+        const paths = getBridge?.(e.id);
+        if (!paths) continue;
+        out[name] = {
+          type: 'stdio',
+          command: 'npx',
+          args: bridgeArgs(e.spec, paths),
+          env: { MCP_REMOTE_CONFIG_DIR: paths.configDir }
+        };
+      }
+      // Anything else is NOT written: there is no direct way to launch a server from an agent.
     }
     return out;
+  }
+
+  /**
+   * The same broker entries, as a CODEX agent takes them. Codex reads no agent-side MCP file of ours: the
+   * address of each broker route goes on its command line (`-c mcp_servers.<name>.url=…`) and the capability
+   * goes into ONE environment variable that Codex itself reads as the bearer token (`bearer_token_env_var`).
+   * The variable's name contains `TOKEN` and `SECRET`, which Codex's default environment filter
+   * (`shell_environment_policy`) drops from every shell command the agent runs, so the agent's shell does
+   * not see it. The capability is a revocable handle for this one agent; no provider credential is here.
+   * An entry is written only when the user switched the server on and the app hands back a well-formed
+   * broker entry: the same gates as for Claude.
+   */
+  private buildCodexBrokerWiring(
+    cfg: McpDefaultsMap,
+    getBroker?: (catalogId: string) => BrokerEntry | undefined
+  ): { args: string[]; env: Record<string, string> } {
+    const args: string[] = [];
+    const env: Record<string, string> = {};
+    for (const e of MCP_CATALOG) {
+      if (cfg?.[e.id]?.enabled !== true) continue;
+      const via = getBroker?.(e.id);
+      const entry = via ? brokerServerEntry(e.id, via) : null;
+      if (!entry) continue;
+      const name = `mosbius-${e.id}`;
+      const variable = codexCapabilityVariable(e.id);
+      env[variable] = entry.headers.Authorization.replace(/^Bearer\s+/i, '');
+      args.push('-c', `mcp_servers.${name}.url=${JSON.stringify(entry.url)}`, '-c', `mcp_servers.${name}.bearer_token_env_var=${JSON.stringify(variable)}`);
+    }
+    if (args.length > 0) {
+      // Keep the capability out of the shell Codex runs for the model. Codex's own default does not do it, and
+      // the exclusion alone is not enough: Codex's shell SNAPSHOT (on by default) re-exports the whole process
+      // environment into every command, which defeats `shell_environment_policy`. Measured on 0.142.2: with the
+      // snapshot on, the variable reaches the model's shell however the policy is set; with it off, `exclude`
+      // removes exactly the variable and the user's other variables stay. The cost is that Codex re-reads the
+      // login shell for each command, for agents that were given an integration, and only for them.
+      args.push('-c', 'features.shell_snapshot=false');
+      let mine: string[] = [];
+      try { mine = codexUserShellExcludes(readFileSync(join(homedir(), '.codex', 'config.toml'), 'utf8')); } catch { /* no user config: nothing to keep */ }
+      const patterns = [...new Set([...mine, CODEX_CAPABILITY_PATTERN])];
+      args.push('-c', `shell_environment_policy.exclude=[${patterns.map((p) => JSON.stringify(p)).join(', ')}]`);
+    }
+    return { args, env };
+  }
+
+  /**
+   * The same broker entries, as a GEMINI agent takes them: an `mcpServers` object in the agent's own settings file (the
+   * user layer of its own `GEMINI_CLI_HOME`, written by installGeminiHooks; a system settings file is refused by the
+   * CLI), with `httpUrl` for the broker route. The capability is NOT in that file: the header says `Bearer $NAME`, which
+   * Gemini CLI's settings loader expands from its own environment (shown on 0.68.0: the broker received it), and the
+   * variable carries the capability. A version that did not expand it would send no usable credential and the broker
+   * would refuse the call: the failure is closed. Same gates as Claude and Codex: the user switched the server on, and
+   * the app hands back a well-formed broker entry. Gemini loads these only in a folder the person has trusted in
+   * Gemini itself; in any other it disables them, which also fails closed.
+   */
+  private buildGeminiBrokerWiring(
+    cfg: McpDefaultsMap,
+    getBroker?: (catalogId: string) => BrokerEntry | undefined
+  ): { servers: Record<string, GeminiMcpServer>; env: Record<string, string> } {
+    const servers: Record<string, GeminiMcpServer> = {};
+    const env: Record<string, string> = {};
+    for (const e of MCP_CATALOG) {
+      if (cfg?.[e.id]?.enabled !== true) continue;
+      const via = getBroker?.(e.id);
+      const entry = via ? brokerServerEntry(e.id, via) : null;
+      if (!entry) continue;
+      const variable = codexCapabilityVariable(e.id);
+      env[variable] = entry.headers.Authorization.replace(/^Bearer\s+/i, '');
+      servers[`mosbius-${e.id}`] = { httpUrl: entry.url, headers: { Authorization: `Bearer $${variable}` } };
+    }
+    return { servers, env };
+  }
+
+  /**
+   * Write the agent's MCP config and return its path, or null when no server is
+   * enabled. Lives in the agent's own hive directory, NOT in the user's repo: a
+   * `.mcp.json` would be a file dropped into whatever project the agent is working
+   * in, and would end up in their commits.
+   */
+  private writeMcpConfig(
+    dir: string,
+    cfg: McpDefaultsMap,
+    getBridge?: (catalogId: string) => BridgePaths | undefined,
+    getBroker?: (catalogId: string) => BrokerEntry | undefined
+  ): string | null {
+    const mcpServers = this.buildDefaultMcpServers(cfg, getBridge, getBroker);
+    const path = join(dir, 'mcp-config.json');
+    if (!Object.keys(mcpServers).length) {
+      // Leave nothing behind holding a credential from a previous spawn.
+      try { if (existsSync(path)) rmSync(path, { force: true }); } catch { /* best-effort */ }
+      return null;
+    }
+    this.writeJson(path, { mcpServers });
+    // It holds this agent's capability (a handle, not a credential), but it is still owner-only.
+    try { chmodSync(path, 0o600); } catch { /* best-effort — Windows has no mode */ }
+    return path;
+  }
+
+  /** The `mcp-config.json` of every OTHER agent in this hive: a pattern for the ones that do
+   *  not exist yet (permission rules match patterns) and each one that does (the sandbox
+   *  takes paths). Each can hold that agent's capability for the in-app MCP broker, which
+   *  works within THAT agent's grants, so no agent may read another's. */
+  private otherAgentMcpConfigs(root: string, selfId: string): string[] {
+    const agents = join(root, 'agents');
+    const out = [join(agents, '*', 'mcp-config.json')];
+    try {
+      for (const name of readdirSync(agents)) {
+        if (name === selfId || name.startsWith('.')) continue;
+        out.push(join(agents, name, 'mcp-config.json'));
+      }
+    } catch { /* no agents yet */ }
+    return out;
+  }
+
+  /** Delete one agent's MCP config (it may hold a capability). Best-effort; false when there was none. */
+  removeMcpConfig(agentId: string): boolean {
+    const root = this.root();
+    if (!root || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(agentId)) return false;
+    const path = join(this.agentDir(agentId), 'mcp-config.json');
+    try {
+      if (!existsSync(path)) return false;
+      rmSync(path, { force: true });
+      return !existsSync(path);
+    } catch { return false; }
+  }
+
+  /** At startup no agent is running, so no agent needs a leftover MCP config; each is written
+   *  again at spawn. Removes every one, so a capability from a run that crashed is not left
+   *  lying in a file. Returns how many were removed. */
+  sweepMcpConfigs(): number {
+    const root = this.root();
+    if (!root) return 0;
+    let n = 0;
+    try {
+      for (const name of readdirSync(join(root, 'agents'))) {
+        const path = join(root, 'agents', name, 'mcp-config.json');
+        try { if (existsSync(path)) { rmSync(path, { force: true }); n++; } } catch { /* best-effort */ }
+      }
+    } catch { /* no agents yet */ }
+    return n;
   }
 
   /**
@@ -2130,19 +2491,29 @@ export class HiveManager {
     }
   }
 
-  /** Official Google Gemini CLI lifecycle bridge. Gemini's hook payload is
+  /** Official Google Gemini CLI lifecycle bridge, and the broker entries. Gemini's hook payload is
    *  already snake_case; the shim maps event names into HookServer's common
    *  vocabulary and translates deny/steering replies back to Gemini.
    *
-   *  The system settings path is per agent. Gemini merges object and array
-   *  settings across layers, so auth and user settings remain in their normal
-   *  GEMINI_CLI_HOME while this trusted bridge stays isolated. */
-  private installGeminiHooks(dir: string): string {
-    const home = join(dir, '.gemini-hive');
-    const settingsPath = join(home, 'system-settings.json');
+   *  WHERE THE SETTINGS LIVE. Measured on Gemini CLI 0.68.0 (`evidence/gemini/gemini-live.json`): the CLI refuses a
+   *  SYSTEM settings file, and a system-defaults file, unless every parent directory is owned by root ("Security
+   *  Warning: Skipping system settings file ... is not owned by root"). A file this app writes into a person's own
+   *  folder is therefore never read: on that version neither the hooks nor a broker entry placed in
+   *  `GEMINI_CLI_SYSTEM_SETTINGS_PATH` ever took effect. The one settings layer a non-root app can own is the USER layer
+   *  of an isolated `GEMINI_CLI_HOME`, so each agent gets a home of its own:
+   *
+   *    <agent>/.gemini-hive/home/.gemini/settings.json   the person's own settings, with the app's keys added
+   *    <agent>/.gemini-hive/home/.gemini/<other entries> links to the person's own (login, skills, commands, extensions...)
+   *    <agent>/.gemini-hive/home/.agents                 a link to the shared skills folder (~/.agents)
+   *
+   *  History and session folders are not linked, so each agent keeps its own. Trust decisions stay the person's:
+   *  the caller points `GEMINI_CLI_TRUSTED_FOLDERS_PATH` at their own file. Returns the value for `GEMINI_CLI_HOME`. */
+  private installGeminiHooks(dir: string, mcpServers: Record<string, GeminiMcpServer> = {}): string {
+    const base = join(dir, '.gemini-hive');
+    const home = join(base, 'home');
     try {
-      mkdirSync(home, { recursive: true });
-      const shim = join(home, 'gemini-hook.cjs');
+      mkdirSync(join(home, '.gemini'), { recursive: true });
+      const shim = join(base, 'gemini-hook.cjs');
       writeFileSync(shim, GEMINI_HOOK_SHIM, 'utf8');
       const hook = (name: string, matcher?: string) => ({
         ...(matcher ? { matcher } : {}),
@@ -2156,7 +2527,7 @@ export class HiveManager {
           timeout: 30000
         }]
       });
-      const settings = {
+      const ours: GeminiAppSettings = {
         hooksConfig: { enabled: true, notifications: false },
         hooks: {
           SessionStart: [hook('session-start')],
@@ -2164,11 +2535,25 @@ export class HiveManager {
           BeforeTool: [hook('before-tool', '.*')],
           AfterTool: [hook('after-tool', '.*')],
           AfterAgent: [hook('after-agent')]
-        }
+        },
+        mcpServers
       };
-      writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+      const userDir = join(homedir(), '.gemini');
+      let userText = '';
+      try { userText = readFileSync(join(userDir, 'settings.json'), 'utf8'); } catch { /* none: nothing to keep */ }
+      writeFileSync(join(home, '.gemini', 'settings.json'), JSON.stringify(mergeGeminiSettings(parseJsonLoose(userText), ours), null, 2), 'utf8');
+      // The person's own login, skills, commands, extensions and the rest: linked, so the agent is the same Gemini they use.
+      let names: string[] = [];
+      try { names = readdirSync(userDir); } catch { /* no Gemini folder yet */ }
+      for (const name of names) {
+        if (GEMINI_NOT_LINKED.has(name)) continue;
+        linkInto(join(userDir, name), join(home, '.gemini', name));
+      }
+      // Created whether or not they exist yet: a skill installed later appears without a respawn.
+      linkInto(join(userDir, 'skills'), join(home, '.gemini', 'skills'));
+      linkInto(join(homedir(), '.agents'), join(home, '.agents'));
     } catch (e) { console.error('[hive] installGeminiHooks failed:', e); }
-    return settingsPath;
+    return home;
   }
 
   /** Codex lifecycle-hook bridge → full hive parity for a `codex` worker (live
@@ -2884,9 +3269,19 @@ export class HiveManager {
     // Probe before mutating: `rm --cached` on a clean repo would still rewrite
     // the index on every launch, and this runs inside the commit retry path.
     const tracked = this.git(['ls-files', '--', 'agents/*/.codex'], root);
-    if (!tracked.ok || !tracked.out.trim()) return;
-    this.git(['rm', '-r', '--cached', '-q', '--ignore-unmatch', '--', 'agents/*/.codex'], root);
-    console.warn('[hive] untracked previously-committed Codex homes from the hive repo');
+    if (tracked.ok && tracked.out.trim()) {
+      this.git(['rm', '-r', '--cached', '-q', '--ignore-unmatch', '--', 'agents/*/.codex'], root);
+      console.warn('[hive] untracked previously-committed Codex homes from the hive repo');
+    }
+    // Same rule, higher stakes: an agent's MCP config can hold a token. The
+    // ignore line (refreshed just above) keeps new copies out; this drops one
+    // that was tracked before the line existed. History is NOT rewritten — a
+    // token that was ever committed must be rotated.
+    const cfg = this.git(['ls-files', '--', 'agents/*/mcp-config.json'], root);
+    if (cfg.ok && cfg.out.trim()) {
+      this.git(['rm', '--cached', '-q', '--ignore-unmatch', '--', 'agents/*/mcp-config.json'], root);
+      console.warn('[hive] untracked agent MCP configs from the hive repo; rotate any credential they held');
+    }
   }
 
   /** Commit all hive changes. No-op if there is nothing staged. */

@@ -1,0 +1,175 @@
+{
+  "package": "@notionhq/notion-mcp-server",
+  "version": "2.6.1",
+  "listedWith": "tools/list through the app-run host",
+  "tools": [
+    {
+      "name": "API-get-user",
+      "annotations": {
+        "title": "Get User",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-get-users",
+      "annotations": {
+        "title": "Get Users",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-get-self",
+      "annotations": {
+        "title": "Get Self",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-post-search",
+      "annotations": {
+        "title": "Post Search",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-get-block-children",
+      "annotations": {
+        "title": "Get Block Children",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-patch-block-children",
+      "annotations": {
+        "title": "Patch Block Children",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-retrieve-a-block",
+      "annotations": {
+        "title": "Retrieve A Block",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-update-a-block",
+      "annotations": {
+        "title": "Update A Block",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-delete-a-block",
+      "annotations": {
+        "title": "Delete A Block",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-retrieve-a-page",
+      "annotations": {
+        "title": "Retrieve A Page",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-patch-page",
+      "annotations": {
+        "title": "Patch Page",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-post-page",
+      "annotations": {
+        "title": "Post Page",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-retrieve-a-page-property",
+      "annotations": {
+        "title": "Retrieve A Page Property",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-retrieve-a-comment",
+      "annotations": {
+        "title": "Retrieve A Comment",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-create-a-comment",
+      "annotations": {
+        "title": "Create A Comment",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-query-data-source",
+      "annotations": {
+        "title": "Query Data Source",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-retrieve-a-data-source",
+      "annotations": {
+        "title": "Retrieve A Data Source",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-update-a-data-source",
+      "annotations": {
+        "title": "Update A Data Source",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-create-a-data-source",
+      "annotations": {
+        "title": "Create A Data Source",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-list-data-source-templates",
+      "annotations": {
+        "title": "List Data Source Templates",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-retrieve-a-database",
+      "annotations": {
+        "title": "Retrieve A Database",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-move-page",
+      "annotations": {
+        "title": "Move Page",
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "API-retrieve-page-markdown",
+      "annotations": {
+        "title": "Retrieve Page Markdown",
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "API-update-page-markdown",
+      "annotations": {
+        "title": "Update Page Markdown",
+        "destructiveHint": true
+      }
+    }
+  ]
+}

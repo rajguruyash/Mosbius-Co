@@ -204,7 +204,8 @@ test('no Arabic string is left as its English source', () => {
   // would make the UI wrong, not more Arabic.
   const SAME_ON_PURPOSE = new Set([
     'settings.connections.slack',            // product name
-    'onboarding.providerBlurb.claude',       // "Claude Code — Anthropic": two product names
+    'hub.skills.target.claude',              // product name (Claude Code): the label of one install target
+    'onboarding.providerBlurb.claude',      // "Claude Code — Anthropic": two product names
     'onboarding.providerBlurb.codex',
     'onboarding.providerBlurb.antigravity',
     'onboarding.providerBlurb.gemini',

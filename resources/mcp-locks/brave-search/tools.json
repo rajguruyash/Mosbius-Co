@@ -1,0 +1,63 @@
+{
+  "package": "@brave/brave-search-mcp-server",
+  "version": "2.1.4",
+  "listedWith": "tools/list through the app-run host",
+  "tools": [
+    {
+      "name": "brave_web_search",
+      "annotations": {
+        "title": "Brave Web Search",
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "brave_local_search",
+      "annotations": {
+        "title": "Brave Local Search",
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "brave_video_search",
+      "annotations": {
+        "title": "Brave Video Search",
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "brave_image_search",
+      "annotations": {
+        "title": "Brave Image Search",
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "brave_news_search",
+      "annotations": {
+        "title": "Brave News Search",
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "brave_summarizer",
+      "annotations": {
+        "title": "Brave Summarizer",
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "brave_llm_context",
+      "annotations": {
+        "title": "Brave LLM Context",
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "brave_place_search",
+      "annotations": {
+        "title": "Brave Place Search",
+        "openWorldHint": true
+      }
+    }
+  ]
+}

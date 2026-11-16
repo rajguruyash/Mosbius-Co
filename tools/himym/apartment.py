@@ -69,7 +69,6 @@ def paint(L):
     P.room_shell(c, W, H, wall_top=(226, 214, 196), door=None)
 
     fireplace(L)
-    hall_door(L)
     alcove(L)
     door_wall(L)
     kitchen(L)
@@ -174,11 +173,6 @@ def fireplace(L):
     # a framed print on the right of the chimney
     c.rect(101, 9, 13, 16, (70, 46, 46)); c.rect(103, 11, 9, 12, (226, 150, 70)); c.frame(101, 9, 13, 16, OUT)
     c.rect(105, 14, 5, 6, (60, 70, 110))
-
-
-def hall_door(L):
-    """The door to the bedrooms, between the chimney wall and the alcove."""
-    door(L.bg, 122, 9, 22, 39, knob_right=False)
 
 
 def blinds_window(c, x, y, w, h, drop, seed, escape=False):

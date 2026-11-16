@@ -78,10 +78,19 @@ function drawHead(buf: Buf, skin: string): void {
 }
 
 type Brow = 'flat' | 'angry' | 'raised' | 'soft';
-type Mouth = 'neutral' | 'smile' | 'frown' | 'grin';
-function drawFace(buf: Buf, skin: string, brow: Brow, mouth: Mouth, blush: boolean, lashes = false): void {
+// 'open' is a mid-word mouth: it only ever arrives as an override for an
+// exported talking frame, so no recipe declares it.
+type Mouth = 'neutral' | 'smile' | 'frown' | 'grin' | 'open';
+function drawFace(
+  buf: Buf, skin: string, brow: Brow, mouth: Mouth, blush: boolean, lashes = false, blink = false
+): void {
   const s = SKIN[skin];
   const white: RGB = [250, 248, 244], pup: RGB = [46, 38, 42];
+  if (blink) {
+    // Eyes shut: the same two eye slots become a closed lid line. Only the
+    // exported blink frame asks for this; the app never does.
+    for (const x of [5, 6, 10, 11]) set(buf, x, 9, s.line);
+  } else
   for (const [a, b, p] of [[5, 6, 6], [10, 11, 10]] as const) {
     set(buf, a, 9, white); set(buf, b, 9, white); set(buf, p, 9, pup);
   }
@@ -91,7 +100,7 @@ function drawFace(buf: Buf, skin: string, brow: Brow, mouth: Mouth, blush: boole
     const lash: RGB = [54, 40, 48], glint: RGB = [252, 250, 248];
     for (const x of [5, 6, 10, 11]) set(buf, x, 8, lash);
     set(buf, 4, 8, lash); set(buf, 12, 8, lash);
-    set(buf, 5, 9, glint); set(buf, 10, 9, glint);
+    if (!blink) { set(buf, 5, 9, glint); set(buf, 10, 9, glint); }
   }
   if (brow === 'flat') for (const x of [5, 6, 10, 11]) set(buf, x, 7, s.line);
   else if (brow === 'angry') { set(buf, 5, 8, s.line); set(buf, 6, 7, s.line); set(buf, 10, 7, s.line); set(buf, 11, 8, s.line); }
@@ -104,6 +113,7 @@ function drawFace(buf: Buf, skin: string, brow: Brow, mouth: Mouth, blush: boole
     smile: [[7, 14], [8, 14], [9, 14], [10, 14], [6, 13], [11, 13]],
     frown: [[7, 15], [8, 15], [9, 15], [10, 15], [6, 14], [11, 14]],
     grin: [[7, 14], [8, 14], [9, 14], [10, 14], [7, 13], [8, 13], [9, 13], [10, 13], [6, 13], [11, 13]],
+    open: [[8, 13], [9, 13], [7, 14], [8, 14], [9, 14], [10, 14], [8, 15], [9, 15]],
   };
   for (const [x, y] of mouths[mouth]) set(buf, x, y, mc);
   if (blush) for (const x of [5, 12]) set(buf, x, 12, [235, 150, 140], 140);
@@ -337,7 +347,7 @@ function collarNeck(buf: Buf, skin: string): void {
 // legs. Head (rows 2-16) sits above; this draws rows 18-31.
 const SHOE: RGB = [44, 40, 48];
 
-function drawSceneLegs(buf: Buf, pants: RGB, phase: number): void {
+function drawSceneLegs(buf: Buf, pants: RGB, phase: number, stride = false): void {
   const [, base, sh] = shades(pants);
   // two legs cols 5-7 / 10-12, gap at 8-9
   for (const [lx0, lx1] of [[5, 7], [10, 12]] as const) {
@@ -346,8 +356,24 @@ function drawSceneLegs(buf: Buf, pants: RGB, phase: number): void {
   }
   // feet — lift one foot per walk phase for a simple gait
   const leftLow = phase !== 1, rightLow = phase !== 2;
-  rect(buf, 5, leftLow ? 31 : 30, 7, leftLow ? 31 : 30, SHOE);
-  rect(buf, 10, rightLow ? 31 : 30, 12, rightLow ? 31 : 30, SHOE);
+  if (!stride) {
+    rect(buf, 5, leftLow ? 31 : 30, 7, leftLow ? 31 : 30, SHOE);
+    rect(buf, 10, rightLow ? 31 : 30, 12, rightLow ? 31 : 30, SHOE);
+    return;
+  }
+  // Exported walk frames (export only): the in-scene gait lifts a foot by one
+  // pixel, which is enough when the whole sprite is sliding across a room but
+  // invisible in a looping two-frame GIF-style cycle on a web page. Here the
+  // raised leg is shortened and swung forward instead, so the two frames read
+  // as a stride standing still. The in-app call keeps `stride` false.
+  const lift = (lx0: number, lx1: number, up: boolean, fwd: number) => {
+    if (!up) { rect(buf, lx0, 31, lx1, 31, SHOE); return; }
+    for (let y = 29; y <= 30; y++) for (let x = lx0; x <= lx1; x++) set(buf, x, y, [0, 0, 0], 0);
+    rect(buf, lx0 + fwd, 28, lx1 + fwd, 29, base);
+    rect(buf, lx0 + fwd, 30, lx1 + fwd, 30, SHOE);
+  };
+  lift(5, 7, phase === 1, -1);
+  lift(10, 12, phase === 2, 1);
 }
 
 function drawSceneTorso(buf: Buf, r: Recipe, back: boolean): void {
@@ -444,9 +470,46 @@ function drawHeadBackBald(buf: Buf, r: Recipe): void {
   rect(buf, 7, 15, 9, 15, s.base);
 }
 
-function drawSceneBody(buf: Buf, r: Recipe, phase: number, back: boolean): void {
+function drawSceneBody(buf: Buf, r: Recipe, phase: number, back: boolean, stride = false): void {
   drawSceneTorso(buf, r, back);
-  drawSceneLegs(buf, defaultPants(r), phase);
+  drawSceneLegs(buf, defaultPants(r), phase, stride);
+}
+
+// ─── extra arm poses (export only) ───────────────────────────────────────────
+// The in-scene sprite has no arm animation: drawSceneTorso paints the arms as
+// shaded torso edges. These two overlays add a raised or forward arm on top of
+// that same torso, so an exported "waving" or "working" frame is the identical
+// character with one limb moved — not a redrawn body. Nothing in the running
+// app calls them; they exist for the asset export (tools/export-sprites.cjs).
+
+/** One arm raised out and up beside the head, palm open. */
+function drawRaisedArm(buf: Buf, r: Recipe, side: 1 | -1): void {
+  const [, sleeve, sleeveSh] = shades(r.c1);
+  const s = SKIN[r.skin];
+  // Outermost torso column on this side (drawSceneTorso spans 3..14, or 2..15
+  // heavy), so the arm always starts clear of the body instead of over it.
+  const edge = side === 1 ? (r.heavy ? 15 : 14) : (r.heavy ? 2 : 3);
+  const a = edge + side, b = edge + side * 2;  // upper arm, then forearm column
+  rect(buf, a, 18, a, 20, sleeve);             // upper arm, angled out
+  set(buf, a, 20, sleeveSh);
+  rect(buf, b, 15, b, 17, sleeve);             // forearm, angled further out
+  rect(buf, a, 12, b, 14, s.base);             // open hand, two columns wide
+  set(buf, b, 12, s.hi);
+  set(buf, a, 14, s.sh);
+}
+
+/** Both forearms forward at desk height, hands over a keyboard. */
+function drawArmsWorking(buf: Buf, r: Recipe): void {
+  const [, sleeve, sleeveSh] = shades(r.c1);
+  const s = SKIN[r.skin];
+  const [lx, rx] = r.heavy ? [1, 16] : [2, 15];
+  for (const [x, inward] of [[lx, 1], [rx, -1]] as const) {
+    rect(buf, x, 19, x, 20, sleeve);                       // upper arm down the side
+    rect(buf, x, 21, x + inward, 21, sleeve);              // forearm turning inward
+    set(buf, x, 21, sleeveSh);
+    rect(buf, x, 22, x + inward, 23, s.base);              // hand over the keys
+    set(buf, x + inward, 23, s.sh);
+  }
 }
 
 // ─── outline pass ────────────────────────────────────────────────────────────
@@ -538,11 +601,11 @@ const RECIPES: Record<OfficeCharacterName, Recipe> = {
 };
 
 /** The face/hair group (head → face → facial hair → hair → glasses), no clothing. */
-function drawHeadGroup(buf: Buf, r: Recipe): void {
+function drawHeadGroup(buf: Buf, r: Recipe, mouth?: Mouth, blink = false): void {
   const skinBase = SKIN[r.skin].base;
   drawHead(buf, r.skin);
   if (r.heavy) drawHeavyFace(buf, r.skin);
-  drawFace(buf, r.skin, r.brow ?? 'flat', r.mouth ?? 'neutral', r.blush ?? false, r.lashes ?? false);
+  drawFace(buf, r.skin, r.brow ?? 'flat', mouth ?? r.mouth ?? 'neutral', r.blush ?? false, r.lashes ?? false, blink);
   if (r.facial) drawFacial(buf, r.facial, r.hairc);
   HAIR_FNS[r.hair](buf, r.hairc, skinBase, r.hairargs ?? {});
   if (r.glasses) drawGlasses(buf);
@@ -565,12 +628,18 @@ function compose(r: Recipe): Buf {
 }
 
 /** Full-body 18×32 scene sprite. `back=false` reuses the portrait's exact face. */
-function composeScene(r: Recipe, phase: number, back: boolean): Buf {
+function composeScene(
+  r: Recipe, phase: number, back: boolean,
+  opts: { arms?: 'wave' | 'cheer' | 'work'; mouth?: Mouth; stride?: boolean; blink?: boolean } = {}
+): Buf {
   CUR_W = SCENE_W; CUR_H = SCENE_H;
   const buf = new Uint8ClampedArray(SCENE_W * SCENE_H * 4);
-  drawSceneBody(buf, r, phase, back);
+  drawSceneBody(buf, r, phase, back, opts.stride);
+  if (opts.arms === 'wave') drawRaisedArm(buf, r, 1);
+  else if (opts.arms === 'cheer') { drawRaisedArm(buf, r, 1); drawRaisedArm(buf, r, -1); }
+  else if (opts.arms === 'work') drawArmsWorking(buf, r);
   if (back) drawHeadBack(buf, r);
-  else drawHeadGroup(buf, r);
+  else drawHeadGroup(buf, r, opts.mouth, opts.blink);
   outlinePass(buf);
   return buf;
 }
@@ -602,6 +671,40 @@ export function sceneFrameBufs(name: OfficeCharacterName): SceneFrames {
     sceneCache.set(name, frames);
   }
   return frames;
+}
+
+// ─── asset export ────────────────────────────────────────────────────────────
+// The scene and the UI render these characters straight from the recipes above,
+// every frame, in the app. The landing page cannot: it needs files. These three
+// exports hand the same buffers to tools/export-sprites.cjs, which encodes them
+// as PNG. They add nothing to the artwork and replace nothing — paintPortrait
+// and sceneFrameBufs remain exactly how the app draws characters.
+
+/** Every character the recipes cover, in the order they are declared. */
+export const PORTRAIT_NAMES = Object.keys(RECIPES) as OfficeCharacterName[];
+
+export type ExportPose =
+  | 'idle' | 'walk-a' | 'walk-b' | 'talk' | 'wave' | 'work' | 'cheer' | 'blink' | 'back';
+
+/** The portrait bust buffer (what paintPortrait blits), 18×28 RGBA. */
+export function portraitBuf(name: OfficeCharacterName): Buf {
+  return getBuf(name);
+}
+
+/** One full-body 18×32 RGBA frame. Poses share the body; only the arms differ. */
+export function poseBuf(name: OfficeCharacterName, pose: ExportPose): Buf {
+  const r = RECIPES[name] ?? RECIPES.marshall;
+  switch (pose) {
+    case 'idle': return composeScene(r, 0, false);
+    case 'walk-a': return composeScene(r, 1, false, { stride: true });
+    case 'walk-b': return composeScene(r, 2, false, { stride: true });
+    case 'talk': return composeScene(r, 0, false, { mouth: 'open' });
+    case 'wave': return composeScene(r, 0, false, { arms: 'wave' });
+    case 'work': return composeScene(r, 0, false, { arms: 'work' });
+    case 'cheer': return composeScene(r, 0, false, { arms: 'cheer', mouth: 'open' });
+    case 'blink': return composeScene(r, 0, false, { blink: true });
+    case 'back': return composeScene(r, 0, true);
+  }
 }
 
 /** Paint a character's procedural portrait onto `ctx`, nearest-neighbor at `scale`. */

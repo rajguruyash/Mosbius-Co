@@ -108,7 +108,9 @@ export function AiEnginesSettings({ config }: { config: HarnessConfig }) {
   };
   const clearKey = async (backend: string) => {
     try {
-      await window.cth.providerKeyClear(backend);
+      const r = await window.cth.providerKeyClear(backend);
+      // The key is still stored when the clear failed: say so, keep it marked as set.
+      if (!r.ok) { setNote((s) => ({ ...s, [backend]: r.error ?? t('aiEngines.failed') })); return; }
       setHasKey((s) => ({ ...s, [backend]: false }));
       setNote((s) => ({ ...s, [backend]: t('aiEngines.cleared') }));
       // OpenAI key gates Talk — clearing it disables Talk; reflect that immediately.

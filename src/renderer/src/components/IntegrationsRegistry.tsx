@@ -20,11 +20,11 @@ import {
 //
 // All data flows through integrationsClient — never IPC directly.
 //
-// v1 worker model (Marshall §4): the broker grants EVERY enabled integration to ALL
-// workers; there is no per-integration worker scoping yet. So "which workers can
-// use it" is surfaced as the usability gate — usable === enabled && hasSecret —
-// rather than an editable per-integration picker. Per-worker scoping is a future
-// extension; this reflection updates when Marshall confirms that model.
+// Access model (Stage B): an enabled integration is NOT available to any worker. A worker
+// reaches it only through a grant (None / Read / Write; a delete or any other destructive
+// request is never covered by Read or Write), judged per request by the broker. The default is
+// None. `usable` below is only the first gate (enabled and holding its secret); <RestAccess>
+// is the second, and it is the user's explicit choice.
 
 type View = 'list' | 'gallery' | 'configure';
 
@@ -75,6 +75,47 @@ function Glyph({ mono, bg, lg }: { mono: string; bg: string; lg?: boolean }) {
 }
 
 /** Is an integration actually usable by workers? (Marshall §6 gate.) */
+type RestPreset = 'none' | 'read' | 'write' | 'custom';
+
+/** Who may use this integration, and how much. The default for workers the orchestrator hires:
+ *  None until the user says otherwise. Read reaches GET requests only; Write adds POST, PUT and
+ *  PATCH; a DELETE is never covered by either. */
+function RestAccess({ id }: { id: string }) {
+  const { t: tr } = useTranslation();
+  const [preset, setPreset] = useState<RestPreset>('none');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  useEffect(() => {
+    let alive = true;
+    void window.cth.restGrantsGet().then((r) => {
+      if (alive && r.ok) setPreset((r.grants?.defaults?.[id]?.preset as RestPreset | undefined) ?? 'none');
+    }).catch(() => { /* leave it at none */ });
+    return () => { alive = false; };
+  }, [id]);
+  const choose = async (next: RestPreset) => {
+    setBusy(true); setNote('');
+    try {
+      const r = await window.cth.restGrantsSet({ id, agentId: null, grant: next === 'none' ? null : { preset: next } });
+      if (r.ok) { setPreset(next); setNote(tr('integrations.accessSaved')); } else setNote(r.error ?? tr('integrations.accessFailed'));
+    } catch { setNote(tr('integrations.accessFailed')); } finally { setBusy(false); }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={fieldLabel}>{tr('integrations.accessTitle')}</span>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        {(['none', 'read', 'write'] as const).map((p) => (
+          <PixelButton key={p} variant={preset === p ? 'primary' : 'secondary'} size="sm" disabled={busy} onClick={() => { void choose(p); }}>
+            {tr(`integrations.access.${p}`)}
+          </PixelButton>
+        ))}
+        {preset === 'custom' && <span style={hint}>{tr('integrations.access.custom')}</span>}
+        {note && <span style={hint}>{note}</span>}
+      </div>
+      <span style={hint}>{tr('integrations.accessNote')}</span>
+    </div>
+  );
+}
+
 function usable(r: { enabled: boolean; authType: IntegrationAuthType; hasSecret: boolean }): boolean {
   return r.enabled && (!needsSecret(r.authType) || r.hasSecret);
 }
@@ -182,7 +223,12 @@ export function IntegrationsRegistry() {
 
   const onRemove = async (r: IntegrationRecordView) => {
     setBusy(true);
-    try { await integrationsClient.remove(r.id); setRowTest((m) => { const n = { ...m }; delete n[r.id]; return n; }); await refresh(); flash(tr('integrations.removed', { label: r.label })); }
+    try {
+      const res = await integrationsClient.remove(r.id);
+      // The record is kept when its credential could not be deleted: report that, not "removed".
+      if (!res.ok) { await refresh(); flash(res.error ?? tr('integrations.couldNotRemove')); return; }
+      setRowTest((m) => { const n = { ...m }; delete n[r.id]; return n; }); await refresh(); flash(tr('integrations.removed', { label: r.label }));
+    }
     catch { flash(tr('integrations.couldNotRemove')); }
     finally { setBusy(false); }
   };
@@ -331,6 +377,9 @@ export function IntegrationsRegistry() {
           </div>
           <span style={hint}>{tr('integrations.v1Note')}</span>
         </div>
+
+        {/* Who may actually use it: a separate, explicit choice. Saved integrations only. */}
+        {!draft.isNew && <RestAccess id={draft.id} />}
 
         {/* Test connection (saved integrations only — broker probes by id) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

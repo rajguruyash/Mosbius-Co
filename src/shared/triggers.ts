@@ -154,13 +154,19 @@ export const DEFAULT_CONTEXT_TRIGGER: ContextTriggerConfig = {
  * single HTTP server + tunnel and told apart by the `id` in the request path, so
  * adding a webhook costs no extra port and no extra tunnel.
  *
- * `secret` is per-endpoint: revoking one caller never disturbs the others.
+ * The secret is per-endpoint: revoking one caller never disturbs the others. It is held in
+ * the main process's encrypted store (src/main/configSecrets.ts) and is NOT part of the
+ * stored or renderer-visible shape: the renderer sees `hasSecret`, asks the main process
+ * to copy the secret to the clipboard, and asks it to mint a new one.
  */
 export interface WebhookTrigger {
   id: string;
   name: string;
-  /** Shared secret the caller echoes in `x-md-webhook-secret`. Never logged. */
-  secret: string;
+  /** MAIN-PROCESS ONLY, set only on the copy handed to the webhook server. Absent from
+   *  config.json (once migrated) and from everything the renderer is sent. Never logged. */
+  secret?: string;
+  /** Whether the endpoint has a secret. Filled in on the way to the renderer. */
+  hasSecret?: boolean;
   enabled: boolean;
   mode: TriggerMode;
   /** User-editable JSON Schema (serialised) that inbound bodies are checked against. */
@@ -200,7 +206,11 @@ export const DEFAULT_WEBHOOK_SCHEMA = JSON.stringify(DEFAULT_WEBHOOK_SCHEMA_OBJE
  * nothing reads `apiKey` beyond the settings surfaces that display it.
  */
 export interface OrgTriggerConfig {
+  /** Always '' in anything the renderer is sent or the config stores: the key is held in the
+   *  main process's encrypted store. Writable only through `org:setTrigger` (write-only). */
   apiKey: string;
+  /** Whether a key is set. Filled in on the way to the renderer. */
+  hasKey?: boolean;
   enabled: boolean;
   mode: TriggerMode;
 }

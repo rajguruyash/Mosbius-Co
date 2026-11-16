@@ -14,7 +14,6 @@ from px import T, OUT, OUT2, lighten, darken, text_w
 from world import hash2
 import props as P
 from apartment import desk_up, sofa
-from bedrooms import bed
 
 W, H = 34 * T, 22 * T
 WALLC = (58, 60, 76)
@@ -164,7 +163,7 @@ def paint(L):
     L.block(1, 19, 2, 20)
 
     # ── BEDROOM 1 (upper middle) ─────────────────────────────────────────────
-    bed(c, 330, 44, 70, 84, (30, 30, 42), (236, 236, 240), n=1, fold=(120, 40, 44))
+    P.bed(c, 330, 44, 70, 84, (30, 30, 42), (236, 236, 240), n=1, fold=(120, 40, 44))
     L.block(20, 3, 24, 7)
     for nx in (312, 402):
         c.box(nx, 48, 14, 12, 6, (40, 40, 52), (26, 26, 36))
@@ -228,7 +227,7 @@ def paint(L):
     c.rect(300, 200, 50, 8, (44, 44, 58)); c.frame(300, 200, 50, 8, OUT)          # wall cabinets under the corridor wall
 
     # ── BEDROOM 2 (lower right) ──────────────────────────────────────────────
-    bed(c, 466, 226, 62, 84, (56, 70, 120), (236, 236, 240), n=2, fold=(150, 60, 70))
+    P.bed(c, 466, 226, 62, 84, (56, 70, 120), (236, 236, 240), n=2, fold=(150, 60, 70))
     L.block(29, 14, 32, 19)
     c.box(448, 232, 14, 12, 6, (40, 40, 52), (26, 26, 36))
     L.tall(248, lambda t: P.table_lamp(t, 455, 241, 0))

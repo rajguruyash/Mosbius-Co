@@ -1,0 +1,14 @@
+node v26.3.0 (/opt/homebrew/bin/node) · npm 11.16.0 · uv 0.11.24 (Homebrew 2026-06-23 aarch64-apple-darwin) · darwin/arm64
+
+✓ sequential-thinking  install ok (1258 ms) · 1 tools · sequentialthinking → PASS
+✓ time                 install ok (1839 ms) · 3 tools · get_current_time → PASS
+✓ fetch                install ok (1247 ms) · 1 tools · fetch → PASS
+✓ context7             install ok (2284 ms) · 2 tools · resolve-library-id → PASS
+✓ filesystem           install ok (979 ms) · 16 tools · read_text_file → PASS
+✓ git                  install ok (511 ms) · 14 tools · git_status → PASS
+✓ playwright           install ok (1072 ms) · 25 tools · browser_navigate → PASS
+~ notion               install ok (2249 ms) · 24 tools · API-get-self → LIMITED: reached the provider with a fake credential and was refused; no real account was used
+~ brave-search         install ok (895 ms) · 8 tools · brave_web_search → LIMITED: reached the provider with a fake credential and was refused; no real account was used
+✓ mcp-remote           install ok (437 ms) · 1 tools · echo → PASS
+
+10/10 as expected

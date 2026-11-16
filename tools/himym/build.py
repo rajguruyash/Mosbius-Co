@@ -20,7 +20,7 @@ except ImportError:
 import gnb, rooftop
 LOCS.append(('gnb', 'Goliath National Bank', gnb))
 LOCS.append(('rooftop', 'The Rooftop', rooftop))
-for (name, label) in (('bedrooms', 'The Bedrooms'), ('barney', "Barney's Apartment"), ('columbia', 'Columbia University'), ('lasertag', 'Laser Tag')):
+for (name, label) in (("barney", "Barney's Apartment"), ('columbia', 'Columbia University'), ('lasertag', 'Laser Tag')):
     try:
         LOCS.append((name, label, __import__(name)))
     except ImportError:

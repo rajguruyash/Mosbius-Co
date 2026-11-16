@@ -1,0 +1,118 @@
+name: Platforms
+
+# The full test suite, the typecheck and an UNSIGNED package on each operating system, plus the real desktop app driven
+# on macOS and Linux. This is the only way Windows and Linux ever get checked: nothing in this repository claims they
+# work until a run of THIS file says so, and the support tables in INTEGRATIONS.md say "macOS only" until then.
+#
+# Nothing here signs, notarises, publishes or uploads a release. Artifacts are kept for a week for inspection only.
+# Windows and Linux legs are allowed to fail on their first runs (continue-on-error) so that one platform's gaps are
+# visible without blocking the others; remove the flag once a leg is green.
+#
+# It is started BY HAND (Actions > Platforms > Run workflow), not on every push: it builds unsigned installers on three
+# operating systems and keeps them as short-lived workflow artifacts, which is something to do on purpose, not as a side
+# effect of pushing documentation. To run it on every push again, add `push` and `pull_request` back under `on:`.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests and typecheck (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, experimental: false }
+          - { os: windows-latest, experimental: true }
+          - { os: ubuntu-latest, experimental: true }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck (node + web)
+        run: npm run typecheck
+      - name: Full test suite
+        run: node --test test/*.test.cjs
+      - name: Support tables match the app's own data
+        run: node tools/gen-support-matrix.cjs --check
+
+  package:
+    name: Package, unsigned (${{ matrix.os }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, flags: '--mac --arm64', experimental: false }
+          - { os: windows-latest, flags: '--win --x64', experimental: true }
+          - { os: ubuntu-latest, flags: '--linux --x64', experimental: true }
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Package (never published)
+        run: npx electron-builder ${{ matrix.flags }} --publish never
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ matrix.os }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+          retention-days: 7
+          if-no-files-found: warn
+
+  ui:
+    name: The real app, driven (${{ matrix.os }})
+    needs: package
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, experimental: false }
+          # a display is needed for the window; xvfb provides one. The tool's process clean-up uses `ps`, so Windows is not
+          # covered here: its UI is unchecked.
+          - { os: ubuntu-latest, experimental: true }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Drive the app (macOS)
+        if: runner.os == 'macOS'
+        run: node tools/ui-validate.cjs --out ui-evidence
+      - name: Drive the app (Linux, under a virtual display)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 || true
+          xvfb-run --auto-servernum node tools/ui-validate.cjs --out ui-evidence
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ui-evidence-${{ matrix.os }}
+          path: ui-evidence
+          retention-days: 7
+          if-no-files-found: warn

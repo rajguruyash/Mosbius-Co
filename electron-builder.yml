@@ -75,6 +75,11 @@ extraResources:
   # repo resources/skills). Directory copy preserves the <id>/SKILL.md tree.
   - from: resources/skills
     to: skills
+  # The hash-pinned dependency locks of the local MCP servers and of the mcp-remote bridge
+  # (Stage B). The app installs each server from ITS lock into its own folder, and never from
+  # whatever a registry happens to serve; mcpLocksRoot() reads them from <resourcesPath>/mcp-locks.
+  - from: resources/mcp-locks
+    to: mcp-locks
 
 asarUnpack:
   - "**/node_modules/node-pty/**"

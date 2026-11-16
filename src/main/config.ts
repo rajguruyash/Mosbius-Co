@@ -9,10 +9,12 @@ import {
   providerPreset,
   type AgentProvider
 } from '../shared/agentProvider';
-import { defaultMcpDefaults } from '../shared/mcpCatalog';
+import { defaultMcpDefaults, type McpEngine } from '../shared/mcpCatalog';
+import type { McpGrants } from './broker/permissions';
 import { MAX_AGENT_TOKEN_CAP } from '../shared/tokenCaps';
 import { expandTilde, normalizeHiveHome } from './fs';
 import type { IntegrationRecord } from '../shared/integrations';
+import { stripSecrets } from './configSecrets';
 import {
   DEFAULT_CONTEXT_TRIGGER,
   DEFAULT_ORG_TRIGGER,
@@ -211,10 +213,37 @@ export interface HarnessConfig {
   /** The model GOD runs on. Unset falls back to the provider preset's
    *  `recommendedOrchestratorModel`, then MODEL_GOD. Default 'claude-opus-4-8'. */
   godModel?: string;
-  /** Per-server consent state for the default MCP bundle, keyed by catalog id.
-   *  Seeded from MCP_CATALOG (safe-readonly ON, write/secret OFF); the user flips
-   *  these in Settings. A server is wired into an agent only when enabled here. */
+  /** Per-server consent state for the MCP catalogue, keyed by catalog id. EVERY
+   *  server is off until the user flips it in Settings (D7, 2026-11-15). Being on
+   *  here is only the first of three gates: an agent also needs the credential to
+   *  exist and a grant of its own (see src/main/mcpWiring.ts). */
   mcpDefaults?: { [id: string]: { enabled: boolean } };
+  /** One-time marker: the "everything is opt-in" migration has run (see
+   *  `migrateMcpOptInV1`). Set once; a switch the user turns on afterwards stays on. */
+  mcpOptInV1?: boolean;
+  /** Which engine signs each bridged integration in: `bridge` (mcp-remote, the
+   *  default for everything) or `broker` (the in-app OAuth engine). Only integrations
+   *  with an `oauth` spec in the catalogue can be switched. Leave it on `bridge` to
+   *  go back; see src/main/mcpEngine.ts. */
+  mcpEngine?: { [id: string]: McpEngine };
+  /** What each agent may do through the in-app MCP broker, per integration: nothing unless
+   *  a grant says otherwise (see src/main/broker/permissions.ts). Not a secret. Written ONLY
+   *  by the validated `mcp:grants:set` handler: the general config update drops this key. */
+  mcpGrants?: McpGrants;
+  /** A public client id the user supplied for a connect method that needs an app (GitHub's device flow).
+   *  Public by nature, but it decides WHICH app the user is asked to authorise, so a page that has been
+   *  tricked must not be able to swap it: it changes only through `connect:setClientId`. */
+  connectClientIds?: { [id: string]: string };
+  /** Per connection: believe the server's own read-only / destructive hints when sorting its tools into
+   *  read, write and cannot-be-undone. Off unless the user turns it on; a hint can only ever make a tool
+   *  STRICTER than the catalogue says, and an unlisted tool with no hint is still blocked. */
+  mcpTrustHints?: { [id: string]: boolean };
+  /** What each agent may do through the REST broker, per registered integration: nothing unless
+   *  a grant says otherwise, judged request by request (method and path; see
+   *  src/main/broker/rest-permissions.ts). Same model and same shape as `mcpGrants`. Not a
+   *  secret. Written ONLY by the validated `rest:grants:set` handler: the general config update
+   *  drops this key. */
+  restGrants?: McpGrants;
   /** Enable semantic memory (MemPalace CLI). No-op if mempalace isn't installed. */
   semanticMemory: boolean;
   /** Embedding model for the palace: lightweight 'minilm' or multilingual 'embeddinggemma'. */
@@ -327,9 +356,12 @@ export interface HarnessConfig {
   providerDefaultModels?: Partial<Record<AgentProvider, string>>;
   /** Master toggle for the Slack → Ted's-queue integration. */
   slackEnabled?: boolean;
-  /** Slack app signing secret (Basic Information → Signing Secret). Never logged. */
+  /** LEGACY plaintext of the Slack signing secret. The value now lives in the encrypted
+   *  store (`cfg:slackSigningSecret`, see configSecrets.ts); this field only exists so an
+   *  install from before that change can be migrated, and is never written, never sent to
+   *  the renderer and absent from a migrated file. Read it through `readConfigSecret`. */
   slackSigningSecret?: string;
-  /** Bot token (xoxb-…) — only needed if the bot ever replies; optional for now. */
+  /** LEGACY plaintext of the Slack bot token (xoxb-…); same story as above. */
   slackBotToken?: string;
   /** Restrict ingestion to one channel id; empty/undefined = any channel. */
   slackChannelId?: string;
@@ -347,9 +379,9 @@ export interface HarnessConfig {
    *  the composer shows no mic button, no getUserMedia runs, and no Groq call is
    *  ever made (zero behavior change). */
   freeflowEnabled?: boolean;
-  /** User-pasted Groq API key (the user supplies their own free key). Used ONLY in
-   *  the main process for the Groq STT call; NEVER logged, and never crosses IPC
-   *  for the request. Treated like `slackBotToken`. */
+  /** LEGACY plaintext of the user's Groq key. The key lives in the encrypted store
+   *  (`cfg:groqApiKey`) and is used ONLY in the main process for the Groq STT call; this
+   *  field exists for migration only. See configSecrets.ts. */
   groqApiKey?: string;
   /** Groq Whisper model id. Default 'whisper-large-v3-turbo' (fast, multilingual). */
   freeflowModel?: string;
@@ -376,10 +408,9 @@ export interface HarnessConfig {
   // Nothing new should be written here.
   /** @deprecated Use `webhookTriggers[].enabled`. */
   webhookEnabled?: boolean;
-  /** App-generated shared secret callers echo in `x-md-webhook-secret`. Never
-   *  logged, and never forwarded into the routed message/card/response.
-   *  @deprecated Use `webhookTriggers[].secret` (one secret per endpoint, so
-   *  revoking one caller never disturbs the others). */
+  /** LEGACY plaintext of the single webhook's shared secret (migration source only; the
+   *  value moves to the encrypted store as the `legacy` endpoint's secret).
+   *  @deprecated Use `webhookTriggers` (one secret per endpoint, held in the vault). */
   webhookSecret?: string;
   /** Local HTTP port the generic webhook server binds to (default 3849).
    *  @deprecated The port is a property of the shared server, not of any one
@@ -436,6 +467,9 @@ const DEFAULTS: HarnessConfig = {
   // Seeded from the MCP catalog so the consent defaults never drift from it
   // (safe-readonly ON, write/secret OFF).
   mcpDefaults: defaultMcpDefaults(),
+  mcpEngine: {},
+  mcpGrants: {},
+  restGrants: {},
   maxConcurrentWorkers: 4,
   workerIdleTimeoutMinutes: 20,
   integrations: [],
@@ -585,6 +619,43 @@ function migrateTriggersV1(cfg: HarnessConfig): HarnessConfig {
   }
 }
 
+/**
+ * "Everything is opt-in", applied to an install that predates it, exactly once.
+ *
+ * Before this, the six local servers (sequential-thinking, time, fetch, context7,
+ * filesystem, git) shipped ON. A stored `{ enabled: true }` for one of them cannot be
+ * told apart from a switch the user flipped on purpose, and leaving it would keep
+ * handing an internet-, filesystem- or git-connected server to every agent without
+ * anyone having chosen it. So those six are reset to OFF, once, and the user turns
+ * back on the ones they want. The servers that were NEVER on by default (browser,
+ * GitHub, Notion, Brave, Gmail, Calendar, Drive, Slack) can only have been switched on
+ * by the user, so their choice is left alone. (Consent alone no longer gives any agent
+ * a server: each agent also needs a grant, which starts as none.)
+ *
+ * The marker is written even when nothing needed resetting, so a switch turned on
+ * AFTER the migration is never turned off by it. A failure leaves the config as read
+ * and retries on the next launch.
+ */
+const LEGACY_DEFAULT_ON_MCP = ['sequential-thinking', 'time', 'fetch', 'context7', 'filesystem', 'git'] as const;
+let mcpOptInMigrationRan = false;
+
+function migrateMcpOptInV1(cfg: HarnessConfig): HarnessConfig {
+  if (cfg.mcpOptInV1 === true || mcpOptInMigrationRan) return cfg;
+  mcpOptInMigrationRan = true;
+  try {
+    const stored = cfg.mcpDefaults && typeof cfg.mcpDefaults === 'object' ? cfg.mcpDefaults : {};
+    const next: { [id: string]: { enabled: boolean } } = {};
+    for (const [id, v] of Object.entries(stored)) {
+      next[id] = (LEGACY_DEFAULT_ON_MCP as readonly string[]).includes(id) ? { enabled: false } : v;
+    }
+    const migrated: HarnessConfig = { ...cfg, mcpDefaults: next, mcpOptInV1: true };
+    persistConfig(migrated);
+    return migrated;
+  } catch {
+    return cfg;
+  }
+}
+
 export function readConfig(): HarnessConfig {
   const p = configPath();
   // No file yet = a first run with nothing to migrate; the defaults ARE the
@@ -594,7 +665,7 @@ export function readConfig(): HarnessConfig {
   try {
     const raw = readFileSync(p, 'utf8');
     const parsed = JSON.parse(raw);
-    return normalizeStoredHomes(migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...parsed })));
+    return normalizeStoredHomes(migrateMcpOptInV1(migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...parsed }))));
   } catch {
     return withTriggerDefaults({ ...DEFAULTS });
   }
@@ -636,9 +707,25 @@ export function onConfigWritten(listener: ConfigWriteListener): () => void {
   return () => { configWriteListeners.delete(listener); };
 }
 
+/**
+ * Whether config.json may be written WITHOUT the secrets listed in configSecrets.ts.
+ * The main process turns it on once every plaintext secret that was in the file has been
+ * moved to the encrypted store and read back (see `migrateSecretsToVault`). Until then, and
+ * whenever that move failed, a write keeps what the file held: dropping a secret the user
+ * has no other copy of would be worse than leaving it where it was. Default off, so code
+ * that loads this module on its own (the tests) behaves exactly as before.
+ */
+let scrubSecretsOnWrite = false;
+export function setScrubSecretsOnWrite(on: boolean): void { scrubSecretsOnWrite = on === true; }
+
 function persistConfig(next: HarnessConfig): HarnessConfig {
   const p = configPath();
   mkdirSync(dirname(p), { recursive: true });
+  // The secrets live in the encrypted store, never in this file (F2).
+  if (scrubSecretsOnWrite) next = stripSecrets(next);
+  // A config.json that did not exist until now belongs to a NEW install, which was
+  // never given the old default-on servers: born migrated (see migrateMcpOptInV1).
+  if (!existsSync(p) && next.mcpOptInV1 !== true) next = { ...next, mcpOptInV1: true };
   // Temp + rename: `rename` is atomic within a filesystem, so a crash mid-write
   // leaves either the old config.json or the new one, never half of either. A
   // bare writeFileSync truncates the live file first, and readConfig maps any
@@ -728,11 +815,48 @@ export function setAgentTokenCap(agentId: unknown, tokenCap: unknown): HarnessCo
   });
 }
 
+/** Replace the MCP access grants against the latest config on disk. The caller has
+ *  already validated them (src/main/mcpWiring.ts `applyGrantUpdate`). */
+export function setMcpGrants(grants: McpGrants): HarnessConfig {
+  return persistConfig({ ...readConfig(), mcpGrants: grants });
+}
+
+/** Remember (or forget, with null) the public client id for one connection. Validated by the caller. */
+export function setConnectClientId(id: string, clientId: string | null): HarnessConfig {
+  const current = readConfig();
+  const next = { ...(current.connectClientIds ?? {}) };
+  if (clientId === null) delete next[id]; else next[id] = clientId;
+  return persistConfig({ ...current, connectClientIds: next });
+}
+
+/** Turn "believe the server's own hints" on or off for one connection. Validated by the caller. */
+export function setMcpTrustHints(id: string, trust: boolean): HarnessConfig {
+  const current = readConfig();
+  const next = { ...(current.mcpTrustHints ?? {}) };
+  if (trust) next[id] = true; else delete next[id];
+  return persistConfig({ ...current, mcpTrustHints: next });
+}
+
+/** Replace the REST access grants against the latest config on disk. Validated by the caller
+ *  (src/main/mcpWiring.ts `applyGrantUpdate`). */
+export function setRestGrants(grants: McpGrants): HarnessConfig {
+  return persistConfig({ ...readConfig(), restGrants: grants });
+}
+
+/** Choose the engine for one bridged integration, against the latest config on disk. */
+export function setMcpEngineFor(id: string, engine: McpEngine): HarnessConfig {
+  const current = readConfig();
+  return persistConfig({ ...current, mcpEngine: { ...(current.mcpEngine ?? {}), [id]: engine } });
+}
+
 /** Wipe the persisted config back to first-run defaults so the app boots into
  *  onboarding again. Used by the "reset & start over" flow. */
 export function resetConfig(): HarnessConfig {
-  // Saved like any other change, so a reset announces itself too.
-  persistConfig({ ...DEFAULTS });
+  // Saved like any other change, so a reset announces itself too. The opt-in marker
+  // goes in with it: a reset install is not a legacy one, and without the marker the
+  // first switch the user turned on afterwards would be turned off by the migration.
+  persistConfig({ ...DEFAULTS, mcpOptInV1: true });
+  mcpOptInMigrationRan = false;
   // Drop the migration latch too: the file on disk is back to `triggersMigratedV1:
   // false`, and a latch left set would keep the flag from ever being written again
   // in this process. The migration itself is a no-op on defaults either way.

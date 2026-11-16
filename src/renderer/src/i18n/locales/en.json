@@ -1,5 +1,6 @@
 {
   "common": {
+    "remove": "remove",
     "on": "on",
     "off": "off",
     "cancel": "cancel",
@@ -209,6 +210,7 @@
       "prerequisites": "Prerequisites",
       "agentsModels": "Agents & Models",
       "autonomyBudgets": "Autonomy & Budgets",
+      "integrations": "Integrations & Skills",
       "connections": "Connections",
       "voice": "Voice",
       "memoryKnowledge": "Memory & Knowledge",
@@ -297,6 +299,8 @@
       "docCountPlural": "{{count}} documents indexed"
     },
     "connections": {
+      "hubPointer": "Most integrations are now set up under Integrations & Skills. This page keeps the manual options: your own sign-in app (client ID and secret), and the choice of sign-in engine.",
+      "openHub": "Open Integrations & Skills",
       "slack": "Slack",
       "slackIntegration": "Slack integration",
       "showSlackHelp": "Show Slack connect steps",
@@ -482,8 +486,7 @@
     "reviewFields": "review every field — especially the command — before spawning.",
     "hireFlags": "⚠️ flags this hire appends to the command:",
     "hireSkills": "skills this hire activates:",
-    "mcpSafe": "MCP servers (safe, pre-enabled):",
-    "mcpConsent": "⚠️ MCP (needs your consent — NOT auto-enabled):",
+    "mcpConsent": "⚠️ MCP (off until you switch it on and give this agent access):",
     "mcpEnableInSettings": "— enable in Settings → MCP after reviewing",
     "sections": {
       "identity": {
@@ -837,18 +840,451 @@
     "setUpMacMini": "set it up on a Mac Mini",
     "autoModeCaveat": "⚠ In auto mode these engines run with full filesystem + shell access (no sandbox) — like Claude's bypass mode. Turn auto mode off (General) to make them ask first. Live end-to-end verification with real model calls is pending your keys / a local LLM."
   },
+  "hub": {
+    "title": "Integrations & Skills",
+    "intro": "Connect the services your agents work with, choose which agent may use what, and manage the skills they load. Everything here is off until you turn it on.",
+    "flow": "Pick a service, press Connect, approve it on the service's own page, then choose which agents may use it. Your agents never see your password, key or sign-in.",
+    "loading": "Loading…",
+    "attention": "Connections that need you to sign in again: {{count}}.",
+    "search": "Search integrations",
+    "searchPlaceholder": "Search by name…",
+    "categories": "Categories",
+    "noMatch": "Nothing matches that.",
+    "planned": "Planned: not available yet.",
+    "tabs": {
+      "discover": "Discover",
+      "connected": "Connected",
+      "skills": "Skills",
+      "access": "Agent access",
+      "activity": "Activity"
+    },
+    "cat": {
+      "all": "All",
+      "knowledge": "Knowledge",
+      "work": "Work",
+      "dev": "Developer",
+      "comms": "Messages",
+      "payments": "Payments",
+      "search": "Search",
+      "crm": "CRM",
+      "local": "On this computer",
+      "custom": "Your own",
+      "ai": "AI engines"
+    },
+    "status": {
+      "connected": "Connected",
+      "needsSignin": "Sign in again",
+      "notConnected": "Not connected",
+      "unavailable": "Unavailable"
+    },
+    "card": {
+      "connect": "Connect",
+      "reconnect": "Reconnect",
+      "manage": "Manage",
+      "close": "Close",
+      "turnOn": "Turn on"
+    },
+    "verify": {
+      "verified": "Verified",
+      "limited": "Partly verified",
+      "untested": "Not yet tested",
+      "planned": "Planned",
+      "na": "Not applicable",
+      "untestedHelp": "No one has signed in to this service through the app yet, so it is not marked verified.",
+      "limitedHelp": "Checked with a real key, but not through every route. Hover the label for details."
+    },
+    "way": {
+      "account": "Sign in with your account",
+      "device": "Sign in with a code",
+      "ownApp": "Use your own app",
+      "key": "Use a key you create",
+      "local": "Runs on this computer",
+      "engine": "Set up under AI engines"
+    },
+    "wayShort": {
+      "account": "Account",
+      "device": "Code",
+      "own-app": "Own app",
+      "key": "Key",
+      "local": "Local",
+      "engine": "Engine"
+    },
+    "account": {
+      "help": "Sign in to {{label}} on its own page. The app registers itself for this one sign-in and keeps no secret of its own."
+    },
+    "connect": {
+      "tier": "Ask for",
+      "tierRead": "Read only",
+      "tierWrite": "Read and write",
+      "cancel": "Cancel",
+      "clientId": "Client ID",
+      "clientIdPlaceholder": "Paste the app's public client ID",
+      "starting": "Starting…",
+      "waitingBrowser": "Waiting for you to approve in your browser…",
+      "done": "{{label}} is connected and switched on. Choose which agents may use it under Agent access.",
+      "errors": {
+        "not-available": "This service has no way to connect like this.",
+        "needs-client-id": "This needs an app's client ID first.",
+        "bad-client-id": "That does not look like a client ID.",
+        "in-progress": "A sign-in for this service is already waiting.",
+        "port-busy": "The local sign-in port is busy. Close the other sign-in and try again.",
+        "discovery-failed": "Could not read the service's sign-in details, or they point somewhere the app does not trust.",
+        "registration-failed": "The service would not let the app register for this sign-in.",
+        "denied": "The sign-in was refused.",
+        "cancelled": "Cancelled.",
+        "timeout": "It took too long. Try again.",
+        "expired": "The code ran out. Start again.",
+        "device-flow-disabled": "The app registered at the service has not switched on sign-in by code.",
+        "provider-error": "The service reported an error.",
+        "invalid-callback": "The page you were sent back from was not the one the app was waiting for. Nothing was saved.",
+        "exchange-failed": "The service refused the approval.",
+        "bad-token-response": "The service answered in a way the app could not use.",
+        "not-stored": "You signed in, but the app could not store the result safely. Nothing was kept.",
+        "unavailable": "Could not reach the service.",
+        "no-browser": "The app could not open your browser.",
+        "failed": "That did not work. Try again."
+      }
+    },
+    "device": {
+      "title": "Your code",
+      "help": "You will be given a short code. Type it on the service's page to approve.",
+      "open": "Open {{url}} and type the code.",
+      "openButton": "Open the page"
+    },
+    "key": {
+      "privacy": "The key is stored encrypted on this computer. It is never shown again and never given to an agent.",
+      "saved": "{{label}}: key saved."
+    },
+    "local": {
+      "help": "Runs on this computer. Turning it on installs a pinned, checked copy the first time; nothing is sent anywhere.",
+      "installFailed": "{{label}} could not be installed."
+    },
+    "rest": {
+      "title": "Your own REST connections",
+      "intro": "For services without a ready-made connection, add a REST API with its own key. Agents call it through the app and never see the key.",
+      "help": "{{label}} is connected as a REST API with a key you create.",
+      "open": "Open REST connections"
+    },
+    "engine": {
+      "open": "Open AI engines"
+    },
+    "method": {
+      "dcr": "Account sign-in",
+      "device": "Code sign-in",
+      "public": "Own app"
+    },
+    "connected": {
+      "empty": "Nothing is connected yet. Open Discover to start.",
+      "since": "Connected {{date}}",
+      "scope": "Allowed: {{scope}}",
+      "renews": "The sign-in renews itself.",
+      "offNote": "Connected, but switched off: no agent can use it.",
+      "needOnAndConnected": "Switch it on and connect it first.",
+      "tools": "Tools & access",
+      "disconnected": "{{label}} disconnected.",
+      "disconnectedEnd": "{{label}} disconnected here. To end it at the service too, remove the app in the service's own settings.",
+      "couldNotDisconnect": "{{label}} could not be disconnected."
+    },
+    "trust": {
+      "title": "Believe this server's own read and write labels",
+      "help": "Off by default: tools the app has not classified are treated as able to change things. Turn this on only for a server you trust."
+    },
+    "access": {
+      "intro": "Who may use what. Everything starts as no access. Choose a level for all agents, or override it for one.",
+      "integration": "Integration",
+      "inherit": "Same as all agents",
+      "nothing": "Nothing to set yet. Connect an integration and switch it on first.",
+      "note": "Read means tools that only look. Read and write also allows tools that change things. Tools the app has not classified are in neither; set them under Tools & access.",
+      "unclassified": "Tools are not classified yet; only ones you pick by hand are allowed."
+    },
+    "compat": {
+      "title": "What each agent CLI can do",
+      "legend": "Verified: the real CLI was run and the evidence is kept. Wired: the app writes what the CLI's documentation says it reads; it has not been run. Each agent gets a pass that works for one integration, can be switched off at once, and is never a login.",
+      "shellNeedsSandbox": "but only while the CLI's own OS sandbox is on; with it off, a command can read the pass from the CLI's process",
+      "folderTrust": "loads integrations only in folders you have trusted in that CLI itself; elsewhere the agent will not see them",
+      "notOffered": "Not offered to this CLI",
+      "otherCli": "Other CLI",
+      "status": {
+        "verified": "verified",
+        "wired": "wired, not run",
+        "unsupported": "not supported"
+      },
+      "delivery": {
+        "config-file": "config file",
+        "command-line-and-env": "command line + one variable",
+        "settings-file-and-env": "settings file + one variable"
+      },
+      "shell": {
+        "yes": "the agent's shell cannot read its pass",
+        "no": "the agent's shell can read its pass",
+        "unknown": "not measured: can its shell read its pass?"
+      }
+    },
+    "activity": {
+      "intro": "What was done, to what, by whom, and whether it was allowed. Newest first. It records names and decisions, never contents or secrets.",
+      "integration": "Integration",
+      "all": "All integrations",
+      "kind": "Kind",
+      "allKinds": "All kinds",
+      "verify": "Check the record",
+      "intact": "The record is intact (entries: {{records}}, files: {{files}}).",
+      "broken": "The record does not add up at {{file}}, line {{line}}. It may have been altered.",
+      "cannotCheck": "The record could not be checked."
+    },
+    "skills": {
+      "intro": "Skills are instructions an agent can load. Installing one never connects a service and never gives an agent permission to use anything: the app takes tool grants and run-on-load commands out of the copy it installs.",
+      "installFor": "Install for",
+      "target": {
+        "claude": "Claude Code",
+        "agents": "Codex CLI and Gemini CLI"
+      },
+      "folders": "Folders:",
+      "notRunNote": "This app has not run at least one of these CLIs against skills, so its label says so.",
+      "installedTitle": "Installed by this app: {{count}}",
+      "installedNone": "This app has not installed anything for this target yet.",
+      "at": "at {{commit}}",
+      "installedOn": "Installed {{date}}",
+      "integrity": {
+        "ok": "Unchanged",
+        "changed": "Changed since install",
+        "missing": "Folder missing"
+      },
+      "changedDetail": "Changed: {{changed}} · removed: {{missing}} · added: {{added}}",
+      "stripped": "Taken out of the copy (tool grants and run-on-load commands): {{count}}.",
+      "toolsAsked": "Tools it asked to pre-approve: {{count}}. None were granted.",
+      "scripts": "Ships scripts or dependency files. Nothing was installed or run:",
+      "dependencies": "Needs",
+      "needsConnected": "{{label}}: connected",
+      "needsNotConnected": "{{label}}: not connected",
+      "mentions": "Also mentions (not required): {{list}}",
+      "verify": "Check",
+      "checkUpdate": "Look for update",
+      "rollback": "Roll back",
+      "reveal": "Show folder",
+      "remove": "Remove",
+      "confirmRemove": "Click again to remove",
+      "verifiedOk": "{{name}} is exactly what was installed.",
+      "verifiedChanged": "{{name}} has changed since it was installed.",
+      "verifiedMissing": "{{name}}'s folder is missing.",
+      "upToDate": "{{name}} is up to date.",
+      "updateCheckFailed": "Could not look for an update to {{name}}.",
+      "updated": "{{name}} updated. The old version is kept so you can roll back.",
+      "updateFailed": "{{name}} was not updated and is unchanged.",
+      "rolledBack": "{{name}} is back to the previous version.",
+      "rollbackFailed": "{{name}} could not be rolled back.",
+      "removed": "{{name}} removed.",
+      "removeFailed": "{{name}} could not be removed.",
+      "update": {
+        "title": "Update preview",
+        "from": "{{from}} → {{to}}",
+        "noFileChanges": "No file changes. Only the commit differs.",
+        "added": "added",
+        "removed": "removed",
+        "changed": "changed",
+        "lines": "Lines",
+        "newTools": "Tools the new version asks to pre-approve: {{count}}. They are removed on install:",
+        "newIntegrations": "It would use:",
+        "newScripts": "New scripts or dependency files (nothing is run):",
+        "locallyModified": "You or an agent changed these since install; the update replaces them (the old copy is kept): {{files}}",
+        "readFirst": "Read the changes above before installing.",
+        "keepsOld": "The current version is kept so you can roll back.",
+        "apply": "Install update",
+        "discard": "Discard"
+      },
+      "catalogTitle": "Catalogue",
+      "search": "Search skills",
+      "searchPlaceholder": "Search skills…",
+      "catalogUnreachable": "The catalogue could not be reached.",
+      "loading": "Loading…",
+      "install": "Install",
+      "installing": "Installing…",
+      "have": "Installed",
+      "installedResult": "{{name}} installed at {{commit}}.",
+      "nothingGranted": "Nothing was granted and nothing was connected.",
+      "alreadyInstalled": "Already installed.",
+      "notInstallable": "This entry has no downloadable source.",
+      "installFailed": "The install did not work. Nothing was left behind.",
+      "showing": "Showing {{shown}} of {{total}}. Search to narrow it.",
+      "othersTitle": "Other skills on this machine: {{count}}",
+      "othersNote": "This app did not install these, so it cannot check or update them.",
+      "scope": {
+        "user": "yours",
+        "project": "this project",
+        "bundled": "bundled"
+      }
+    },
+    "providers": {
+      "sequential-thinking": "Helps an agent work through a problem in steps.",
+      "time": "Tells an agent the date, the time and time zones.",
+      "fetch": "Lets an agent read a web page you point it at.",
+      "filesystem": "Lets an agent read the folders you choose.",
+      "git": "Lets an agent read a git repository's history.",
+      "context7": "Looks up current documentation for libraries.",
+      "playwright": "A browser an agent can drive.",
+      "notion": "Search and read your Notion pages and databases.",
+      "linear": "Read Linear issues and projects.",
+      "jira": "Search and read Jira issues.",
+      "confluence": "Search and read Confluence pages.",
+      "sentry": "Read errors and issues from Sentry.",
+      "stripe": "Look up Stripe customers, payments and products.",
+      "github": "Read repositories, issues and pull requests.",
+      "google-calendar": "See your calendar and free times.",
+      "google-drive": "Find and read files in Drive.",
+      "gmail": "Search and read your mail.",
+      "slack": "Search and read Slack channels.",
+      "brave-search": "Search the web through Brave.",
+      "hubspot": "Read HubSpot contacts, companies and deals.",
+      "salesforce": "Planned. Not available yet.",
+      "custom-rest": "Connect any REST API with its own key.",
+      "anthropic": "Claude models for your agents. Set up under AI engines.",
+      "openai": "OpenAI models for your agents. Set up under AI engines.",
+      "google-ai": "Google's Gemini models for your agents. Set up under AI engines.",
+      "openrouter": "Many models through one OpenRouter key. Set up under AI engines.",
+      "groq": "Fast hosted models through Groq. Set up under AI engines."
+    }
+  },
   "mcpDefaults": {
+    "pkg": {
+      "ready": "installed from its pinned lock",
+      "installing": "installing from its pinned lock…",
+      "missing": "not installed yet",
+      "failed": "install failed (it is refused, never worked around)",
+      "install": "install",
+      "installed": "{{label}} installed.",
+      "note": "The app installs this from a hash-checked lock (install scripts off) and runs it itself; an agent only ever talks to it through the broker, so no agent holds its command or its key.",
+      "installFailed": "{{label}} could not be installed."
+    },
     "title": "Default MCP servers",
-    "desc": "These servers are merged into each new agent's session settings. Safe servers are on by default; write/secret servers are off until you consent. Changes take effect on the next agent spawn — running agents are not affected.",
+    "desc": "Everything here is off until you switch it on, and switching a server on only makes it available: each agent also needs access of its own, and a server that needs a credential needs that stored too. Taking access away applies to an agent's very next request; a server newly allowed reaches an agent when it next starts.",
     "toggleNote": "{{id}}: {{state}}",
     "couldNotSave": "could not save",
     "tiers": {
-      "safeReadonly": "Safe & Read-Only (on by default)",
+      "safeReadonly": "Local, read-only, no secret (off until you switch it on)",
       "write": "Write Access (consent required)",
       "secret": "Requires Secret / API Key (consent required)",
-      "safeReadonlyNote": "These servers read data only, need no secrets, and are scoped to the agent workspace. They are enabled for every new agent.",
+      "safeReadonlyNote": "These servers read data only, need no secrets, and are scoped to the agent workspace. They are off by default: nothing reaches an agent until you switch it on and give that agent access.",
       "writeNote": "These servers can mutate state beyond the workspace. Off by default — enable only after reviewing.",
-      "secretNote": "These servers require an API key or credentials. Off by default — add your credentials and enable after consent."
+      "secretNote": "These servers require an API key or credentials. Off by default — add your credentials and enable after consent.",
+      "oauthBridge": "Your own OAuth client (consent required)",
+      "oauthBridgeNote": "These services publish an official server, but an agent cannot sign itself in to one: it registers its credentials with the service on the spot, and these services do not allow that. Register an OAuth app yourself, paste its two halves here, then sign in once. Mosbius bridges the connection with mcp-remote. The sign-in is kept encrypted on this computer and is written out in readable form only while an agent is using the server."
+    },
+    "clientId": "Client ID",
+    "clientSecret": "Client secret",
+    "token": "Token",
+    "save": "Save",
+    "stored": "stored — type to replace",
+    "notSet": "not set",
+    "saved": "{{label}}: saved",
+    "forget": "Forget",
+    "forgot": "{{label}}: credentials removed",
+    "signIn": "Sign in",
+    "needsBoth": "Both halves are needed before you can sign in.",
+    "ready": "Ready — agents can use this.",
+    "skippedUntilSet": "Skipped at spawn until a credential is stored.",
+    "connected": "Connected — the sign-in is stored encrypted.",
+    "notConnected": "Not connected — sign in before agents can use this.",
+    "signingIn": "Waiting for you to finish the sign-in in your browser…",
+    "signedIn": "{{label}}: connected",
+    "disconnect": "Disconnect",
+    "disconnected": "{{label}}: disconnected, and access revoked at the service",
+    "disconnectedLocal": "{{label}}: removed from this computer. The revoke could not be confirmed — remove the app's access in your {{label}} account too.",
+    "signInErrors": {
+      "inProgress": "A sign-in for this is already waiting in your browser.",
+      "portBusy": "Port {{port}} is in use by another program. Close it and try again.",
+      "noNpx": "npx was not found. Install Node.js, then try again.",
+      "timeout": "The sign-in was not finished within 5 minutes.",
+      "failed": "The sign-in did not complete. Check the client ID, the secret and the redirect address, then try again.",
+      "notStored": "Signed in, but the sign-in could not be stored encrypted, so it was discarded.",
+      "denied": "The request was declined in your browser.",
+      "cancelled": "The sign-in was cancelled.",
+      "providerError": "The service reported an error during the sign-in.",
+      "invalidCallback": "The answer that came back to this app did not look right, so it was ignored. Try again.",
+      "exchangeFailed": "The service refused the sign-in. Check the client ID, the secret and the redirect address.",
+      "badTokenResponse": "The service answered in a way this app does not understand.",
+      "unavailable": "The credential store could not be read, so the sign-in was not started.",
+      "noBrowser": "Your browser could not be opened."
+    }
+  },
+  "mcpAccess": {
+    "engineTitle": "Sign-in method",
+    "engineBridge": "Bridge",
+    "engineInApp": "In-app (new)",
+    "engineNote": "In-app sign-in is new and has not been tried against a real Google or Slack account yet, so leave it on Bridge unless you are testing it. Switching never deletes a sign-in, and you can switch back at any time. Agents that are already running keep what they started with.",
+    "switched": "{{label}} now signs in with: {{engine}}.",
+    "switchFailed": "Could not switch the sign-in method.",
+    "imported": {
+      "copied": "Your existing sign-in was copied across.",
+      "copiedShort": "Your existing sign-in was copied, but it has no refresh token, so you will need to sign in again soon.",
+      "none": "There was no existing sign-in to copy: sign in below.",
+      "already": "This integration already had an in-app sign-in; it was left as it was.",
+      "failed": "The existing sign-in could not be copied: sign in again below."
+    },
+    "state": {
+      "unconfigured": "Add your client ID and secret first.",
+      "signedOut": "Not signed in.",
+      "connected": "Signed in.",
+      "needsSignin": "Sign in again: the service no longer accepts the saved sign-in.",
+      "unavailable": "The credential store could not be read."
+    },
+    "title": "Access",
+    "intro": "Agents can use nothing here until you allow it. A change applies to the next request an agent makes; an agent that starts later gets what is allowed at that moment.",
+    "claudeOnly": "Only Claude Code agents can use this today; agents that run another engine are not given it.",
+    "everyone": "All agents",
+    "agentsTitle": "Specific agents",
+    "agentsNone": "No agents on the floor yet.",
+    "inherit": "same as all agents",
+    "customize": "Customize",
+    "useDefault": "Use default",
+    "presets": {
+      "none": "None",
+      "read": "Read",
+      "write": "Write",
+      "custom": "Chosen tools"
+    },
+    "presetNote": {
+      "none": "Agents cannot use this integration at all.",
+      "read": "Tools classed as read-only. Until a tool has been classified this allows nothing: tick the tools you want below.",
+      "write": "Read-only and ordinary write tools; never anything that sends, posts or deletes. Tools that are not classified yet are not included: tick the ones you want below.",
+      "custom": "Exactly the tools ticked below, and nothing else."
+    },
+    "expiry": {
+      "label": "How long",
+      "never": "Until I change it",
+      "hour": "For 1 hour",
+      "day": "For 1 day",
+      "until": "Until {{time}}"
+    },
+    "tools": {
+      "title": "Tool",
+      "allow": "Allow",
+      "block": "Block",
+      "load": "Load tools from the service",
+      "reload": "Reload tools",
+      "loading": "Asking the service…",
+      "none": "No tools loaded yet."
+    },
+    "class": {
+      "read": "reads",
+      "write": "changes",
+      "destructive": "can send, change or delete, or not classified yet"
+    },
+    "classNote": "A tool that sends, posts or deletes, or that has not been classified yet, is never included by Read or Write. It is allowed only if you tick it by name.",
+    "confirmDestructive": "Let agents use \"{{tool}}\"? It can send, change or delete things, or it has not been classified yet.",
+    "activity": {
+      "title": "Recent activity",
+      "none": "Nothing has been used yet.",
+      "refresh": "Refresh",
+      "allowed": "allowed",
+      "denied": "refused"
+    },
+    "errors": {
+      "generic": "That did not work.",
+      "forbidden": "That was refused.",
+      "sign_in_required": "Sign in first.",
+      "disabled": "Switch the integration on first.",
+      "unavailable": "The credential is not available right now.",
+      "upstream": "The service did not answer as expected.",
+      "unknown": "Unknown integration."
     }
   },
   "devicePicker": {
@@ -968,6 +1404,10 @@
     "beatCeiling": "The beat adapts to how quiet the floor is, so this is the ceiling, not the exact gap."
   },
   "webhooksSection": {
+    "rotated": "New secret in place — the old one no longer works. Copy it now.",
+    "rotate": "rotate",
+    "noSecret": "No secret yet — this endpoint stays off until it has one.",
+    "secretStored": "Secret stored — it is never shown. Use copy to hand it to the caller.",
     "summaryNone": "none",
     "summary": "{{count}} · {{state}}",
     "live": "live",
@@ -1143,6 +1583,8 @@
     "send": "Send"
   },
   "skillsTab": {
+    "installedGuarded": "Mosbius removed {{count}} tool grant or run-on-load command from it first: a skill cannot grant itself tools or run anything.",
+    "shipsCode": "It ships scripts or dependency files; nothing was installed or run.",
     "installed": "Installed",
     "browse": "browse",
     "searchInstalled": "Search installed skills…",
@@ -1215,6 +1657,11 @@
     "legendInformTopic": "inform/topic"
   },
   "integrations": {
+    "accessTitle": "Access for hired workers",
+    "accessSaved": "Access updated.",
+    "accessFailed": "Could not change access.",
+    "accessNote": "None by default. Read allows GET requests only; Write also allows POST, PUT and PATCH. A DELETE is never covered by either. Taking access away applies to the very next request. This is for workers the orchestrator hires.",
+    "access": {"none": "None", "read": "Read", "write": "Read + write", "custom": "Custom (set by name)"},
     "errLabel": "Give it a label.",
     "errId": "Could not derive a valid id from the label.",
     "errBaseUrl": "Base URL is required.",
@@ -1256,12 +1703,12 @@
     "availability": "Availability",
     "enabled": "enabled",
     "disabled": "disabled",
-    "availableToAll": "✓ Available to all workers",
+    "availableToAll": "✓ Ready — a worker can use it only once you give it access below",
     "notAvailableYet": "Not available to workers yet",
     "addSecretToEnable": "Add a secret and enable to make it available.",
     "readyOnceSaved": "Ready once saved.",
     "disabledNoUse": "Disabled — no worker can use it.",
-    "v1Note": "v1 grants every enabled integration to all workers. Per-worker scoping is coming.",
+    "v1Note": "Nothing is shared by default: enabling an integration does not give any worker access to it.",
     "testConnection": "Test connection",
     "testing": "testing…",
     "testAfterSave": "Save the integration first, then test the live connection.",

@@ -1,0 +1,7 @@
+2.1.325 (Claude Code) · darwin/arm64 · 2026-11-15T18:38:47.312Z
+
+PASS  the CLI announced itself (system/init) before any model reply
+PASS  the probe skill in <project>/.claude/skills is listed as a skill  — 42 skills listed
+PASS  and is available as a slash command
+
+3/3 checks passed

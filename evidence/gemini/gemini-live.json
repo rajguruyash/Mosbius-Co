@@ -1,0 +1,418 @@
+{
+  "tool": "tools/verify-gemini-live.cjs",
+  "date": "2026-11-16T08:48:24.032Z",
+  "gemini": "gemini-cli 0.68.0",
+  "platform": "darwin/arm64",
+  "node": "v22.12.0",
+  "package": {
+    "name": "@google/gemini-cli",
+    "version": "0.68.0",
+    "integrity": "sha512-eq7AWY+YCijNGKVwyiRjN+GuOdXU/djuOZhX18p+HDmNyUqFdqH7C5V6vDJLl1uffhRPhGijePV+YvY8lymrbQ==",
+    "installedWith": "npm install --ignore-scripts --save-exact, into a throwaway folder"
+  },
+  "settingsKeysTheAppAdded": {
+    "mcpServers": [
+      "mine",
+      "mosbius-linear"
+    ],
+    "hookEvents": [
+      "SessionStart",
+      "BeforeAgent",
+      "BeforeTool",
+      "AfterTool",
+      "AfterAgent"
+    ]
+  },
+  "runExit": 0,
+  "mcpToolsOffered": [
+    "mcp_mosbius-linear_search"
+  ],
+  "shellVariableCount": 54,
+  "capabilityVisibleToShell": true,
+  "withTheCLIsOwnRedactionOn": {
+    "passHidden": true,
+    "sshAuthSockHidden": true,
+    "secretLookingVariablesHidden": true
+  },
+  "f9": {
+    "closable": false,
+    "why": [
+      "LIMIT 1: Gemini expands $VAR in its settings from its own process environment at start-up, so the pass must be in that environment, and a command in its shell can read it from there (ps eww on macOS; /proc/<pid>/environ on Linux, reasoned and not run). Every environment-level lever, the start-up-file workaround included, leaves it there.",
+      "LIMIT 2: the CLI has no per-variable exclusion: sanitizeEnvironment returns the whole environment unless the global redaction is enabled.",
+      "LIMIT 3: with the global redaction enabled the allow list cannot protect the person's own variables: secret-named ones (SSH_AUTH_SOCK, *_KEY, *_TOKEN) are dropped from it, and values shaped like credentials are removed before it is consulted."
+    ],
+    "control": {
+      "passInShellEnvironment": true,
+      "passReadableFromTheProcessesAboveTheShell": true,
+      "processesHoldingIt": 2,
+      "bashEnvReachesTheShell": true,
+      "variablesReachingTheShell": [
+        "F9_PROBE_PLAIN",
+        "F9_PROBE_GH_SHAPED",
+        "ARTIFACT_MIRROR",
+        "SSH_AUTH_SOCK",
+        "MY_OWN_API_KEY",
+        "GEMINI_API_KEY",
+        "USER_PLAIN_VARIABLE",
+        "BASH_ENV"
+      ]
+    },
+    "blockedListWithRedactionOff": {
+      "passInShellEnvironment": true
+    },
+    "globalRedactionWithAllNamesAllowed": {
+      "passInShellEnvironment": false,
+      "passReadableFromTheProcessesAboveTheShell": true,
+      "keptByTheAllowList": [
+        "F9_PROBE_PLAIN",
+        "USER_PLAIN_VARIABLE"
+      ],
+      "hiddenAlthoughAllowedByName": [
+        "F9_PROBE_GH_SHAPED",
+        "ARTIFACT_MIRROR",
+        "SSH_AUTH_SOCK",
+        "MY_OWN_API_KEY",
+        "GEMINI_API_KEY"
+      ]
+    },
+    "geminiOwnMacOsSandboxAttempt": {
+      "tried": "gemini -s with GEMINI_SANDBOX=sandbox-exec and the built-in permissive-open profile, on the app's isolated-home layout",
+      "started": false,
+      "exitCode": 52,
+      "firstStderrLine": "Error in <throwaway>/h/.gemini/trustedFolders.json: EPERM: operation not permitted, open '<throwaway>/h/.gemini/trustedFolders.json'",
+      "conclusion": "it did not start with this layout (the profile does not let the CLI read the trust file kept outside its allowed folders); not pursued: it would also change what the agent may do"
+    },
+    "bashEnvStartUpFileWorkaround": {
+      "envNoLongerShowsThePass": true,
+      "stillReadableFromTheProcessesAboveTheShell": true
+    }
+  },
+  "hookEventsReceived": [
+    "SessionStart",
+    "UserPromptSubmit",
+    "PreToolUse",
+    "PostToolUse",
+    "Stop"
+  ],
+  "skillsDiscoveredAt": {
+    "~/.agents/skills": true,
+    "~/.gemini/skills": true,
+    "<project>/.agents/skills": true,
+    "<project>/.gemini/skills": true,
+    "<project>/.claude/skills": false
+  },
+  "systemSettingsControl": "Security Warning: Skipping system settings file '<throwaway>/old-system-settings.json': Parent directory '<throwaway>' is insecure: Directory '<throwaway>' is not owned by root",
+  "stands_in_for": {
+    "provider": "test/fixtures/stage-a-idp.cjs (stand-in, not a real provider)",
+    "model": "scripted Gemini-API stand-in on loopback (no Google account, no key, no Gemini model)"
+  },
+  "not_tested": [
+    "a real Gemini model choosing tools well",
+    "a real Gemini login, and whether the app's links carry it into an agent's home",
+    "Gemini CLI on Windows and Linux (the /proc/<pid>/environ route that LIMIT 1 predicts there is reasoned from the same design, not run)",
+    "other Gemini CLI versions",
+    "a Gemini sandbox profile that refuses process inspection (the built-in one did not start on the app's isolated-home layout)"
+  ],
+  "results": [
+    {
+      "group": "startup",
+      "name": "an account is connected through the stand-in provider (sign-in, no pasted key)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the app mints a pass for this agent and this integration only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the app gives the agent a Gemini home of its own, the route in its settings and the pass in one variable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the person's own settings and server are carried into it, beside the app's",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the person's own ~/.gemini/settings.json and trust file are not modified by the app",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the person's login file is LINKED into the agent's home, not copied (structure only: whether Gemini accepts a real login this way is not tested)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the hive socket the hooks use is the one the app told the agent about",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the real CLI reads the agent's home and the broker's server CONNECTS, authenticated by `$VAR` (the broker saw the pass)",
+      "ok": true,
+      "detail": "http: Connected"
+    },
+    {
+      "group": "startup",
+      "name": "the person's own server is listed beside it, untouched",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "no \"Security Warning: Skipping ...\" from the CLI: nothing the app wrote is refused",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the broker's own record shows the CLI's handshake (initialize) allowed for this agent, by its pass",
+      "ok": true,
+      "detail": "ping, notifications/initialized, initialize"
+    },
+    {
+      "group": "startup",
+      "name": "gemini runs headless against the stand-in model and finishes the scripted run",
+      "ok": true,
+      "detail": "exit 0, 5 model turns"
+    },
+    {
+      "group": "discovery",
+      "name": "the model is offered the broker's tool, and only the granted one",
+      "ok": true,
+      "detail": "mcp_mosbius-linear_search"
+    },
+    {
+      "group": "discovery",
+      "name": "none of the tools the app did not grant is offered",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "execution",
+      "name": "a tool call made by the model runs through the broker and returns the provider's answer",
+      "ok": true,
+      "detail": "answer received"
+    },
+    {
+      "group": "execution",
+      "name": "the provider saw exactly one tool call: search",
+      "ok": true,
+      "detail": "upstream saw: search"
+    },
+    {
+      "group": "execution",
+      "name": "the provider saw ITS OWN access token, never the agent's pass",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "permission",
+      "name": "a tool the model was not offered cannot be called: Gemini refuses it before the broker is reached",
+      "ok": true,
+      "detail": "2 refused by the CLI"
+    },
+    {
+      "group": "execution",
+      "name": "the broker's own record shows this agent's initialize, tools/list and its one tool call, each allowed",
+      "ok": true,
+      "detail": "tools/call:search, tools/list, notifications/initialized, initialize, ping"
+    },
+    {
+      "group": "permission",
+      "name": "with the very pass the agent holds, the broker still refuses a tool that was not granted, a write tool and an unclassified one",
+      "ok": true,
+      "detail": "delete_page:refused  create_page:refused  mystery:refused"
+    },
+    {
+      "group": "isolation",
+      "name": "the agent's own shell ran and printed the NAMES of its environment",
+      "ok": true,
+      "detail": "54 variables"
+    },
+    {
+      "group": "isolation",
+      "name": "MEASURED: the pass IS visible to Gemini's shell, and the support matrix says \"no\"",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the person's own variables are untouched: the app changed nothing about Gemini's shell",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the provider's tokens are in no file Gemini or the app wrote",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the pass is in no file Gemini or the app wrote (it is in the environment only)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "neither the pass nor a provider token appears in any process argument while Gemini ran",
+      "ok": true,
+      "detail": "4 process listings"
+    },
+    {
+      "group": "isolation",
+      "name": "nothing sent to the model, nor Gemini's own output, carries the pass or a provider token",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the CLI's own redaction, switched on, hides the pass, and also SSH_AUTH_SOCK and every secret-looking variable (why the app does not switch it on for you)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "f9",
+      "name": "all four scans ran inside the real Gemini shell",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "f9",
+      "name": "control (the original exposure): with the app's default settings the pass is in the environment of Gemini's shell",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "f9",
+      "name": "control: every variable a person really has reaches the shell, including SSH_AUTH_SOCK and the secret-looking ones, and BASH_ENV reaches it too (Gemini does not strip it from the shell)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "f9",
+      "name": "LIMIT 1: the pass can be read from OUTSIDE the shell's own environment: a command in Gemini's shell reads the environment of the processes above it (ps), and it is the real pass (hash equal)",
+      "ok": true,
+      "detail": "2 process(es) in the shell's ancestry hold it; hashes equal"
+    },
+    {
+      "group": "f9",
+      "name": "LIMIT 2: the CLI has no per-variable lever: with its redaction off, naming the pass as blocked hides nothing",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "f9",
+      "name": "the global lever (redaction on, every other name allowed) does remove the pass from the shell's own environment, and keeps a plain variable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "f9",
+      "name": "LIMIT 3: but it also hides variables that are not the pass, whatever the allow list says: SSH_AUTH_SOCK and other secret-named variables (this version drops such names from the allow list), and values shaped like credentials",
+      "ok": true,
+      "detail": "hidden although allowed by name: F9_PROBE_GH_SHAPED, ARTIFACT_MIRROR, SSH_AUTH_SOCK, MY_OWN_API_KEY, GEMINI_API_KEY"
+    },
+    {
+      "group": "f9",
+      "name": "LIMIT 1 again, with the lever on: the pass is gone from the shell's environment and is STILL readable from the processes above it (so no Gemini setting makes it inaccessible)",
+      "ok": true,
+      "detail": "2 process(es) in the ancestry hold it"
+    },
+    {
+      "group": "f9",
+      "name": "the shell start-up-file workaround (BASH_ENV unsets the pass) hides it from `env` and from nothing else: the processes above the shell still hold the real pass, so it would be a misleading fix and is not shipped",
+      "ok": true,
+      "detail": "holders: 14430, 14419"
+    },
+    {
+      "group": "hooks",
+      "name": "the lifecycle hooks the app wrote are loaded AND RUN by the real CLI: their payloads reached the hive socket",
+      "ok": true,
+      "detail": "32 payloads: SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop"
+    },
+    {
+      "group": "skills",
+      "name": "a skill is installed for Gemini by the app's own installer (into the shared folder)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "inside the app's agent home the real CLI finds the skill the app installed for Gemini",
+      "ok": true,
+      "detail": "demo, probe-home-agents, probe-home-gemini, probe-proj-agents, probe-proj-gemini"
+    },
+    {
+      "group": "skills",
+      "name": "and the person's own shared and Gemini skill folders, through the links the app made",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "the person's OWN Gemini (no app home, nothing of the app) finds the same skill in ~/.agents/skills",
+      "ok": true,
+      "detail": "found"
+    },
+    {
+      "group": "skills",
+      "name": "where the CLI looks is recorded: the project folders, and NOT .claude/skills",
+      "ok": true,
+      "detail": "~/.agents/skills:yes  ~/.gemini/skills:yes  <project>/.agents/skills:yes  <project>/.gemini/skills:yes  <project>/.claude/skills:no"
+    },
+    {
+      "group": "trust",
+      "name": "in a folder the person has not trusted in Gemini, the integration is DISABLED, and the broker is not contacted",
+      "ok": true,
+      "detail": "Disabled"
+    },
+    {
+      "group": "revocation",
+      "name": "a pass revoked in the MIDDLE of a run: the call made before it worked, the call made after it did not",
+      "ok": true,
+      "detail": "2 results; second: {\"error\":\"MCP tool 'search' reported tool error for function call: {\\\"name\\\":\\\"search\\\",\\\""
+    },
+    {
+      "group": "revocation",
+      "name": "and the provider saw only the one call made before the revocation",
+      "ok": true,
+      "detail": "1 provider call(s)"
+    },
+    {
+      "group": "revocation",
+      "name": "after the pass is revoked the real CLI no longer connects to the integration",
+      "ok": true,
+      "detail": "Disconnected"
+    },
+    {
+      "group": "revocation",
+      "name": "a new run is no longer offered the tool, and the provider was not asked",
+      "ok": true,
+      "detail": "offered: no integration tool"
+    },
+    {
+      "group": "revocation",
+      "name": "the revoked pass is refused by the broker itself",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "group": "control",
+      "name": "a SYSTEM settings file written by the app (the old design) is REFUSED by this CLI: it must be owned by root",
+      "ok": true,
+      "detail": "refused, as measured"
+    }
+  ]
+}

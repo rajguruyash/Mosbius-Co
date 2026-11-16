@@ -1,0 +1,25 @@
+{
+  "package": "@upstash/context7-mcp",
+  "version": "4.7.0",
+  "listedWith": "tools/list through the app-run host",
+  "tools": [
+    {
+      "name": "resolve-library-id",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "query-docs",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true,
+        "idempotentHint": true
+      }
+    }
+  ]
+}

@@ -16,14 +16,18 @@
  *     cached on disk. Network failure is never fatal: a stale cache, then an
  *     empty list, then the UI says so.
  *
- * Nothing here installs anything. Discovery and browsing only — installing a
- * third-party skill means running someone else's instructions inside an agent
- * that has the user's tools, and that decision stays with the user.
+ * Installing a third-party skill means running someone else's instructions
+ * inside an agent that has the user's tools, so it never happens on its own:
+ * `installSkill` runs only from an explicit per-skill click, copies from the
+ * source repo shown in the UI, and `uninstallSkill` reverses it.
  */
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join, basename, dirname, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { getText } from './fetchText';
+import { isBlockedSkillFile, isMarkdownFile, noteShippedCode, sanitizeSkillMarkdown, type Stripped } from './skillGuard';
+import { detectSkillDeps, type SkillDeps } from './skillDeps';
 
 export interface LocalSkill {
   id: string;
@@ -88,7 +92,8 @@ function scanSkillDir(
         if (!statSync(skillDir).isDirectory() || !existsSync(md)) continue;
         const fm = parseSkillFrontmatter(readFileSync(md, 'utf8'));
         out.push({
-          id: `${scope}:${entry}`,
+          // Claude keeps its original ids; another CLI's folder is namespaced so the same name in two folders is two rows.
+          id: provider === 'claude' ? `${scope}:${entry}` : `${scope}:${provider}:${entry}`,
           name: fm.name || entry,
           description: fm.description || '',
           provider,
@@ -133,12 +138,15 @@ export function listLocalSkills(opts: { cwds: string[]; bundledDir: string | nul
   const found: LocalSkill[] = [
     ...(opts.bundledDir ? scanSkillDir(opts.bundledDir, 'claude', 'bundled') : []),
     ...scanSkillDir(join(home, '.claude', 'skills'), 'claude', 'user'),
+    // the shared folder Codex reads (shown to be listed by the real CLI: evidence/codex/codex-live.json)
+    ...scanSkillDir(join(home, '.agents', 'skills'), 'codex', 'user'),
     ...scanPluginDir(join(home, '.config', 'opencode', 'plugin'), 'opencode', 'user'),
     ...scanPluginDir(join(home, '.codex', 'plugins'), 'codex', 'user')
   ];
   for (const cwd of opts.cwds) {
     if (!cwd) continue;
     found.push(...scanSkillDir(join(cwd, '.claude', 'skills'), 'claude', 'project'));
+    found.push(...scanSkillDir(join(cwd, '.agents', 'skills'), 'codex', 'project'));
     found.push(...scanPluginDir(join(cwd, '.opencode', 'plugin'), 'opencode', 'project'));
   }
   const rank = { project: 3, user: 2, bundled: 1 } as const;
@@ -273,7 +281,7 @@ export async function loadCatalog(
  */
 
 /** GitHub's per-directory listing. Only the fields we actually consume. */
-interface GhEntry { name: string; path: string; type: string; size?: number; download_url?: string | null }
+export interface GhEntry { name: string; path: string; type: string; size?: number; download_url?: string | null }
 
 const MAX_FILES = 60;
 const MAX_TOTAL_BYTES = 2 * 1024 * 1024;
@@ -316,8 +324,8 @@ export function safeSkillDirName(raw: string): string | null {
   return base;
 }
 
-function getJson<T>(url: string): Promise<T> {
-  return getText(url).then((t) => JSON.parse(t) as T);
+function getJson<T>(url: string, fetchText: (url: string) => Promise<string> = getText): Promise<T> {
+  return fetchText(url).then((t) => JSON.parse(t) as T);
 }
 
 /**
@@ -379,11 +387,11 @@ export async function resolveRepoRootSkillDir(
 /** officialskills.sh pages are a rendering of a GitHub folder and link back to
  *  it. Resolving that link is one request and turns 578 otherwise un-installable
  *  catalog rows into installable ones. */
-async function resolveSourceUrl(url: string): Promise<string | null> {
+async function resolveSourceUrl(url: string, fetchText: (url: string) => Promise<string> = getText): Promise<string | null> {
   if (parseGitHubSourceUrl(url)) return url;
   if (!/^https:\/\/(www\.)?officialskills\.sh\//i.test(url)) return null;
   try {
-    const html = await getText(url);
+    const html = await fetchText(url);
     const m = /https:\/\/github\.com\/[^/"'\s]+\/[^/"'\s]+\/tree\/[^"'\s<>)]+/.exec(html);
     return m ? m[0].replace(/[.,)]+$/, '') : null;
   } catch { return null; }
@@ -395,24 +403,74 @@ async function resolveSourceUrl(url: string): Promise<string | null> {
  * Returns a structured refusal rather than throwing, so the UI can say WHY —
  * "not installable" and "install failed" are different answers for the user.
  */
-export async function installSkill(
-  entryUrl: string,
-  entryName: string
-): Promise<{ ok: true; path: string } | { ok: false; error: string; unsupported?: boolean }> {
-  const source = await resolveSourceUrl(entryUrl);
+/** What `installSkill` reports about the guard rails it applied (Stage B; see skillGuard.ts). */
+export interface InstallReport {
+  /** Grants and run-on-load syntax removed from the copy on disk. */
+  stripped: Stripped[];
+  /** Files that were not written at all (configuration that would arm hooks or servers). */
+  skipped: string[];
+  /** Files the skill ships that could install or run something: only noted, nothing was run. */
+  notes: string[];
+}
+
+/** For tests and for the app: where to fetch, where "home" is, and where to keep the install record. */
+export interface InstallDeps {
+  getText?: (url: string) => Promise<string>;
+  home?: string;
+  /** Outside the skill folder (an agent must not be able to edit it): one JSON record per install. */
+  recordDir?: string;
+  /** The skills folder to install into. Claude Code's own (`~/.claude/skills`) unless the caller names another: the
+   *  shared `~/.agents/skills` that Codex reads. Only ever a folder the app itself resolved, never user text. */
+  root?: string;
+  /** Which agent CLIs this folder serves, written into the install record. */
+  agents?: string[];
+}
+
+/** One file of a skill, where to fetch it and how big it is. */
+export interface SkillFile { path: string; url: string; size: number }
+
+/** A skill's source, resolved to the exact commit it was read at. */
+export interface ResolvedSkill {
+  source: string;
+  gh: { owner: string; repo: string; ref: string; path: string };
+  skillPath: string;
+  dirName: string;
+  /** The commit the files were read at: what makes "what is installed" a fact and an update a comparison. Null only
+   *  when GitHub would not name one (a rate limit): the install then reads the branch, and says it is not pinned. */
+  commit: string | null;
+  files: SkillFile[];
+}
+
+/**
+ * Find a skill's folder and list its files, reading the repository AT A COMMIT rather than at a moving branch.
+ * Nothing is written. Used by the install, by the update preview and by nothing that changes a disk.
+ */
+export async function resolveSkill(
+  entryUrl: string, entryName: string, deps: InstallDeps = {}
+): Promise<({ ok: true } & ResolvedSkill) | { ok: false; error: string; unsupported?: boolean }> {
+  const fetchText = deps.getText ?? getText;
+  const source = await resolveSourceUrl(entryUrl, fetchText);
   if (!source) {
     return { ok: false, unsupported: true, error: 'No downloadable source — open Learn more to install it by hand.' };
   }
   const gh = parseGitHubSourceUrl(source);
   if (!gh) return { ok: false, unsupported: true, error: 'Source is not a GitHub folder.' };
 
-  // An empty ref means "the repo's default branch" — omit the parameter entirely
-  // rather than guessing main vs master.
+  // Pin the commit first. `HEAD` is the repository's default branch; a named ref is resolved the same way.
+  let commit: string | null = null;
+  try {
+    const c = await getJson<{ sha?: unknown }>(
+      `https://api.github.com/repos/${gh.owner}/${gh.repo}/commits/${encodeURIComponent(gh.ref || 'HEAD')}`, fetchText
+    );
+    if (typeof c.sha === 'string' && /^[0-9a-f]{40}$/.test(c.sha)) commit = c.sha;
+  } catch { commit = null; }
+  // An empty pin means "the repo's default branch" — omit the parameter rather than guessing main vs master.
+  const pin = commit ?? gh.ref;
   const api = (p: string) =>
     `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${p ? encodeURI(p) : ''}`
-    + (gh.ref ? `?ref=${encodeURIComponent(gh.ref)}` : '');
+    + (pin ? `?ref=${encodeURIComponent(pin)}` : '');
   const listDir = async (p: string): Promise<GhEntry[]> => {
-    const res = await getJson<GhEntry[] | GhEntry>(api(p));
+    const res = await getJson<GhEntry[] | GhEntry>(api(p), fetchText);
     return Array.isArray(res) ? res : [res];
   };
 
@@ -429,17 +487,13 @@ export async function installSkill(
   const dirName = safeSkillDirName(skillPath || entryName);
   if (!dirName) return { ok: false, error: 'That skill has a name this app will not create a folder for.' };
 
-  const root = join(homedir(), '.claude', 'skills');
-  const dest = join(root, dirName);
-  if (existsSync(dest)) return { ok: false, error: `Already installed at ${dest}` };
-
-  const files: { path: string; url: string; size: number }[] = [];
+  const files: SkillFile[] = [];
   let total = 0;
   const walk = async (path: string, depth: number): Promise<string | null> => {
     if (depth > MAX_DEPTH) return 'the folder nests deeper than this installer will follow';
     let listing: GhEntry[];
     try {
-      const res = await getJson<GhEntry[] | GhEntry>(api(path));
+      const res = await getJson<GhEntry[] | GhEntry>(api(path), fetchText);
       listing = Array.isArray(res) ? res : [res];
     } catch (e) {
       return e instanceof Error ? e.message : String(e);
@@ -465,10 +519,29 @@ export async function installSkill(
   const walkErr = await walk(skillPath, 0);
   if (walkErr) return { ok: false, error: walkErr };
   if (files.length === 0) return { ok: false, error: 'No files found at that source.' };
+  return { ok: true, source, gh, skillPath, dirName, commit, files };
+}
 
-  // Write only after the whole tree resolved, so a mid-download failure cannot
-  // leave a half-installed skill that an agent would then load.
+/** What one file looked like on disk, to compare an install, an update or a rollback by content. */
+export interface WrittenFile { path: string; downloadedSha256: string; installedSha256: string; bytes: number }
+
+/**
+ * Download a resolved skill's files into `dest`, with the guard rails of skillGuard.ts applied: grants and
+ * run-on-load syntax come out of every markdown file, configuration that would arm a hook or a server is not
+ * written, nothing is executable. All-or-nothing: a failure removes `dest`. The ORIGINAL text of every markdown
+ * file is returned too, for dependency detection (it is read, never written).
+ */
+export async function writeSkillFiles(
+  files: SkillFile[], dest: string, fetchText: (url: string) => Promise<string>
+): Promise<
+  | { ok: true; written: string[]; stripped: Stripped[]; skipped: string[]; record: WrittenFile[]; originals: Array<{ path: string; text: string }> }
+  | { ok: false; error: string }
+> {
   const written: string[] = [];
+  const stripped: Stripped[] = [];
+  const skipped: string[] = [];
+  const record: WrittenFile[] = [];
+  const originals: Array<{ path: string; text: string }> = [];
   try {
     for (const f of files) {
       const target = resolve(dest, f.path);
@@ -476,16 +549,67 @@ export async function installSkill(
       if (target !== dest && !target.startsWith(dest + sep)) {
         throw new Error(`refusing to write outside the skill folder: ${f.path}`);
       }
-      const body = await getText(f.url);
+      // Configuration that would arm a hook or a server is not installed at all.
+      if (isBlockedSkillFile(f.path)) { skipped.push(f.path); continue; }
+      const body = await fetchText(f.url);
+      // A skill may not grant tools or run commands: the grants and the run-on-load syntax come out
+      // of every markdown file (SKILL.md, and the commands and agents a plugin-style skill carries).
+      let text = body;
+      if (isMarkdownFile(f.path)) {
+        originals.push({ path: f.path, text: body });
+        const clean = sanitizeSkillMarkdown(body, f.path);
+        text = clean.text;
+        stripped.push(...clean.removed);
+      }
       mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, body);
+      // Never executable: whatever the repo said, a downloaded file is data until the user decides otherwise.
+      writeFileSync(target, text, { mode: 0o644 });
       written.push(target);
+      record.push({
+        path: f.path,
+        downloadedSha256: createHash('sha256').update(body).digest('hex'),
+        installedSha256: createHash('sha256').update(text).digest('hex'),
+        bytes: Buffer.byteLength(text)
+      });
     }
+    if (!written.some((w) => basename(w) === 'SKILL.md')) throw new Error('that source has no SKILL.md that could be installed');
   } catch (e) {
     try { rmSync(dest, { recursive: true, force: true }); } catch { /* best effort */ }
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
-  return { ok: true, path: dest };
+  return { ok: true, written, stripped, skipped, record, originals };
+}
+
+export async function installSkill(
+  entryUrl: string,
+  entryName: string,
+  deps: InstallDeps = {}
+): Promise<({ ok: true; path: string; commit: string | null; deps: SkillDeps } & InstallReport) | { ok: false; error: string; unsupported?: boolean }> {
+  const fetchText = deps.getText ?? getText;
+  const r = await resolveSkill(entryUrl, entryName, deps);
+  if (!r.ok) return r;
+  const root = deps.root ?? join(deps.home ?? homedir(), '.claude', 'skills');
+  const dest = join(root, r.dirName);
+  if (existsSync(dest)) return { ok: false, error: `Already installed at ${dest}` };
+
+  // Write only after the whole tree resolved, so a mid-download failure cannot
+  // leave a half-installed skill that an agent would then load.
+  const w = await writeSkillFiles(r.files, dest, fetchText);
+  if (!w.ok) return w;
+  const notes = noteShippedCode(r.files.map((f) => f.path));
+  const found = detectSkillDeps(w.originals);
+  // Where it came from and exactly what was written, kept OUTSIDE the skill folder where no agent can edit it.
+  if (deps.recordDir) {
+    try {
+      mkdirSync(deps.recordDir, { recursive: true, mode: 0o700 });
+      writeFileSync(join(deps.recordDir, `${r.dirName}.json`), JSON.stringify({
+        v: 2, name: entryName, dirName: r.dirName, source: entryUrl, resolved: r.source, ref: r.gh.ref || null,
+        repo: { owner: r.gh.owner, repo: r.gh.repo }, skillPath: r.skillPath, commit: r.commit, installedAt: Date.now(),
+        files: w.record, stripped: w.stripped, skipped: w.skipped, notes, deps: found, agents: deps.agents?.length ? deps.agents : ['claude']
+      }, null, 2), { mode: 0o600 });
+    } catch { /* the record is a courtesy; the install stands */ }
+  }
+  return { ok: true, path: dest, commit: r.commit, deps: found, stripped: w.stripped, skipped: w.skipped, notes };
 }
 
 /**
@@ -503,10 +627,12 @@ export function uninstallSkill(
 
   const roots = [
     join(homedir(), '.claude', 'skills'),
+    join(homedir(), '.agents', 'skills'),
     join(homedir(), '.config', 'opencode', 'plugin'),
     join(homedir(), '.codex', 'plugins'),
     ...opts.cwds.filter(Boolean).flatMap((c) => [
       join(c, '.claude', 'skills'),
+      join(c, '.agents', 'skills'),
       join(c, '.opencode', 'plugin')
     ])
   ].map((r) => resolve(r));

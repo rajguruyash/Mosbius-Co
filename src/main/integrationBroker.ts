@@ -1,5 +1,5 @@
 /**
- * Loopback secret broker (Phase 2 foundation, main process).
+ * Loopback secret broker (main process): the facade `index.ts` talks to.
  *
  * A 127.0.0.1-only HTTP proxy. An ephemeral worker calls
  *   <METHOD> http://127.0.0.1:<port>/i/<integrationId>/<path...>
@@ -9,54 +9,33 @@
  * upstream auth header, forwards to the integration's baseUrl, and streams the response
  * back. The worker uses the integration WITHOUT EVER SEEING the credential.
  *
- * Generalizes the existing src/main/slack.ts `SlackReplyServer` (a loopback broker that
- * posts Slack replies without the agent seeing the bot token) to an N-integration proxy.
+ * This file used to hold the whole implementation. It is now a thin composition of
+ * the shared broker in `./broker/`:
+ *
+ *   CapabilityRegistry  who may call, on which channel, for which integrations
+ *   BrokerCore          the loopback server, authentication, revocation, containment
+ *   RestRoute           `/i/<id>/…` (the original forwarding logic)
+ *   McpRoute            `/m/<id>`   (registered ONLY when the caller supplies
+ *                       `extras.mcp`; the app does, and the route answers 404 for
+ *                       every integration whose engine is not `broker`)
+ *
+ * The REST API is unchanged: start, stop, running, url, grant, revoke. The MCP
+ * channel adds grantMcp, revokeMcp, revokeIntegration and the tool listing the
+ * Settings panel reads.
  *
  * DEPENDENCY-FREE of electron by design: `getRecord` + `getSecret` are injected, so this
- * module is unit-testable under plain node. The secret is materialized ONLY here, at
+ * module is unit-testable under plain node. The secret is materialized ONLY at
  * forward-time, and is NEVER logged, NEVER returned to the worker, NEVER echoed in an
  * error.
  *
- * NOT an open proxy: a worker can only reach baseUrls the user registered (it selects an
- * integration by id, never a host), and the path is confined under the integration
- * origin (see resolveUpstreamUrl).
- *
- * Contract: hive/docs/integrations-spec.md.
+ * Contract: hive/docs/integrations-spec.md. Design: MCP_BROKER_DESIGN.md.
  */
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { Readable } from 'node:stream';
-import {
-  type IntegrationRecord,
-  buildAuthHeaders,
-  resolveUpstreamUrl,
-  authTypeNeedsSecret
-} from '../shared/integrations';
-
-const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB request-body cap
-const UPSTREAM_TIMEOUT_MS = 30_000;
-const DEFAULT_USER_AGENT = 'mosbius-co-broker/1';
-
-/** Hop-by-hop headers never forwarded in either direction. */
-const HOP_BY_HOP = new Set([
-  'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
-  'te', 'trailer', 'transfer-encoding', 'upgrade'
-]);
-/** Request headers the worker is NEVER allowed to pass upstream. */
-const STRIP_REQUEST = new Set([
-  'authorization', 'x-md-broker-token', 'host', 'cookie', 'content-length', ...HOP_BY_HOP
-]);
-/** Response headers never forwarded back (fetch already decodes the body, so the
- *  upstream content-encoding/length would be wrong). */
-const STRIP_RESPONSE = new Set([
-  'content-encoding', 'content-length', 'set-cookie', ...HOP_BY_HOP
-]);
-
-interface Capability {
-  workerId: string;
-  allowedIds: Set<string>;
-  grantedAt: number;
-}
+import type { IntegrationRecord } from '../shared/integrations';
+import { CapabilityRegistry } from './broker/capabilities';
+import { BrokerCore, type BrokerRoute } from './broker/core';
+import { StaticSecretProvider } from './broker/credentials';
+import { McpRoute, type DiscoverResult, type McpRouteDeps, type McpToolView } from './broker/mcp-route';
+import { RestRoute, type RestRouteDeps } from './broker/rest-route';
 
 export interface IntegrationBrokerDeps {
   /** Resolve an integration record by id (injected — the registry). */
@@ -65,247 +44,108 @@ export interface IntegrationBrokerDeps {
   getSecret: (secretRef: string | undefined) => string | undefined;
 }
 
-/** True for IPv4 loopback (127.0.0.0/8) and IPv6 ::1 (incl. v4-mapped). Mirrors slack.ts. */
-function isLoopback(addr: string): boolean {
-  const a = addr.replace(/^::ffff:/, '');
-  return a === '::1' || a.startsWith('127.');
+export interface IntegrationBrokerExtras {
+  /** Registers the MCP route. Without it `/m/…` does not exist. */
+  mcp?: McpRouteDeps;
+  /**
+   * Per-agent, per-request grants for the REST route (Stage B). The app always supplies them: a
+   * worker then reaches an integration only through a grant that covers the method and path of
+   * each request, re-read on every call. Without them the route keeps its original
+   * capability-only behaviour, which exists so that behaviour stays testable on its own.
+   */
+  rest?: Pick<RestRouteDeps, 'grants' | 'audit' | 'now'>;
 }
 
 export class IntegrationBroker {
-  private server: Server | null = null;
-  private port = 0;
-  private readonly deps: IntegrationBrokerDeps;
-  /** token -> capability. In-memory only; NEVER persisted. */
-  private readonly byToken = new Map<string, Capability>();
-  /** workerId -> token, for revoke. */
-  private readonly byWorker = new Map<string, string>();
+  private readonly registry = new CapabilityRegistry();
+  private readonly core: BrokerCore;
+  private readonly mcpRoute: McpRoute | undefined;
 
-  constructor(deps: IntegrationBrokerDeps) {
-    this.deps = deps;
+  constructor(deps: IntegrationBrokerDeps, extras: IntegrationBrokerExtras = {}) {
+    const rest = new RestRoute({
+      getRecord: deps.getRecord,
+      credentials: new StaticSecretProvider(deps.getSecret),
+      ...(extras.rest ?? {})
+    });
+    const routes: BrokerRoute[] = [rest];
+    if (extras.mcp) {
+      this.mcpRoute = new McpRoute(extras.mcp, this.registry);
+      routes.push(this.mcpRoute);
+    }
+    this.core = new BrokerCore({
+      registry: this.registry,
+      routes,
+      notFoundMessage: 'expected /i/<integrationId>/<path>'
+    });
   }
 
   /** Bind a loopback port (0 ⇒ OS-assigned). Resolves the bound port. */
   start(preferredPort = 0): Promise<{ ok: boolean; port?: number; error?: string }> {
-    return new Promise((resolve) => {
-      if (this.server) { resolve({ ok: true, port: this.port }); return; }
-      const server = createServer((req, res) => this.handle(req, res));
-      const onError = (e: Error): void => { server.off('listening', onListening); resolve({ ok: false, error: e.message }); };
-      const onListening = (): void => {
-        server.off('error', onError);
-        this.server = server;
-        const addr = server.address();
-        this.port = addr && typeof addr === 'object' ? addr.port : preferredPort;
-        resolve({ ok: true, port: this.port });
-      };
-      server.once('error', onError);
-      server.once('listening', onListening);
-      // 127.0.0.1 ONLY — never bound to a routable interface, never tunneled.
-      server.listen(preferredPort, '127.0.0.1');
-    });
+    return this.core.start(preferredPort);
   }
 
-  /** Close the broker. Idempotent and best-effort. Clears all capabilities. */
+  /** Close the broker. Idempotent and best-effort. Revokes every capability and
+   *  cuts every request still running. */
   stop(): void {
-    try { this.server?.close(); } catch { /* noop */ }
-    this.server = null;
-    this.port = 0;
-    this.byToken.clear();
-    this.byWorker.clear();
+    this.core.stop();
+    this.registry.clear();
   }
 
   /** Whether the broker is bound and serving. */
-  running(): boolean {
-    return !!this.server && this.port > 0;
-  }
+  running(): boolean { return this.core.running(); }
 
   /** The base URL workers use (only valid while running). */
-  url(): string {
-    return `http://127.0.0.1:${this.port}`;
-  }
+  url(): string { return this.core.url(); }
 
-  /** Mint a per-worker capability token granting access to `allowedIds`. Any prior
-   *  token for this worker is revoked first. The token is a random handle — never a
-   *  secret, never persisted. */
+  /** Mint a per-worker capability token granting access to `allowedIds` over the
+   *  REST channel. Any prior REST token for this worker is revoked first. The token
+   *  is a random handle — never a secret, never persisted. */
   grant(workerId: string, allowedIds: string[]): string {
-    this.revoke(workerId);
-    const token = randomBytes(32).toString('base64url');
-    this.byToken.set(token, { workerId, allowedIds: new Set(allowedIds), grantedAt: Date.now() });
-    this.byWorker.set(workerId, token);
-    return token;
+    return this.registry.grant(workerId, 'rest', allowedIds);
   }
 
-  /** Revoke a worker's capability (called on teardown). Idempotent. */
+  /** Revoke everything a worker holds (called on teardown). Takes effect on the very
+   *  next request and cuts any request it is running. Idempotent. */
   revoke(workerId: string): void {
-    const token = this.byWorker.get(workerId);
-    if (token) { this.byToken.delete(token); this.byWorker.delete(workerId); }
+    this.registry.revokeAgent(workerId);
   }
 
-  /** Constant-time-ish lookup of a presented token against live capabilities. */
-  private resolveCapability(provided: string | undefined): Capability | undefined {
-    if (!provided) return undefined;
-    const a = Buffer.from(provided);
-    for (const [token, cap] of this.byToken) {
-      const b = Buffer.from(token);
-      if (a.length === b.length && timingSafeEqual(a, b)) return cap;
-    }
-    return undefined;
+  /** Mint an MCP-channel capability for an agent. Valid only on `/m/<id>`, never on
+   *  `/i/…`, and worthless unless the MCP route is registered AND the agent has a
+   *  grant (permissions.ts). Any earlier MCP capability for this agent dies first. */
+  grantMcp(agentId: string, allowedIds: string[]): string {
+    return this.registry.grant(agentId, 'mcp', allowedIds);
   }
 
-  private static sendError(res: ServerResponse, status: number, code: string, message: string): void {
-    if (res.headersSent) { try { res.end(); } catch { /* noop */ } return; }
-    res.writeHead(status, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ error: message, code }));
+  /** Revoke only the agent's MCP capability (its REST one, if any, is left alone).
+   *  Takes effect on the next request and cuts the ones running. Idempotent. */
+  revokeMcp(agentId: string): boolean {
+    return this.registry.revokeChannel(agentId, 'mcp');
   }
 
-  /** Extract the bearer/x-md-broker-token from the request. */
-  private static tokenFrom(req: IncomingMessage): string | undefined {
-    const x = req.headers['x-md-broker-token'];
-    if (typeof x === 'string' && x) return x;
-    const auth = req.headers['authorization'];
-    if (typeof auth === 'string') {
-      const m = /^Bearer\s+(.+)$/i.exec(auth.trim());
-      if (m) return m[1].trim();
-    }
-    return undefined;
+  /** Whether an agent currently holds an MCP capability. */
+  hasMcp(agentId: string): boolean {
+    return this.registry.has(agentId, 'mcp');
   }
 
-  private handle(req: IncomingMessage, res: ServerResponse): void {
-    // 1) Loopback — defense in depth even though the bind already excludes others.
-    if (!isLoopback(req.socket.remoteAddress ?? '')) {
-      return IntegrationBroker.sendError(res, 403, 'forbidden', 'loopback callers only');
-    }
-    // 2) Capability token.
-    const cap = this.resolveCapability(IntegrationBroker.tokenFrom(req));
-    if (!cap) return IntegrationBroker.sendError(res, 401, 'unauthorized', 'missing or invalid capability token');
-
-    // 3) Parse /i/<integrationId>/<path...>.
-    const rawUrl = req.url ?? '';
-    const m = /^\/i\/([^/?#]+)(?:\/([^?#]*))?(\?[^#]*)?$/.exec(rawUrl);
-    if (!m) return IntegrationBroker.sendError(res, 404, 'not_found', 'expected /i/<integrationId>/<path>');
-    const integrationId = decodeURIComponent(m[1]);
-    const path = m[2] ?? '';
-    const query = m[3] ?? '';
-
-    // 4) Authorize against this worker's capability.
-    if (!cap.allowedIds.has(integrationId)) {
-      return IntegrationBroker.sendError(res, 403, 'forbidden', 'integration not in this worker capability');
-    }
-    // 5) Resolve the record (still enabled?).
-    const rec = this.deps.getRecord(integrationId);
-    if (!rec) return IntegrationBroker.sendError(res, 404, 'not_found', 'unknown integration');
-    if (!rec.enabled) return IntegrationBroker.sendError(res, 403, 'forbidden', 'integration is disabled');
-
-    // 6) Confine the upstream URL under the integration origin (NOT an open proxy).
-    const upstream = resolveUpstreamUrl(rec.baseUrl, path + query);
-    if (!upstream) return IntegrationBroker.sendError(res, 400, 'bad_request', 'invalid or out-of-bounds path');
-
-    // 7) Secret (decrypted ONLY here, used ONLY to inject the upstream header).
-    let secret: string | undefined;
-    if (authTypeNeedsSecret(rec.authType)) {
-      secret = this.deps.getSecret(rec.secretRef);
-      if (!secret) return IntegrationBroker.sendError(res, 503, 'no_secret', 'no secret configured for this integration');
-    }
-
-    void this.forward(req, res, rec, upstream, secret);
+  /** The tools an MCP integration is known to offer (names, classes, descriptions). */
+  mcpTools(integrationId: string): McpToolView[] {
+    return this.mcpRoute?.toolsOf(integrationId) ?? [];
   }
 
-  private async forward(
-    req: IncomingMessage,
-    res: ServerResponse,
-    rec: IntegrationRecord,
-    upstream: URL,
-    secret: string | undefined
-  ): Promise<void> {
-    // Buffer the request body with a hard cap (write methods).
-    const method = (req.method ?? 'GET').toUpperCase();
-    const hasBody = method !== 'GET' && method !== 'HEAD';
-    let body: Buffer | undefined;
-    if (hasBody) {
-      try {
-        body = await readBodyCapped(req);
-      } catch (e) {
-        if ((e as Error).message === 'too_large') {
-          return IntegrationBroker.sendError(res, 413, 'payload_too_large', 'request body too large');
-        }
-        return IntegrationBroker.sendError(res, 400, 'bad_request', 'could not read request body');
-      }
-    }
-
-    // Sanitize worker headers, then inject the auth header(s). Injected auth ALWAYS
-    // wins: the strip list removes any worker-supplied authorization/auth header.
-    const outHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(req.headers)) {
-      const key = k.toLowerCase();
-      if (STRIP_REQUEST.has(key)) continue;
-      if (Array.isArray(v)) outHeaders[key] = v.join(', ');
-      else if (typeof v === 'string') outHeaders[key] = v;
-    }
-    if (!outHeaders['user-agent']) outHeaders['user-agent'] = DEFAULT_USER_AGENT;
-    const injected = buildAuthHeaders(rec.authType, rec.authHeader, secret);
-    for (const [k, v] of Object.entries(injected)) {
-      delete outHeaders[k]; // ensure the worker can't shadow an injected header
-      outHeaders[k] = v;
-    }
-
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), UPSTREAM_TIMEOUT_MS);
-    let upstreamRes: Response;
-    try {
-      upstreamRes = await fetch(upstream, {
-        method,
-        headers: outHeaders,
-        body: body as BodyInit | undefined,
-        redirect: 'manual',
-        signal: ac.signal
-      });
-    } catch (e) {
-      clearTimeout(timer);
-      // The message could in theory contain the URL but never the secret.
-      return IntegrationBroker.sendError(res, 502, 'bad_gateway', `upstream request failed: ${(e as Error).message}`);
-    }
-
-    // Stream the response back (status + sanitized headers + body).
-    const respHeaders: Record<string, string> = {};
-    upstreamRes.headers.forEach((value, key) => {
-      if (!STRIP_RESPONSE.has(key.toLowerCase())) respHeaders[key] = value;
-    });
-    res.writeHead(upstreamRes.status, respHeaders);
-    try {
-      if (upstreamRes.body) {
-        await pipeWebStream(upstreamRes.body, res);
-      } else {
-        res.end();
-      }
-    } catch {
-      try { res.end(); } catch { /* socket gone */ }
-    } finally {
-      clearTimeout(timer);
-    }
+  /** Ask the integration's server for its tool list (as the broker, not as an agent). */
+  discoverMcpTools(integrationId: string): Promise<DiscoverResult> {
+    return this.mcpRoute ? this.mcpRoute.discover(integrationId) : Promise.resolve({ ok: false, code: 'unknown' });
   }
-}
 
-/** Read a request body into a Buffer, aborting past MAX_BODY_BYTES (throws 'too_large'). */
-function readBodyCapped(req: IncomingMessage): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    req.on('data', (c: Buffer) => {
-      size += c.length;
-      if (size > MAX_BODY_BYTES) { reject(new Error('too_large')); req.destroy(); return; }
-      chunks.push(c);
-    });
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', (e) => reject(e));
-  });
-}
+  /** Forget what was learnt about an integration's tools (it was disconnected). */
+  forgetMcpTools(integrationId: string): void {
+    this.mcpRoute?.forgetTools(integrationId);
+  }
 
-/** Pipe a web ReadableStream (fetch response body) to a node ServerResponse. */
-function pipeWebStream(web: ReadableStream<Uint8Array>, res: ServerResponse): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const node = Readable.fromWeb(web as Parameters<typeof Readable.fromWeb>[0]);
-    node.on('error', reject);
-    res.on('error', reject);
-    res.on('finish', resolve);
-    node.pipe(res);
-  });
+  /** Take one integration away from every agent at once (disconnect, disable). Any
+   *  request running against it is cut off. Returns how many capabilities lost it. */
+  revokeIntegration(integrationId: string): number {
+    return this.registry.revokeIntegration(integrationId);
+  }
 }

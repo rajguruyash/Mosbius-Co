@@ -1,0 +1,99 @@
+
+Notion  (https://mcp.notion.com/mcp)
+  PASS  discover.unauthenticated  — an unauthenticated initialize answers HTTP 401; its WWW-Authenticate names the resource metadata
+  PASS  discover.resource  — resource metadata found; scopes_supported: ["default"]
+  PASS  discover.authorization_server  — authorization server metadata found
+  PASS  discover.issuer  — the issuer in the metadata is the one that was asked
+  PASS  discover.pkce  — code_challenge_methods_supported: ["S256"]
+  PASS  discover.public_client  — token endpoint auth methods: ["client_secret_basic","client_secret_post","none","private_key_jwt"]
+  PASS  discover.registration  — dynamic client registration is offered
+  PASS  discover.revocation  — revocation is advertised at the token endpoint itself
+  INFO  discover.iss  — authorization_response_iss_parameter_supported: true; client_id_metadata_document_supported: true
+  PASS  leak.scan  — no token, code, verifier or state appears in 10 lines or the evidence
+
+Every required step passed. Only what is listed above was exercised.
+
+Linear  (https://mcp.linear.app/mcp)
+  PASS  discover.unauthenticated  — an unauthenticated initialize answers HTTP 401; its WWW-Authenticate names the resource metadata
+  PASS  discover.resource  — resource metadata found; scopes_supported: ["read","write"]
+  PASS  discover.authorization_server  — authorization server metadata found
+  PASS  discover.issuer  — the issuer in the metadata is the one that was asked
+  PASS  discover.pkce  — code_challenge_methods_supported: ["S256"]
+  PASS  discover.public_client  — token endpoint auth methods: ["client_secret_basic","client_secret_post","none"]
+  PASS  discover.registration  — dynamic client registration is offered
+  PASS  discover.revocation  — revocation is advertised at the token endpoint itself
+  INFO  discover.iss  — authorization_response_iss_parameter_supported: true; client_id_metadata_document_supported: true
+  PASS  leak.scan  — no token, code, verifier or state appears in 10 lines or the evidence
+
+Every required step passed. Only what is listed above was exercised.
+
+Sentry  (https://mcp.sentry.dev/mcp)
+  PASS  discover.unauthenticated  — an unauthenticated initialize answers HTTP 401; its WWW-Authenticate names the resource metadata
+  PASS  discover.resource  — resource metadata found; scopes_supported: ["org:read","project:write","team:write","event:write","alerts:write"]
+  PASS  discover.authorization_server  — authorization server metadata found
+  PASS  discover.issuer  — the issuer in the metadata is the one that was asked
+  PASS  discover.pkce  — code_challenge_methods_supported: ["S256"]
+  PASS  discover.public_client  — token endpoint auth methods: ["client_secret_basic","client_secret_post","none"]
+  PASS  discover.registration  — dynamic client registration is offered
+  PASS  discover.revocation  — revocation is advertised at the token endpoint itself
+  INFO  discover.iss  — authorization_response_iss_parameter_supported: true; client_id_metadata_document_supported: true
+  PASS  leak.scan  — no token, code, verifier or state appears in 10 lines or the evidence
+
+Every required step passed. Only what is listed above was exercised.
+
+Stripe  (https://mcp.stripe.com)
+  PASS  discover.unauthenticated  — an unauthenticated initialize answers HTTP 401; its WWW-Authenticate names the resource metadata
+  PASS  discover.resource  — resource metadata found; scopes_supported: ["mcp"]
+  FAIL  discover  — authorization server: host access.stripe.com is not one of Stripe's
+  PASS  leak.scan  — no token, code, verifier or state appears in 4 lines or the evidence
+
+1 step(s) FAILED. Nothing here is verified until they pass.
+
+Atlassian  (https://mcp.atlassian.com/v1/mcp)
+  PASS  discover.unauthenticated  — an unauthenticated initialize answers HTTP 401; it does not name the resource metadata
+  FAIL  discover.resource  — no resource metadata document was served
+  PASS  leak.scan  — no token, code, verifier or state appears in 3 lines or the evidence
+
+1 step(s) FAILED. Nothing here is verified until they pass.
+
+Slack  (https://mcp.slack.com/mcp)
+  PASS  discover.unauthenticated  — an unauthenticated initialize answers HTTP 401; its WWW-Authenticate names the resource metadata
+  PASS  discover.resource  — resource metadata found; scopes_supported: ["canvases:read","canvases:write","channels:history","channels:read","channels:write","chat:write","emoji:read","files:read","files:write","groups:history","groups:read","groups:write","im:history","im:read","im:write","lists:read","lists:write","mpim:history","mpim:read","mpim:write","reactions:read","reactions:write","search:read.files","search:read.im","search:read.mpim","search:read.private","search:read.public","search:read.users","users:read","users:read.email"]
+  PASS  discover.authorization_server  — authorization server metadata found
+  PASS  discover.issuer  — the issuer in the metadata is the one that was asked
+  PASS  discover.pkce  — code_challenge_methods_supported: ["S256"]
+  INFO  discover.public_client  — token endpoint auth methods: ["client_secret_post"]
+  INFO  discover.registration  — no registration endpoint
+  INFO  discover.revocation  — no revocation endpoint
+  INFO  discover.iss  — authorization_response_iss_parameter_supported: false; client_id_metadata_document_supported: false
+  PASS  leak.scan  — no token, code, verifier or state appears in 10 lines or the evidence
+
+Every required step passed. Only what is listed above was exercised.
+
+GitHub  (https://api.githubcopilot.com/mcp/)
+  PASS  discover.unauthenticated  — an unauthenticated initialize answers HTTP 401; its WWW-Authenticate names the resource metadata
+  PASS  discover.resource  — resource metadata found; scopes_supported: ["repo","read:org","read:user","user:email","read:packages","write:packages","read:project","project","gist","notifications"]
+  PASS  discover.authorization_server  — authorization server metadata found
+  PASS  discover.issuer  — the issuer in the metadata is the one that was asked
+  PASS  discover.pkce  — code_challenge_methods_supported: ["S256"]
+  INFO  discover.public_client  — token endpoint auth methods: []
+  INFO  discover.registration  — no registration endpoint
+  INFO  discover.revocation  — no revocation endpoint
+  INFO  discover.iss  — authorization_response_iss_parameter_supported: true; client_id_metadata_document_supported: false
+  PASS  leak.scan  — no token, code, verifier or state appears in 10 lines or the evidence
+
+Every required step passed. Only what is listed above was exercised.
+
+Google Calendar  (https://calendarmcp.googleapis.com/mcp/v1)
+  INFO  discover.unauthenticated  — an unauthenticated initialize answers HTTP 200; it does not name the resource metadata
+  PASS  discover.resource  — resource metadata found; scopes_supported: ["https://www.googleapis.com/auth/calendar","https://www.googleapis.com/auth/calendar.acls","https://www.googleapis.com/auth/calendar.calendarlist","https://www.googleapis.com/auth/calendar.calendarlist.readonly","https://www.googleapis.com/auth/calendar.calendars","https://www.googleapis.com/auth/calendar.calendars.readonly","https://www.googleapis.com/auth/calendar.events","https://www.googleapis.com/auth/calendar.events.freebusy","https://www.googleapis.com/auth/calendar.events.readonly","https://www.googleapis.com/auth/calendar.freebusy","https://www.googleapis.com/auth/calendar.readonly","https://www.googleapis.com/auth/calendar.settings.readonly"]
+  PASS  discover.authorization_server  — authorization server metadata found
+  PASS  discover.issuer  — the issuer in the metadata is the one that was asked
+  PASS  discover.pkce  — code_challenge_methods_supported: ["plain","S256"]
+  INFO  discover.public_client  — token endpoint auth methods: ["client_secret_post","client_secret_basic"]
+  INFO  discover.registration  — no registration endpoint
+  PASS  discover.revocation  — a revocation endpoint is offered
+  INFO  discover.iss  — authorization_response_iss_parameter_supported: true; client_id_metadata_document_supported: false
+  PASS  leak.scan  — no token, code, verifier or state appears in 10 lines or the evidence
+
+Every required step passed. Only what is listed above was exercised.

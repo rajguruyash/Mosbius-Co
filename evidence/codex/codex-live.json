@@ -1,0 +1,292 @@
+{
+  "tool": "tools/verify-codex-live.cjs",
+  "date": "2026-11-16T08:48:28.664Z",
+  "codex": "codex-cli 0.142.2",
+  "platform": "darwin/arm64",
+  "node": "v22.12.0",
+  "wiring": [
+    "mcp_servers.mosbius-linear.url=\"http://127.0.0.1:56243/m/linear\"",
+    "mcp_servers.mosbius-linear.bearer_token_env_var=\"MOSBIUS_MCP_SECRET_TOKEN_LINEAR\"",
+    "features.shell_snapshot=false",
+    "shell_environment_policy.exclude=[\"MY_OWN_HIDDEN_*\", \"MOSBIUS_MCP_*\"]"
+  ],
+  "capabilityVariable": "MOSBIUS_MCP_SECRET_TOKEN_LINEAR",
+  "execExit": 0,
+  "offeredToTheModel": [
+    "search"
+  ],
+  "upstreamToolCalls": [
+    "search"
+  ],
+  "shellVariableCount": 35,
+  "scanWalkedThisManyProcesses": 1,
+  "processesWalkedAndTheEnvironmentPsShowedForEach": [
+    ": 0 variables"
+  ],
+  "passReadableFromTheProcessesAboveTheShell": false,
+  "processesAboveTheShellHoldingThePass": 0,
+  "passReadableFromTheProcessesAboveTheShellWithTheSandboxOff": true,
+  "processesWalkedWithTheSandboxOff": 7,
+  "processInspectionRefusedInsideTheSandbox": true,
+  "auditDenials": [
+    "mystery:tool not granted",
+    "create_page:tool not granted",
+    "delete_page:tool not granted",
+    "resources/templates/list:resources and prompts need the read or write preset",
+    "resources/list:resources and prompts need the read or write preset"
+  ],
+  "skillsDiscoveredAt": {
+    "CODEX_HOME/skills": true,
+    "workspace/.agents/skills": true,
+    "workspace/.codex/skills": true,
+    "workspace/.claude/skills": false,
+    "HOME/.agents/skills": true,
+    "HOME/.claude/skills": false
+  },
+  "stands_in_for": {
+    "provider": "test/fixtures/stage-a-idp.cjs (stand-in, not a real provider)",
+    "model": "scripted Responses-API stand-in (no OpenAI model, no account)"
+  },
+  "not_tested": [
+    "a real OpenAI model choosing tools well",
+    "a real Codex sign-in",
+    "Windows and Linux behaviour of Codex (including whether its sandbox there refuses process inspection)",
+    "any sandbox mode other than workspace-write (the app's auto mode) and danger-full-access (the control)"
+  ],
+  "results": [
+    {
+      "group": "startup",
+      "name": "an account is connected through the stand-in provider (sign-in, no pasted key)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the app mints a capability for this agent and this integration only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "the app gives the agent the broker route as -c overrides and the capability as one variable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "Codex runs in the isolated per-agent home the app wrote",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "no login of the user is linked into that home (there is none on this throwaway HOME)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "codex exec starts with the app's config and finishes the scripted run",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "group": "discovery",
+      "name": "the model is offered the broker's server, and only the granted tool",
+      "ok": true,
+      "detail": "offered: search"
+    },
+    {
+      "group": "discovery",
+      "name": "the broker's server is the only MCP server the model was offered",
+      "ok": true,
+      "detail": "mcp__mosbius_linear"
+    },
+    {
+      "group": "execution",
+      "name": "a tool call made by the model runs through the broker and returns the provider's answer",
+      "ok": true,
+      "detail": "status completed"
+    },
+    {
+      "group": "execution",
+      "name": "the provider received exactly one tool call: search",
+      "ok": true,
+      "detail": "upstream saw: search"
+    },
+    {
+      "group": "execution",
+      "name": "the provider saw ITS OWN access token, never the agent's capability",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "permission",
+      "name": "a tool the model was not offered cannot be called: Codex refuses it before the broker is reached",
+      "ok": true,
+      "detail": "3 refused locally"
+    },
+    {
+      "group": "isolation",
+      "name": "the agent's own shell ran and printed its environment",
+      "ok": true,
+      "detail": "35 variables"
+    },
+    {
+      "group": "isolation",
+      "name": "the capability variable is NOT in the shell Codex runs for the model",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the user's own variables are untouched, secret-looking ones included (nothing was broadened)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the user's own exclusion (from their config.toml) is still honoured",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the provider's tokens are in no file Codex or the app wrote under the throwaway folders",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the capability is in no file Codex or the app wrote",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "neither the capability nor a provider token appears in any process argument while Codex ran",
+      "ok": true,
+      "detail": "2 process listings"
+    },
+    {
+      "group": "isolation",
+      "name": "nothing sent to the model, nor Codex's own output, carries the capability or a provider token",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "control: without the app's two overrides, the same Codex DOES show the variable to the model's shell (so the check above can fail)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "isolation",
+      "name": "the scan ran in Codex's shell, and the pass is still not in that shell's own environment",
+      "ok": true,
+      "detail": "35 variables"
+    },
+    {
+      "group": "isolation",
+      "name": "control: with Codex's OS sandbox switched off (-s danger-full-access, which the app never uses) the same scan walks the process tree and DOES read the real pass from the Codex process, so it is the sandbox that stops the shell inspecting processes",
+      "ok": true,
+      "detail": "walked zsh(13) < codex(23) < node(20) < node(81) < zsh(2) < disclaimer(65) < Claude(15); 2 hold the pass"
+    },
+    {
+      "group": "isolation",
+      "name": "MEASURED: with the sandbox on (the app's mode) the pass cannot be read from the processes above Codex's shell (ps returns nothing there: process inspection is refused inside the sandbox); the support matrix says \"yes\" and says the protection needs the sandbox",
+      "ok": true,
+      "detail": "ps returned no process information"
+    },
+    {
+      "group": "startup",
+      "name": "codex app-server answers initialize from the isolated home",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "startup",
+      "name": "Codex reports the broker's server, authenticated with a bearer token",
+      "ok": true,
+      "detail": "bearerToken"
+    },
+    {
+      "group": "discovery",
+      "name": "the tools Codex lists for it are exactly the granted ones",
+      "ok": true,
+      "detail": "search"
+    },
+    {
+      "group": "startup",
+      "name": "a thread starts with no Codex sign-in at all",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "execution",
+      "name": "a direct call to a granted tool succeeds",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "permission",
+      "name": "the broker refuses a destructive tool that was not granted: delete_page",
+      "ok": true,
+      "detail": "{\"code\":-32603,\"message\":\"tool call failed for `mosbius-linear/delete_page`: Mcp error: -32003: Not permitted: \\\"delete_"
+    },
+    {
+      "group": "permission",
+      "name": "the broker refuses a write tool that was not granted: create_page",
+      "ok": true,
+      "detail": "{\"code\":-32603,\"message\":\"tool call failed for `mosbius-linear/create_page`: Mcp error: -32003: Not permitted: \\\"create_"
+    },
+    {
+      "group": "permission",
+      "name": "the broker refuses a tool nobody classified: mystery",
+      "ok": true,
+      "detail": "{\"code\":-32603,\"message\":\"tool call failed for `mosbius-linear/mystery`: Mcp error: -32003: Not permitted: \\\"mystery\\\" i"
+    },
+    {
+      "group": "permission",
+      "name": "none of the refused calls reached the provider",
+      "ok": true,
+      "detail": "provider saw: search, search"
+    },
+    {
+      "group": "permission",
+      "name": "each refusal is in the audit log with the tool and a reason, and no argument",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "revocation",
+      "name": "after revocation the open session's next call is refused",
+      "ok": true,
+      "detail": "{\"code\":-32603,\"message\":\"tool call failed for `mosbius-linear/search`: Transport send error: Transport [rmcp::transport"
+    },
+    {
+      "group": "revocation",
+      "name": "and the provider was not asked",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "revocation",
+      "name": "a new Codex session with the same configuration cannot list or use the tools",
+      "ok": true,
+      "detail": "0 tools"
+    },
+    {
+      "group": "revocation",
+      "name": "the revoked capability is refused by the broker itself",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "group": "skills",
+      "name": "Codex answers skills/list and finds at least one of the locations the app could install into",
+      "ok": true,
+      "detail": "CODEX_HOME/skills:yes  workspace/.agents/skills:yes  workspace/.codex/skills:yes  workspace/.claude/skills:no  HOME/.agents/skills:yes  HOME/.claude/skills:no"
+    }
+  ]
+}

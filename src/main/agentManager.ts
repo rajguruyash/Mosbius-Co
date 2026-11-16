@@ -13,7 +13,8 @@
 //  • Sign-in always uses the vendor's own interactive login, in a terminal the
 //    user can see. The app never asks for or stores credentials.
 
-import { execFile, spawn } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { createServer } from 'node:net';
 import { existsSync, realpathSync, writeFileSync, chmodSync, mkdtempSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -212,4 +213,92 @@ export function openAgentSignIn(id: ProviderId): { ok: boolean; how: string } {
   } catch (e) {
     return { ok: false, how: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** Is this loopback port free to listen on right now? */
+export function loopbackPortFree(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const probe = createServer();
+    probe.once('error', () => resolve(false));
+    probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)));
+  });
+}
+
+export type McpSignInError = 'in-progress' | 'port-busy' | 'no-npx' | 'timeout' | 'failed';
+
+/** Sign-ins in flight, by integration id — one at a time each. */
+const mcpSignIns = new Map<string, ChildProcess>();
+
+/** Stop a sign-in that is still waiting (Disconnect, quit). */
+export function cancelMcpSignIn(id?: string): void {
+  for (const [key, child] of [...mcpSignIns]) {
+    if (id && key !== id) continue;
+    mcpSignIns.delete(key);
+    try { child.kill(); } catch { /* already gone */ }
+  }
+}
+
+/**
+ * Run the one-time browser sign-in for a bridged MCP server, as a child of the
+ * app rather than in a terminal window.
+ *
+ * mcp-remote opens the vendor's own consent page in the user's browser, waits
+ * on a loopback port for the redirect, and writes the tokens into the vault
+ * directory. The app watches for that file, then stops the child — so nothing
+ * is left holding the port, and the caller can seal the tokens straight away.
+ *
+ * What it keeps to itself: the child's output is read only to tell "port in
+ * use" from other failures and is never logged, stored or returned (it carries
+ * the authorisation URL). The result is a fixed code, never text from the child.
+ */
+export async function runMcpSignIn(opts: {
+  id: string;
+  args: string[];
+  configDir: string;
+  port: number;
+  /** True once the vault holds a token file for this integration. */
+  hasTokens: () => boolean;
+  timeoutMs?: number;
+}): Promise<{ ok: true } | { ok: false; error: McpSignInError }> {
+  if (mcpSignIns.has(opts.id)) return { ok: false, error: 'in-progress' };
+  if (!(await loopbackPortFree(opts.port))) return { ok: false, error: 'port-busy' };
+  const npx = resolveCommand('npx');
+  const win = process.platform === 'win32';
+  // resolveCommand hands the bare name back when it found nothing.
+  if (!win && npx === 'npx') return { ok: false, error: 'no-npx' };
+  // Windows can only start npx.cmd through a shell, and the vault path there
+  // contains spaces and an ampersand, so every word is quoted. Never run on a
+  // real Windows machine.
+  const command = win ? `"${npx}"` : npx;
+  const args = win ? opts.args.map((a) => `"${a}"`) : opts.args;
+  return new Promise((resolve) => {
+    let child: ChildProcess;
+    try {
+      child = spawn(command, args, {
+        env: { ...agentEnv(), MCP_REMOTE_CONFIG_DIR: opts.configDir },
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true,
+        shell: win
+      });
+    } catch { resolve({ ok: false, error: 'failed' }); return; }
+    mcpSignIns.set(opts.id, child);
+    let portBusy = false;
+    let settled = false;
+    const finish = (r: { ok: true } | { ok: false; error: McpSignInError }): void => {
+      if (settled) return;
+      settled = true;
+      clearInterval(poll);
+      clearTimeout(timer);
+      if (mcpSignIns.get(opts.id) === child) mcpSignIns.delete(opts.id);
+      try { child.kill(); } catch { /* already gone */ }
+      resolve(r);
+    };
+    const watch = (b: Buffer): void => { if (/EADDRINUSE/.test(String(b))) portBusy = true; };
+    child.stderr?.on('data', watch);
+    child.stdout?.on('data', () => { /* drained, never kept */ });
+    child.on('error', () => finish({ ok: false, error: 'failed' }));
+    child.on('exit', () => finish(opts.hasTokens() ? { ok: true } : { ok: false, error: portBusy ? 'port-busy' : 'failed' }));
+    const poll = setInterval(() => { if (opts.hasTokens()) finish({ ok: true }); }, 400);
+    const timer = setTimeout(() => finish({ ok: false, error: 'timeout' }), opts.timeoutMs ?? 5 * 60_000);
+  });
 }

@@ -418,3 +418,21 @@ def trash_bin(c, x, y):
     c.vline(x + 3, y + 5, 6, (150, 156, 174)); c.vline(x + 6, y + 5, 6, (96, 100, 122))
     c.rframe(x, y, 10, 12, OUT, 1)
     c.shadow(x + 1, y + 12, 9, 2)
+
+def bed(c, x, y, w, h, blanket, pillow, n=2, fold=None):
+    """A bed seen from above, headboard at the top."""
+    c.shadow(x + 2, y + h, w - 2, 3)
+    c.rrect(x, y, w, h, (236, 232, 222), 2)
+    c.rect(x, y, w, 7, (112, 68, 52)); c.hline(x + 1, y + 1, w - 2, (156, 104, 76))      # headboard
+    pw = (w - 8 - (n - 1) * 3) // n
+    for i in range(n):
+        px_ = x + 4 + i * (pw + 3)
+        c.rrect(px_, y + 9, pw, 11, pillow, 2); c.hline(px_ + 2, y + 10, pw - 4, lighten(pillow, 0.3))
+        c.rframe(px_, y + 9, pw, 11, OUT2, 2)
+    c.rect(x + 1, y + 24, w - 2, h - 26, blanket)
+    c.rect(x + 1, y + 24, w - 2, 6, fold or lighten(blanket, 0.3))
+    c.hline(x + 1, y + 30, w - 2, darken(blanket, 0.25))
+    for i in range(x + 8, x + w - 6, 12):
+        c.vline(i, y + 34, h - 40, darken(blanket, 0.1))
+    c.rect(x, y + h - 4, w, 4, (112, 68, 52))
+    c.rframe(x, y, w, h, OUT, 2)

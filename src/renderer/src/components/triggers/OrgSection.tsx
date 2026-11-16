@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useStore } from '@/store/store';
 import { CLONE_NODE_BLURB, type OrgTriggerConfig, type TriggerMode } from '@shared/triggers';
 import { getOrgTrigger, setOrgTrigger as persistOrgTrigger } from './api';
-import { Callout, Field, Hint, ModePicker, SecretField, Toggle } from './ui';
+import { Callout, Field, Hint, MiniButton, ModePicker, SecretField, Toggle } from './ui';
 
 /**
  * ORGANISATION — peer messaging between teammates' clone nodes.
@@ -22,26 +22,31 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
   const cfg = useStore((s) => s.orgTrigger);
   const mirror = useStore((s) => s.setOrgTrigger);
   const [revealed, setRevealed] = useState(false);
+  // What the user is typing. The stored key is never sent here (only `hasKey`), so this field
+  // starts empty; typing a new one and leaving the field replaces the stored key.
+  const [draft, setDraft] = useState('');
 
   useEffect(() => {
-    // Only when the mirror looks unseeded — adopting unconditionally could
-    // clobber a key being typed in Settings this second.
-    if (useStore.getState().orgTrigger.apiKey) return;
-    void getOrgTrigger().then((c) => {
-      if (c && !useStore.getState().orgTrigger.apiKey) mirror(c);
-    });
+    // Only when the mirror looks unseeded.
+    if (useStore.getState().orgTrigger.hasKey !== undefined) return;
+    void getOrgTrigger().then((c) => { if (c) mirror(c); });
   }, [mirror]);
 
+  const hasKey = cfg.hasKey === true;
+
   useEffect(() => {
-    onSummary?.(!cfg.apiKey.trim() ? t('orgSection.noKey') : cfg.enabled ? t('common.on') : t('common.off'));
-  }, [cfg, onSummary, t]);
+    onSummary?.(!hasKey ? t('orgSection.noKey') : cfg.enabled ? t('common.on') : t('common.off'));
+  }, [cfg, hasKey, onSummary, t]);
 
-  const apply = (next: OrgTriggerConfig, persist = true) => {
+  /** Toggle / trust mode: persisted on the spot. The key is not part of this. */
+  const apply = (next: OrgTriggerConfig) => {
     mirror(next);
-    if (persist) persistOrgTrigger(next);
+    void persistOrgTrigger(next).then((saved) => { if (saved) mirror(saved); });
   };
-
-  const hasKey = cfg.apiKey.trim().length > 0;
+  /** Set (a string) or remove (null) the key. Write-only: the reply says only `hasKey`. */
+  const saveKey = (key: string | null) => {
+    void persistOrgTrigger(cfg, key).then((saved) => { if (saved) mirror(saved); });
+  };
 
   return (
     <>
@@ -54,13 +59,14 @@ export function OrgSection({ onSummary }: { onSummary?: (s: string) => void }) {
 
       <Field label={t('orgSection.key')}>
         <SecretField
-          value={cfg.apiKey}
+          value={draft}
           revealed={revealed}
           onReveal={() => setRevealed((r) => !r)}
-          placeholder={t('orgSection.keyPlaceholder')}
-          onChange={(apiKey) => apply({ ...cfg, apiKey }, false)}
-          onBlur={() => apply(cfg)}
+          placeholder={hasKey ? t('mcpDefaults.stored') : t('orgSection.keyPlaceholder')}
+          onChange={setDraft}
+          onBlur={() => { if (draft.trim()) { saveKey(draft.trim()); setDraft(''); setRevealed(false); } }}
         />
+        {hasKey && <div style={{ marginTop: 4 }}><MiniButton onClick={() => saveKey(null)}>{t('common.remove')}</MiniButton></div>}
         <Hint>{CLONE_NODE_BLURB}</Hint>
       </Field>
 

@@ -1,0 +1,8 @@
+{
+  "name": "mosbius-mcp-sequential-thinking",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@modelcontextprotocol/server-sequential-thinking": "2.1.1"
+  }
+}

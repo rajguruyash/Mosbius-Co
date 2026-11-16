@@ -28,6 +28,11 @@ import himymMetaRaw from '@/assets/himym/world.json?raw';
 import himymBgUrl from '@/assets/himym/world-bg.png?url';
 import himymOvUrl from '@/assets/himym/world-ov.png?url';
 import himymStreetUrl from '@/assets/himym/street.png?url';
+// The near railing of MacLaren's steps and of the stoop, on its own transparent layer.
+import himymStreetOvUrl from '@/assets/himym/street-ov.png?url';
+// Where the pub's door, steps and neon signs are on that elevation: exported by
+// tools/himym/street.py, the same file the website walks its characters to.
+import himymStreetRaw from '@/assets/himym/street.json?raw';
 import himymCabUrl from '@/assets/himym/cab.png?url';
 
 /** Theme identifiers. Only `office` exists in Phase 0; the five TV-show themes
@@ -132,7 +137,20 @@ export interface WorldMeta {
   hq: Record<string, { boss: string; seats: string[]; cast: string[]; crowd?: 'students' | 'kids' }>;
   fx: { fire: { x: number; y: number }; grill: { x: number; y: number }; jukebox: { x: number; y: number }; bartender: Tile[] };
 }
-export interface WorldConfig { backdropUrl: string; occluderUrl: string; streetUrl: string; cabUrl: string; meta: WorldMeta; }
+/** The street elevation's anchors (544x352 pixel space). Only what the app's street
+ *  scene points at; street.json carries more, for the website. */
+export interface StreetAnchors {
+  /** MacLaren's door sits BELOW the pavement: `y` is its foot, `top` its head. */
+  pubDoor: { x: number; y: number; top: number; w: number };
+  /** The flight down to it, the kerb along the street side, and the slice of the
+   *  overlay that is the pub's railing. */
+  pubSteps: { x0: number; y0: number; x1: number; y1: number; landingX1: number; lip: number; ov: { x: number; y: number; w: number; h: number } };
+  neons: { shamrock: { x: number; y: number }; glass: { x: number; y: number } };
+}
+export interface WorldConfig {
+  backdropUrl: string; occluderUrl: string; streetUrl: string; streetOvUrl: string; cabUrl: string;
+  street: StreetAnchors; meta: WorldMeta;
+}
 
 /** Theme palette. `background` is the canvas clear color; `noteColors` are the
  *  kanban note colors keyed by task status. */
@@ -267,7 +285,10 @@ export const HIMYM_THEME: ThemeConfig = {
   monitor: OFFICE_THEME.monitor,
   palette: { background: 0x1a1320, noteColors: OFFICE_THEME.palette.noteColors },
   cast: OFFICE_THEME.cast,
-  world: { backdropUrl: himymBgUrl, occluderUrl: himymOvUrl, streetUrl: himymStreetUrl, cabUrl: himymCabUrl, meta: HIMYM_META },
+  world: {
+    backdropUrl: himymBgUrl, occluderUrl: himymOvUrl, streetUrl: himymStreetUrl, streetOvUrl: himymStreetOvUrl,
+    cabUrl: himymCabUrl, street: JSON.parse(himymStreetRaw) as StreetAnchors, meta: HIMYM_META
+  },
 };
 
 /** All registered themes. Phase 0 ships only the office; show themes register

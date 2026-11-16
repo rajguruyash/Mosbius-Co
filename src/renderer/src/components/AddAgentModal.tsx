@@ -586,27 +586,11 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                   </span>
                 )}
                 {hireMeta.mcpServers && hireMeta.mcpServers.length > 0 && (() => {
-                  const safe = hireMeta.mcpServers!.filter(
-                    (id) => MCP_CATALOG.find((e) => e.id === id)?.tier === 'safe-readonly'
-                  );
-                  const consent = hireMeta.mcpServers!.filter(
-                    (id) => MCP_CATALOG.find((e) => e.id === id)?.tier !== 'safe-readonly'
-                  );
+                  // Nothing is on by default any more, so a hire can only REQUEST servers:
+                  // every id it lists is shown as needing the user's consent.
+                  const consent = hireMeta.mcpServers!.filter((id) => MCP_CATALOG.some((e) => e.id === id));
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 2 }}>
-                      {safe.length > 0 && (
-                        <span style={{ display: 'flex', gap: 4, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 12 }}>{tr('addAgent.mcpSafe')}:</span>
-                          {safe.map((id) => (
-                            <code key={id} style={{
-                              fontFamily: 'var(--cth-font-mono)', fontSize: 12, padding: '0 4px',
-                              background: 'var(--cth-sky-light, #d0e8f8)',
-                              boxShadow: 'inset 0 0 0 1px var(--cth-sky-700, #1f5a8a)',
-                              color: 'var(--cth-ink-900)'
-                            }}>{id}</code>
-                          ))}
-                        </span>
-                      )}
                       {consent.length > 0 && (
                         <span style={{ display: 'flex', gap: 4, alignItems: 'baseline', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 12 }}>{tr('addAgent.mcpConsent')}:</span>

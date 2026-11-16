@@ -49,7 +49,7 @@ const parityCases = [
     raw: manifest({
       provider: 'cursor',
       skills: ['md-hive-sync', 'md-audit'],
-      mcpServers: ['fetch', 'github-token']
+      mcpServers: ['fetch', 'github']
     }),
     expected: true
   },

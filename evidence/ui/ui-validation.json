@@ -1,0 +1,536 @@
+{
+  "tool": "tools/ui-validate.cjs",
+  "date": "2026-11-16T08:31:55.221Z",
+  "target": "development build (out/)",
+  "electron": "32.3.3",
+  "platform": "darwin/arm64",
+  "node": "v22.12.0",
+  "not_done": [
+    "no sign-in at any provider and no registration (needs the owner)",
+    "no install from the network (skills were seeded through the production installer with a fake GitHub)",
+    "macOS only: Windows and Linux were not run"
+  ],
+  "info": {
+    "keyboard": "real input events",
+    "focusRing": {
+      "outline": "solid 1px",
+      "shadow": "rgb(222, 219, 214) 0px 0px 0px 1px inset"
+    },
+    "lowestContrast": [
+      {
+        "ratio": 5.47,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 5.47,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 5.47,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 5.47,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 5.47,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 5.47,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      }
+    ],
+    "lowestContrastLight": [
+      {
+        "ratio": 6.02,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 6.02,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 6.02,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 6.02,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 6.02,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      },
+      {
+        "ratio": 6.02,
+        "size": 11,
+        "text": "No one has signed in to this service thr"
+      }
+    ]
+  },
+  "screenshots": [
+    {
+      "name": "01-fresh-install",
+      "file": "evidence/ui/01-fresh-install.png",
+      "note": ""
+    },
+    {
+      "name": "02-discover-en",
+      "file": "evidence/ui/02-discover-en.png",
+      "note": ""
+    },
+    {
+      "name": "03-connected-empty-en",
+      "file": "evidence/ui/03-connected-empty-en.png",
+      "note": ""
+    },
+    {
+      "name": "04-discover-search-en",
+      "file": "evidence/ui/04-discover-search-en.png",
+      "note": ""
+    },
+    {
+      "name": "05-github-panel-en",
+      "file": "evidence/ui/05-github-panel-en.png",
+      "note": ""
+    },
+    {
+      "name": "06-connect-failure-en",
+      "file": "evidence/ui/06-connect-failure-en.png",
+      "note": ""
+    },
+    {
+      "name": "06b-access-en",
+      "file": "evidence/ui/06b-access-en.png",
+      "note": ""
+    },
+    {
+      "name": "07-discover-ar",
+      "file": "evidence/ui/07-discover-ar.png",
+      "note": ""
+    },
+    {
+      "name": "08-skills-ar",
+      "file": "evidence/ui/08-skills-ar.png",
+      "note": ""
+    },
+    {
+      "name": "09-access-ar",
+      "file": "evidence/ui/09-access-ar.png",
+      "note": ""
+    },
+    {
+      "name": "10-discover-zh-narrow",
+      "file": "evidence/ui/10-discover-zh-narrow.png",
+      "note": ""
+    },
+    {
+      "name": "11-discover-zh-560",
+      "file": "evidence/ui/11-discover-zh-560.png",
+      "note": ""
+    },
+    {
+      "name": "12-discover-light",
+      "file": "evidence/ui/12-discover-light.png",
+      "note": ""
+    },
+    {
+      "name": "13-skills-claude",
+      "file": "evidence/ui/13-skills-claude.png",
+      "note": ""
+    },
+    {
+      "name": "14-skills-agents",
+      "file": "evidence/ui/14-skills-agents.png",
+      "note": ""
+    },
+    {
+      "name": "15-skills-changed",
+      "file": "evidence/ui/15-skills-changed.png",
+      "note": ""
+    },
+    {
+      "name": "16-skills-removed",
+      "file": "evidence/ui/16-skills-removed.png",
+      "note": ""
+    },
+    {
+      "name": "17-activity",
+      "file": "evidence/ui/17-activity.png",
+      "note": ""
+    },
+    {
+      "name": "18-connected-time-on",
+      "file": "evidence/ui/18-connected-time-on.png",
+      "note": ""
+    },
+    {
+      "name": "19-upgrade-skills",
+      "file": "evidence/ui/19-upgrade-skills.png",
+      "note": ""
+    }
+  ],
+  "results": [
+    {
+      "group": "fresh install",
+      "name": "a profile with nothing in it starts at the first-run screen",
+      "ok": true,
+      "detail": "WELCOME TO MOSBIUS & CO A CLONE OF YOU, WORKING 24/7 Mosbius & Co turns the CLI agent you "
+    },
+    {
+      "group": "settings",
+      "name": "Settings lists \"Integrations & Skills\" in its navigation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "settings",
+      "name": "the hub opens on Discover with the plain-words intro",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "opt-in",
+      "name": "nothing is switched on in a fresh profile",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "opt-in",
+      "name": "the Connected tab says nothing is connected",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "discover",
+      "name": "every provider except the five AI engines carries a verification label",
+      "ok": true,
+      "detail": "24 labels"
+    },
+    {
+      "group": "discover",
+      "name": "no provider that nobody has signed in to is marked Verified",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "discover",
+      "name": "search narrows the cards",
+      "ok": true,
+      "detail": "1 Notion card(s)"
+    },
+    {
+      "group": "connect",
+      "name": "GitHub offers the code sign-in and asks for the app's client ID, not a password",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "connect",
+      "name": "with the Client ID field empty the Connect button is disabled, so nothing can be started by accident",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "connect",
+      "name": "a sign-in that cannot start says why, in words",
+      "ok": true,
+      "detail": "That does not look like a client ID."
+    },
+    {
+      "group": "connect",
+      "name": "and starts nothing: no waiting message, nothing connected",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "access",
+      "name": "the Agent access tab says, per CLI, how far it was checked and whether its shell can read its pass",
+      "ok": true,
+      "detail": "Gemini CLI · verified · settings file + one variable · the agent's shell can read its pass · loads integrations only in folders you have trusted in that CLI itself; elsewhere the agent will not see th"
+    },
+    {
+      "group": "access",
+      "name": "and says that Gemini loads integrations only in folders the person has trusted in it",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "access",
+      "name": "and says that Codex's protection holds only while its own OS sandbox is on, and that Gemini's shell has no such protection",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "accessibility",
+      "name": "every button, tab, field and link in the hub has a name",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "accessibility",
+      "name": "the tabs form a tablist, exactly one is selected, and the panel is labelled by its tab",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "accessibility",
+      "name": "only the selected tab is in the tab order (roving focus)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "accessibility",
+      "name": "the page does not scroll sideways",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "accessibility",
+      "name": "Right arrow, End and Home move between tabs from the keyboard",
+      "ok": true,
+      "detail": "hub-tab-connected / hub-tab-activity / hub-tab-discover"
+    },
+    {
+      "group": "accessibility",
+      "name": "focus follows the selection",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "accessibility",
+      "name": "text contrast measured (reported, not claimed): the lowest ratio in the hub",
+      "ok": true,
+      "detail": "5.47:1 \"No one has signed in to this service thr\" 11px · 5.47:1 \"No one has signed in to this service thr\" 11px · 5.47:1 \"No one has signed in to this service thr\" 11px"
+    },
+    {
+      "group": "accessibility",
+      "name": "dark theme (the default): every text in the hub reaches 4.5:1, the WCAG AA level for normal text",
+      "ok": true,
+      "detail": "5.47:1 \"No one has signed in to this service thr\""
+    },
+    {
+      "group": "rtl",
+      "name": "the document is right-to-left in Arabic",
+      "ok": true,
+      "detail": "rtl/ar"
+    },
+    {
+      "group": "rtl",
+      "name": "the first tab sits on the right and the last on the left",
+      "ok": true,
+      "detail": "first.left 835 > last.left 639"
+    },
+    {
+      "group": "rtl",
+      "name": "running text is laid out right-to-left and flush to the right edge",
+      "ok": true,
+      "detail": "intro right 876 vs hub right 876"
+    },
+    {
+      "group": "rtl",
+      "name": "Left arrow moves forward in right-to-left",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "rtl",
+      "name": "the Agent access tab carries the folder-trust note in Arabic",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "rtl",
+      "name": "no raw translation key is shown on any Arabic tab",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "rtl",
+      "name": "the Arabic tabs have no unnamed controls and no sideways scroll",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "i18n",
+      "name": "Simplified Chinese: the hub and its tabs are in Chinese",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "i18n",
+      "name": "no raw translation key is shown",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "responsive",
+      "name": "at 760 px wide the page does not scroll sideways",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "responsive",
+      "name": "at 560 px wide the hub still does not scroll sideways",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "theme",
+      "name": "the app is in its light theme when the user chose it",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "theme",
+      "name": "light theme: every text in the hub reaches 4.5:1, the WCAG AA level for normal text",
+      "ok": true,
+      "detail": "6.02:1 \"No one has signed in to this service thr\""
+    },
+    {
+      "group": "theme",
+      "name": "light theme: the hub has no unnamed controls",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "two skills were installed for the app to find (one per target) by the production installer",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "the Skills tab lists what this app installed, with where it came from and at which commit",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "it says what the guard removed from the copy",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "it names the CLI that reads this folder and labels it honestly",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "the shared-folder target lists its own skill, names the agents it serves, and labels each as the evidence allows",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "Check notices a file changed since the install, and says so",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "the same skill for the other target still reads Unchanged",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "Remove asks for a second click before anything is deleted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "after the second click the skill folder and its record are gone",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "skills",
+      "name": "and the other target's skill and record are untouched",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "activity",
+      "name": "the Activity tab shows the skill actions, newest first",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "activity",
+      "name": "the audit record verifies as intact",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "restart",
+      "name": "after a restart the removal still holds: Claude Code's list is empty",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "restart",
+      "name": "and the shared-folder target still shows it, flagged as changed (the file is still different on disk)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "restart",
+      "name": "the audit chain still verifies after the restart",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "consent",
+      "name": "an integration the user switched on is listed on Connected, as on",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "consent",
+      "name": "turning it off is written to the profile at once",
+      "ok": true,
+      "detail": "{\"time\":{\"enabled\":false}}"
+    },
+    {
+      "group": "consent",
+      "name": "after a restart it is still off",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "upgrade",
+      "name": "a skill recorded by an older version still lists, with its source, and defaults to Claude Code",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "upgrade",
+      "name": "the older config was read without being rewritten into something else",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "group": "upgrade",
+      "name": "the servers that used to ship ON are switched OFF once (nothing is reachable by an agent unless chosen), and a switch the user made themselves is left alone",
+      "ok": true,
+      "detail": "{\"time\":{\"enabled\":false},\"fetch\":{\"enabled\":false},\"github\":{\"enabled\":true}}"
+    }
+  ]
+}

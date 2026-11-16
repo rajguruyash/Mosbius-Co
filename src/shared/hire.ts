@@ -74,10 +74,9 @@ export interface HireManifest {
   /** Bundled skill ids to activate in the agent's workspace. References into
    *  BUNDLED_SKILL_IDS only — never raw file paths or arbitrary skill names. */
   skills?: string[];
-  /** Default MCP catalog ids to enable for this agent. References into the
-   *  MCP_CATALOG allowlist only — never raw specs. Safe-readonly ids are
-   *  pre-filled; write/secret ids are surfaced for human consent at import
-   *  and never auto-enabled. */
+  /** MCP catalog ids this agent would like. References into the MCP_CATALOG
+   *  allowlist only — never raw specs. They are a REQUEST: every id is surfaced
+   *  for human consent at import and none is ever auto-enabled. */
   mcpServers?: string[];
 }
 
@@ -85,9 +84,9 @@ export interface HireValidation {
   ok: boolean;
   manifest?: HireManifest;
   errors: string[];
-  /** MCP catalog ids present in the manifest's `mcpServers` that are NOT
-   *  safe-readonly (write or secret tier). These must be surfaced to the human
-   *  for explicit consent before they are enabled — they are NEVER auto-enabled. */
+  /** Every MCP catalog id present in the manifest's `mcpServers`. Nothing is on by
+   *  default any more (not even the read-only local servers), so ALL of them must be
+   *  surfaced to the human for explicit consent — a hire manifest never enables one. */
   consentRequired?: string[];
 }
 
@@ -299,7 +298,9 @@ export function validateHireManifest(raw: unknown): HireValidation {
           errors.push(`"mcpServers" entry ${JSON.stringify(id)} is not a known catalog id — a hire may only reference built-in MCP servers`);
         } else {
           mcpServers.push(id);
-          if (entry.tier !== 'safe-readonly') consentRequired.push(id);
+          // Nothing is on by default (even the read-only local servers), so a hire
+          // can request a server but never switch one on: every id needs consent.
+          consentRequired.push(id);
         }
       }
       if (mcpServers.length === 0) mcpServers = undefined;

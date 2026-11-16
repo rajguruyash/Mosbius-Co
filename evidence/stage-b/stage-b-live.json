@@ -1,0 +1,159 @@
+{
+  "at": "2026-11-15T18:08:59.283Z",
+  "claude": "2.1.325 (Claude Code)",
+  "model": "haiku",
+  "node": "v26.3.0",
+  "platform": "darwin/arm64",
+  "notObservable": [
+    "the environment of the running CLI process (ps eww)"
+  ],
+  "turns": 6,
+  "costUsd": 0.00443943,
+  "toolCalls": [
+    "ToolSearch",
+    "mcp__mosbius-time__get_current_time",
+    "mcp__mosbius-filesystem__read_file",
+    "mcp__mosbius-git__git_status",
+    "mcp__mosbius-notion__API-get-self"
+  ],
+  "mcpServers": [
+    "mosbius-filesystem:connected",
+    "mosbius-git:connected",
+    "mosbius-notion:connected",
+    "mosbius-time:connected"
+  ],
+  "toolsOffered": 22,
+  "serverEnvironmentReadableBySameUser": false,
+  "results": [
+    {
+      "name": "time: installed from its lock",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "filesystem: installed from its lock",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "git: installed from its lock",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "notion: installed from its lock",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the config the agent reads holds only broker addresses and a capability (no command, argument, environment or credential)",
+      "ok": true,
+      "detail": "4 servers"
+    },
+    {
+      "name": "the CLI connects to every granted server through the broker, and to nothing else",
+      "ok": true,
+      "detail": "mosbius-filesystem:connected mosbius-git:connected mosbius-notion:connected mosbius-time:connected"
+    },
+    {
+      "name": "a real time call succeeds through the broker",
+      "ok": true,
+      "detail": "ToolSearch, mcp__mosbius-time__get_current_time, mcp__mosbius-filesystem__read_file, mcp__mosbius-git__git_status, mcp__mosbius-notion__API-get-self"
+    },
+    {
+      "name": "a real filesystem read succeeds through the broker",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a real git call succeeds through the broker",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the Notion call reached Notion with the canary and was refused (401): the call path works, no real account was used",
+      "ok": true,
+      "detail": "{\"status\":401,\"object\":\"error\",\"code\":\"unauthorized\",\"message\":\"API token is invalid.\",\"additional_data\":{\"reason\":\"toke"
+    },
+    {
+      "name": "the agent is shown only the tools it was granted: no write, no commit, no reset, no Notion write",
+      "ok": true,
+      "detail": "22 tools offered; offered write tools: none"
+    },
+    {
+      "name": "a write the agent was not granted is refused by the broker, and the file is not created",
+      "ok": true,
+      "detail": "{\"jsonrpc\":\"2.0\",\"id\":3,\"error\":{\"code\":-32003,\"message\":\"Not permitted: \\\"write_file\\\" is not grant"
+    },
+    {
+      "name": "git_reset (destructive) is refused by the broker",
+      "ok": true,
+      "detail": "{\"jsonrpc\":\"2.0\",\"id\":4,\"error\":{\"code\":-32003,\"message\":\"Not permitted: \\\"git_reset\\\" is not grante"
+    },
+    {
+      "name": "every server process is a direct child of the app (this process)",
+      "ok": true,
+      "detail": "4 server processes, all with ppid 6194"
+    },
+    {
+      "name": "no server process was ever a descendant of the CLI, in any of the samples taken while it ran",
+      "ok": true,
+      "detail": "22 process-table samples"
+    },
+    {
+      "name": "the credential is not in the CLI output",
+      "ok": true,
+      "detail": "30366 bytes searched"
+    },
+    {
+      "name": "the credential is not in the agent config",
+      "ok": true,
+      "detail": "846 bytes searched"
+    },
+    {
+      "name": "the credential is not in the spawn arguments the app builds",
+      "ok": true,
+      "detail": "3160 bytes searched"
+    },
+    {
+      "name": "the credential is not in the environment the app adds",
+      "ok": true,
+      "detail": "481 bytes searched"
+    },
+    {
+      "name": "the credential is not in every process-table sample taken while the CLI ran (arguments)",
+      "ok": true,
+      "detail": "1992651 bytes searched"
+    },
+    {
+      "name": "the credential is not in the audit trail",
+      "ok": true,
+      "detail": "7648 bytes searched"
+    },
+    {
+      "name": "the credential is not in the CLI's session transcript (407977 bytes)",
+      "ok": true,
+      "detail": "407977 bytes searched"
+    },
+    {
+      "name": "the credential is not readable from the Notion server process by `ps eww` (argument list or initial environment)",
+      "ok": true,
+      "detail": "940 bytes of its argument list and environment searched"
+    },
+    {
+      "name": "after revocation every server process the app ran for that agent is stopped",
+      "ok": true,
+      "detail": "4 processes"
+    },
+    {
+      "name": "with the revoked capability the same config no longer connects to any server",
+      "ok": true,
+      "detail": "mosbius-time:failed mosbius-filesystem:failed mosbius-git:failed mosbius-notion:failed"
+    },
+    {
+      "name": "no server was started for the revoked agent",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

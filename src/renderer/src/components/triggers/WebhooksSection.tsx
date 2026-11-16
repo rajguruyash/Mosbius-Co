@@ -4,12 +4,12 @@ import { PixelButton } from '../PixelButton';
 import { useStore } from '@/store/store';
 import { TRIGGER_MODES, type TriggerMode, type WebhookTrigger } from '@shared/triggers';
 import {
-  deleteWebhook, generateWebhookSecret, listWebhooks, newWebhook, saveWebhooks,
+  copyWebhookSecret, deleteWebhook, listWebhooks, newWebhook, rotateWebhookSecret, saveWebhooks,
   webhooksStatus, type WebhooksStatus
 } from './api';
 import { JsonEditor } from './JsonEditor';
 import {
-  Callout, Field, Hint, MiniButton, ModePicker, Muted, SecretField, SubCard, SubHeader,
+  Callout, Field, Hint, MiniButton, ModePicker, Muted, SubCard, SubHeader,
   Toggle, inputStyle
 } from './ui';
 
@@ -76,8 +76,8 @@ export function WebhooksSection({ onSummary }: { onSummary?: (s: string) => void
   const add = async () => {
     setMinting(true);
     try {
-      const secret = await generateWebhookSecret();
-      apply([...hooks, newWebhook(secret, hooks.length)]);
+      // No secret is made here: the main process gives the new endpoint one when the list is saved.
+      apply([...hooks, newWebhook(hooks.length)]);
     } finally {
       setMinting(false);
     }
@@ -125,7 +125,7 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [revealed, setRevealed] = useState(false);
+  const [rotated, setRotated] = useState(false);
   const [copied, setCopied] = useState<'url' | 'secret' | null>(null);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const [schemaText, setSchemaText] = useState(hook.schema);
@@ -134,11 +134,10 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // A closed row must not keep a revealed secret on screen, and re-opening the
-  // schema editor should start from what is actually stored.
+  // Re-opening the schema editor should start from what is actually stored. (There is no
+  // revealed secret to hide: this page never holds one.)
   useEffect(() => {
     if (open) return;
-    setRevealed(false);
     setSchemaOpen(false);
     setConfirmDelete(false);
   }, [open]);
@@ -153,11 +152,24 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
 
   useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
 
-  const copy = (what: 'url' | 'secret', text: string) => {
-    void window.cth.copyToClipboard(text).catch(() => { /* noop */ });
+  const flash = (what: 'url' | 'secret') => {
     setCopied(what);
     if (copyTimer.current) clearTimeout(copyTimer.current);
     copyTimer.current = setTimeout(() => setCopied(null), 1300);
+  };
+  const copy = (what: 'url', text: string) => {
+    void window.cth.copyToClipboard(text).catch(() => { /* noop */ });
+    flash(what);
+  };
+  // The secret is copied by the MAIN process (and cleared from the clipboard after a minute):
+  // this page asks for it to be copied and never holds the value.
+  const copySecret = () => { void copyWebhookSecret(hook.id).then((r) => { if (r.ok) flash('secret'); }); };
+  // A new secret replaces the old one at once; the old caller stops working. Copy it afterwards.
+  const rotate = () => {
+    void rotateWebhookSecret(hook.id).then((r) => {
+      setRotated(r.ok);
+      if (r.ok) setTimeout(() => setRotated(false), 2400);
+    });
   };
 
   const saveSchema = () => {
@@ -223,13 +235,20 @@ function WebhookRow({ hook, url, serverRunning, onPatch, onDelete }: {
           </Field>
 
           <Field label={t('webhooksSection.secret')}>
-            <SecretField
-              value={hook.secret}
-              revealed={revealed}
-              onReveal={() => setRevealed((r) => !r)}
-              onCopy={() => copy('secret', hook.secret)}
-              copied={copied === 'secret'}
-            />
+            {/* The secret itself is never shown: it lives in the main process. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                flex: 1, minWidth: 0, padding: '4px 6px',
+                background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
+                fontSize: 11, lineHeight: '15px', color: 'var(--cth-ink-700)'
+              }}>
+                {rotated ? t('webhooksSection.rotated') : hook.hasSecret ? t('webhooksSection.secretStored') : t('webhooksSection.noSecret')}
+              </span>
+              <MiniButton onClick={copySecret} tone={copied === 'secret' ? 'good' : 'plain'}>
+                {copied === 'secret' ? `${t('common.copy')} ✓` : t('common.copy')}
+              </MiniButton>
+              <MiniButton onClick={rotate}>{t('webhooksSection.rotate')}</MiniButton>
+            </div>
             <Hint>{t('webhooksSection.secretHint')}</Hint>
           </Field>
 

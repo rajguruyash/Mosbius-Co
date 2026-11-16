@@ -1,13 +1,14 @@
 /**
- * SKILLS — what the coding agents here can already do, and 1,200 more they could.
+ * SKILLS — what the coding agents here can already do, and a browsable catalog
+ * of more they could.
  *
  * Two modes behind one toggle rather than two tabs: "installed" answers "why did
  * my agent just do that?", "browse" answers "what else is out there?", and they
  * share the same search box because the user's question is usually just a word.
  *
- * Nothing here installs anything. A skill is instructions that run inside an
- * agent holding the user's tools and keys, so adding one is a decision, not a
- * click — the catalog links out and the user chooses.
+ * A skill is instructions that run inside an agent holding the user's tools and
+ * keys, so installing one is a deliberate act: it happens only on an explicit
+ * per-skill click, and it can be uninstalled from the same list.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -120,7 +121,15 @@ export function SkillsTab({ agentCwd }: { agentCwd?: string }) {
     try {
       const res = await window.cth.skillsInstall(c.url, c.name);
       if (res.ok) {
-        setAction((a) => ({ ...a, [c.url]: { done: t('skillsTab.installed') } }));
+        // Say what the guard took out and what the skill ships: a skill may not grant tools or run
+        // commands, and installing it never runs or installs anything.
+        const guarded = res.stripped.length + res.skipped.length;
+        const done = [
+          t('skillsTab.installed'),
+          guarded > 0 ? t('skillsTab.installedGuarded', { count: guarded }) : '',
+          res.notes.length > 0 ? t('skillsTab.shipsCode') : ''
+        ].filter(Boolean).join(' ');
+        setAction((a) => ({ ...a, [c.url]: { done } }));
         void loadLocal(); // the installed pane must reflect it immediately
       } else {
         setAction((a) => ({ ...a, [c.url]: { error: res.error } }));

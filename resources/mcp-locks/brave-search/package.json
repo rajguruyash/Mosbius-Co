@@ -1,0 +1,8 @@
+{
+  "name": "mosbius-mcp-brave-search",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@brave/brave-search-mcp-server": "2.1.4"
+  }
+}

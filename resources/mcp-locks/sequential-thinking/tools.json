@@ -1,0 +1,16 @@
+{
+  "package": "@modelcontextprotocol/server-sequential-thinking",
+  "version": "2.1.1",
+  "listedWith": "tools/list through the app-run host",
+  "tools": [
+    {
+      "name": "sequentialthinking",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    }
+  ]
+}

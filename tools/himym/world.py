@@ -14,7 +14,7 @@ from px import Canvas, T, OUT, lighten, darken, mix
 
 LOC_W, LOC_H = 34, 22          # tiles per location
 GAP = 3                        # void tiles between locations
-ORDER = ['apartment', 'maclarens', 'gnb', 'rooftop', 'bedrooms', 'barney', 'columbia', 'lasertag']
+ORDER = ['apartment', 'maclarens', 'gnb', 'rooftop', 'barney', 'columbia', 'lasertag']
 WORLD_W = LOC_W * len(ORDER) + GAP * (len(ORDER) - 1)
 WORLD_H = LOC_H
 

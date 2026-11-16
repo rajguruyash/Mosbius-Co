@@ -7,6 +7,14 @@ import type { IntegrationRecord, IntegrationTemplate } from '../shared/integrati
 export type { IntegrationRecord, IntegrationTemplate } from '../shared/integrations';
 import type { UpdateStatus } from '../shared/updateState';
 export type { UpdateStatus } from '../shared/updateState';
+import type {
+  AuditEventView, McpActivityEvent, McpGrantUpdate, McpGrantsView, McpImportResult, McpSecretStatusEntry, McpToolEntry
+} from '../shared/mcpAccess';
+import type { McpEngine } from '../shared/mcpCatalog';
+import type { ConnectError, ConnectionSummary } from '../shared/connect';
+export type {
+  AuditEventView, McpActivityEvent, McpGrantUpdate, McpGrantView, McpGrantsView, McpImportResult, McpSecretStatusEntry, McpToolEntry
+} from '../shared/mcpAccess';
 import type { ToolStatus } from '../shared/toolCatalog';
 export type { ToolStatus } from '../shared/toolCatalog';
 import type { HeroPayload } from '../shared/heroPayload';
@@ -17,6 +25,9 @@ import type { HookEvent } from '../shared/hookEvents';
 export type { HookEvent } from '../shared/hookEvents';
 import type { LocalSkill, CatalogSkill } from '../main/skills';
 export type { LocalSkill, CatalogSkill } from '../main/skills';
+import type { ManagedSkill, UpdateCheck, Integrity } from '../main/skillManager';
+export type { ManagedSkill, UpdateCheck, UpdatePreview, Integrity, FileDiff } from '../main/skillManager';
+import type { SkillTarget } from '../shared/agentCompat';
 import type {
   ContextRule, ContextTriggerConfig, OrgTriggerConfig, TriggerHistoryEntry, WebhookTrigger
 } from '../shared/triggers';
@@ -277,6 +288,8 @@ export interface HarnessConfig {
   /** Per-server consent for the default MCP bundle, keyed by catalog id. Mirrors
    *  src/main/config.ts. */
   mcpDefaults?: { [id: string]: { enabled: boolean } };
+  mcpEngine?: { [id: string]: McpEngine };
+  mcpGrants?: McpGrantsView;
   semanticMemory: boolean;
   embeddingModel: 'minilm' | 'embeddinggemma';
   missions?: ScheduledMission[];
@@ -292,19 +305,24 @@ export interface HarnessConfig {
    *  Mirrors main + renderer HarnessConfig. */
   telemetryEnabled?: boolean;
   slackEnabled?: boolean;
-  slackSigningSecret?: string;
-  slackBotToken?: string;
   slackChannelId?: string;
   slackPort?: number;
   slackProactivePosting?: boolean;
   webhookEnabled?: boolean;
-  webhookSecret?: string;
   webhookPort?: number;
   /** Free Flow voice dictation — master flag (default off), user Groq key, model.
    *  Entry point B (hold-Option-to-talk) is handled in the renderer, no hotkey. */
   freeflowEnabled?: boolean;
-  groqApiKey?: string;
   freeflowModel?: string;
+  /** Which secrets are stored, as booleans. The VALUES never cross this bridge: the Slack
+   *  signing secret and bot token, the Groq key, the org key and every webhook secret live
+   *  in the main process's encrypted store (src/main/configSecrets.ts). */
+  secretsSet?: {
+    slackSigningSecret: boolean; slackBotToken: boolean; groqApiKey: boolean; orgKey: boolean;
+    webhooks: Record<string, boolean>;
+    /** Secrets still in plaintext in config.json because secure storage was unavailable. */
+    plaintextRemaining: number;
+  };
   /** Realtime Ted voice loop — true ONLY while a session holds the mic
    *  (renderer session sets it at start()/stop()); the main mic permission gate
    *  reads it. Default off. */
@@ -814,11 +832,37 @@ const api = {
   skillsCatalog: (force?: boolean): Promise<{
     skills: CatalogSkill[]; fetchedAt: number; stale: boolean; error?: string;
   }> => ipcRenderer.invoke('skills:catalog', force),
-  /** Install a catalog skill into ~/.claude/skills. `unsupported` distinguishes
-   *  "there is no downloadable source" from "the download failed". */
-  skillsInstall: (url: string, name: string): Promise<
-    { ok: true; path: string } | { ok: false; error: string; unsupported?: boolean }
-  > => ipcRenderer.invoke('skills:install', url, name),
+  /** Install a catalog skill: into ~/.claude/skills (Claude Code, the default) or, with `target: 'agents'`, into the
+   *  shared ~/.agents/skills that Codex reads. `unsupported` distinguishes "there is no downloadable source" from
+   *  "the download failed". Installing grants nothing and connects nothing. */
+  skillsInstall: (url: string, name: string, target?: SkillTarget): Promise<
+    | { ok: true; path: string;
+        /** The exact commit it was read at (null only when GitHub would not name one). */
+        commit: string | null;
+        /** Integrations the skill's `allowed-tools` name, and ones its text only mentions (a suggestion, never a connection). */
+        deps: { integrations: string[]; suggested: string[]; tools: string[] };
+        /** Tool grants, hooks, server definitions and run-on-load commands removed from the copy (a skill may not grant or run anything). */
+        stripped: Array<{ file: string; what: string; detail?: string }>;
+        /** Configuration files that were not written at all. */
+        skipped: string[];
+        /** Scripts and dependency files the skill ships. Nothing was installed or run. */
+        notes: string[] }
+    | { ok: false; error: string; unsupported?: boolean }
+  > => ipcRenderer.invoke('skills:install', url, name, target),
+  /** What this app installed for one target, each with its integrity (does it still match what was installed). */
+  skillsManaged: (target?: SkillTarget): Promise<{ ok: true; skills: ManagedSkill[] } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('skills:managed', target),
+  skillsVerify: (target: SkillTarget, dirName: string): Promise<{ ok: true; integrity: Integrity | { state: 'unmanaged' } } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('skills:verify', target, dirName),
+  /** Look for a newer version. Changes nothing: the answer is a preview (every changed line, any tool the new version
+   *  asks for, any new script) and a token for `skillsApplyUpdate`. */
+  skillsCheckUpdate: (target: SkillTarget, dirName: string): Promise<UpdateCheck> =>
+    ipcRenderer.invoke('skills:checkUpdate', target, dirName),
+  skillsApplyUpdate: (target: SkillTarget, dirName: string, token: string): Promise<{ ok: true; commit: string | null } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('skills:applyUpdate', target, dirName, token),
+  skillsDiscardUpdate: (token: string): Promise<{ ok: true }> => ipcRenderer.invoke('skills:discardUpdate', token),
+  skillsRollback: (target: SkillTarget, dirName: string): Promise<{ ok: true; commit: string | null } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('skills:rollback', target, dirName),
   /** Delete an installed skill. Main refuses any path outside a skills root. */
   skillsUninstall: (path: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('skills:uninstall', path),
@@ -1179,11 +1223,13 @@ const api = {
    *  end-of-run "post your summary back to Slack" instruction. */
   slackReplyScriptPath: (): Promise<string> =>
     ipcRenderer.invoke('slack:replyScriptPath'),
-  /** Persist Slack settings (and stop the server if disabled / secret cleared). */
+  /** Persist Slack settings (and stop the server if disabled / secret cleared). The two
+   *  secrets are WRITE-ONLY: a non-empty string sets one, `null` removes it, and anything
+   *  else (including '') leaves it alone. They are never read back. */
   slackSetConfig: (patch: {
-    signingSecret?: string; botToken?: string; channelId?: string; port?: number; enabled?: boolean;
+    signingSecret?: string | null; botToken?: string | null; channelId?: string; port?: number; enabled?: boolean;
     proactivePosting?: boolean;
-  }): Promise<{ ok: boolean }> =>
+  }): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('slack:setConfig', patch),
 
   // ─── Generic webhook + status API (POST → work, GET → status) ────────────────
@@ -1197,12 +1243,10 @@ const api = {
   /** Current state + last endpoint URL (so Settings can hydrate the badge/URL). */
   webhookStatus: (): Promise<{ running: boolean; url?: string }> =>
     ipcRenderer.invoke('webhook:status'),
-  /** Mint + persist a fresh secret and return it for the user to copy. */
-  webhookGenerateSecret: (): Promise<{ ok: boolean; secret?: string }> =>
-    ipcRenderer.invoke('webhook:generateSecret'),
-  /** Persist webhook settings (and stop the server if disabled / secret cleared). */
+  /** Persist webhook settings (and stop the server if disabled). A secret is no longer
+   *  accepted here: rotate it with `webhooksRotateSecret('legacy')`. */
   webhookSetConfig: (patch: {
-    secret?: string; port?: number; enabled?: boolean;
+    port?: number; enabled?: boolean;
   }): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('webhook:setConfig', patch),
 
@@ -1226,17 +1270,23 @@ const api = {
   // ─── Triggers: webhook endpoints (many endpoints, one server + tunnel) ──────
   /** Every configured endpoint, enabled or not. */
   listWebhooks: (): Promise<WebhookTrigger[]> => ipcRenderer.invoke('webhooks:list'),
-  /** Replace the whole list; main normalises each row (a blank secret keeps the
-   *  stored one, an unknown mode keeps the stored one) and hot-swaps the running
-   *  server's endpoints WITHOUT a restart, so no other caller's URL changes. */
+  /** Replace the whole list; main normalises each row (an unknown mode keeps the
+   *  stored one), ignores any `secret` it is sent, gives a new endpoint a secret of its
+   *  own, and hot-swaps the running server's endpoints WITHOUT a restart, so no other
+   *  caller's URL changes. A row comes back with `hasSecret`, never the secret. */
   saveWebhooks: (list: WebhookTrigger[]): Promise<WebhookTrigger[]> =>
     ipcRenderer.invoke('webhooks:save', list),
   /** Revoke one endpoint; resolves to the remaining list. */
   deleteWebhook: (id: string): Promise<WebhookTrigger[]> =>
     ipcRenderer.invoke('webhooks:delete', id),
-  /** Mint a 256-bit secret for the operator to paste into their caller. Not
-   *  persisted until the endpoint carrying it is saved. */
-  generateWebhookSecret: (): Promise<string> => ipcRenderer.invoke('webhooks:generateSecret'),
+  /** Replace an endpoint's secret with a fresh 256-bit one. The old caller stops working
+   *  at once. The new value is NOT returned: copy it with `webhooksCopySecret`. */
+  webhooksRotateSecret: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('webhooks:rotateSecret', id),
+  /** Put an endpoint's secret on the clipboard from the main process (cleared after a
+   *  minute unless something else has been copied), so this page never holds it. */
+  webhooksCopySecret: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('webhooks:copySecret', id),
   /** Server state, the tunnel root, and each endpoint's full public URL (`url` is
    *  '' until a tunnel has come up). */
   webhooksStatus: (): Promise<{ running: boolean; url?: string; endpoints: { id: string; url: string }[] }> =>
@@ -1246,7 +1296,9 @@ const api = {
   /** PERSISTENCE ONLY — the peer transport does not exist yet, so setting this
    *  stores the key and mode and starts nothing. */
   getOrgTrigger: (): Promise<OrgTriggerConfig> => ipcRenderer.invoke('org:getTrigger'),
-  setOrgTrigger: (cfg: OrgTriggerConfig): Promise<OrgTriggerConfig> =>
+  /** `apiKey` is WRITE-ONLY: a non-empty string sets it, `null` removes it, anything else
+   *  leaves it. The reply carries `hasKey`, never the key. */
+  setOrgTrigger: (cfg: { enabled?: boolean; mode?: OrgTriggerConfig['mode']; apiKey?: string | null }): Promise<OrgTriggerConfig & { error?: string }> =>
     ipcRenderer.invoke('org:setTrigger', cfg),
 
   // ─── Triggers: history ledger + approval gate ───────────────────────────────
@@ -1271,11 +1323,12 @@ const api = {
   },
 
   // ─── Free Flow (voice dictation → message queue) ─────────────────────────────
-  /** Persist Free Flow settings (flag / Groq key / model). The Groq key is stored
-   *  in main config; entry point B (hold-Option) is renderer-side, no hotkey here. */
+  /** Persist Free Flow settings (flag / Groq key / model). The Groq key is WRITE-ONLY and
+   *  held in the main process's encrypted store (a non-empty string sets it, `null`
+   *  removes it, anything else leaves it); entry point B (hold-Option) is renderer-side. */
   freeflowSetConfig: (patch: {
-    enabled?: boolean; apiKey?: string; model?: string;
-  }): Promise<{ ok: boolean }> =>
+    enabled?: boolean; apiKey?: string | null; model?: string;
+  }): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('freeflow:setConfig', patch),
   /** Transcribe one captured audio clip via Groq (the key stays in main; only the
    *  audio bytes go in and the transcript comes back). Gated on the flag + a key. */
@@ -1298,7 +1351,7 @@ const api = {
     ipcRenderer.invoke('integrations:upsert', record),
   integrationsSetSecret: (req: { id: string; secret: string }): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('integrations:setSecret', req),
-  integrationsRemove: (req: { id: string }): Promise<{ ok: boolean }> =>
+  integrationsRemove: (req: { id: string }): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('integrations:remove', req),
   integrationsTest: (req: { id: string; path?: string }): Promise<{ ok: boolean; status?: number; error?: string }> =>
     ipcRenderer.invoke('integrations:test', req),
@@ -1311,6 +1364,80 @@ const api = {
     ipcRenderer.invoke('providerKey:has', backend),
   providerKeyClear: (backend: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('providerKey:clear', backend),
+  // Credentials for catalog MCP servers — WRITE-ONLY, same rules. A bridged
+  // server takes the two halves of the user's own OAuth client (`field`); every
+  // other one takes a single token. `mcpSecretStatus` returns booleans only, and
+  // `mcpSignIn` runs the one-time browser authorisation and resolves when it
+  // is done (a fixed error code otherwise); `mcpDisconnect` revokes and forgets.
+  mcpSetSecret: (req: { id: string; field?: 'client_id' | 'client_secret'; secret: string }):
+    Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('mcp:setSecret', req),
+  mcpSecretStatus: (): Promise<McpSecretStatusEntry[]> => ipcRenderer.invoke('mcp:secretStatus'),
+  mcpClearSecret: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('mcp:clearSecret', id),
+  mcpSignIn: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('mcp:signIn', id),
+  mcpDisconnect: (id: string): Promise<{ ok: boolean; revoked: boolean; error?: string }> =>
+    ipcRenderer.invoke('mcp:disconnect', id),
+  // The in-app MCP broker. `mcpSetEngine` chooses which sign-in implementation an integration
+  // uses (nothing stored is deleted either way; going to `broker` COPIES an existing bridge
+  // sign-in). `mcpGrants*` are what each agent may do with it: nothing, unless granted. Neither
+  // can be changed through `updateConfig`, which drops those keys. The tool list holds names,
+  // classes and descriptions; the activity list holds metadata only. No token, client secret
+  // or capability ever crosses these.
+  mcpSetEngine: (req: { id: string; engine: McpEngine }):
+    Promise<{ ok: boolean; engine?: McpEngine; imported?: McpImportResult; error?: string }> =>
+    ipcRenderer.invoke('mcp:setEngine', req),
+  mcpGrantsGet: (): Promise<{ ok: boolean; grants?: McpGrantsView; error?: string }> =>
+    ipcRenderer.invoke('mcp:grants:get'),
+  mcpGrantsSet: (req: McpGrantUpdate): Promise<{ ok: boolean; grants?: McpGrantsView; error?: string }> =>
+    ipcRenderer.invoke('mcp:grants:set', req),
+  // The same grants for the REST broker (registered integrations): per agent, per integration,
+  // judged per request by method and path. The default is none.
+  restGrantsGet: (): Promise<{ ok: boolean; grants?: McpGrantsView; error?: string }> =>
+    ipcRenderer.invoke('rest:grants:get'),
+  restGrantsSet: (req: McpGrantUpdate): Promise<{ ok: boolean; grants?: McpGrantsView; error?: string }> =>
+    ipcRenderer.invoke('rest:grants:set', req),
+  mcpToolsList: (id: string): Promise<{ ok: boolean; tools?: McpToolEntry[]; error?: string }> =>
+    ipcRenderer.invoke('mcp:tools:list', id),
+  mcpToolsRefresh: (id: string): Promise<{ ok: boolean; tools?: McpToolEntry[]; error?: string }> =>
+    ipcRenderer.invoke('mcp:tools:refresh', id),
+  mcpActivity: (id: string): Promise<{ ok: boolean; events?: McpActivityEvent[]; error?: string }> =>
+    ipcRenderer.invoke('mcp:activity', id),
+  // The durable audit trail: metadata only (who was allowed or refused what, and what the
+  // user changed), newest first, kept across restarts. `auditVerify` recomputes the hash
+  // chain and says whether it holds.
+  // The local servers the app runs for agents: installed from a hash-pinned lock into the app's own
+  // folder. `state` is ready / installing / missing / failed. Names and states only.
+  mcpPackageStatus: (): Promise<{ ok: boolean; packages?: Record<string, { state: 'ready' | 'installing' | 'missing' | 'failed'; name: string; version: string }>; error?: string }> =>
+    ipcRenderer.invoke('mcp:packageStatus'),
+  mcpPackageInstall: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('mcp:packageInstall', id),
+  // ── connect a hosted server with an account (src/main/connect/) ─────────────────────────────────────────
+  // Facts and fixed codes only: a token, a code, a client secret or a provider's own words never cross this line.
+  connectList: (): Promise<{ ok: boolean; connections?: ConnectionSummary[]; error?: string }> =>
+    ipcRenderer.invoke('connect:list'),
+  /** Resolves when the sign-in is over (minutes, for a browser or a device code). Poll `connectList` meanwhile. */
+  connectStart: (p: { id: string; method?: 'dcr' | 'device'; clientId?: string; tier?: 'read' | 'write' }): Promise<{ ok: boolean; error?: ConnectError }> =>
+    ipcRenderer.invoke('connect:start', p),
+  connectCancel: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('connect:cancel', id),
+  connectDisconnect: (id: string): Promise<{
+    ok: boolean; error?: string; wiped?: boolean; endAtProvider?: boolean;
+    revoked?: { attempted: number; confirmed: number }; unregistered?: boolean | null;
+  }> => ipcRenderer.invoke('connect:disconnect', id),
+  /** Remember (null forgets) the PUBLIC client id of an app you registered, for a device sign-in. */
+  connectSetClientId: (p: { id: string; clientId: string | null }): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('connect:setClientId', p),
+  /** Believe a server's own read-only hints for one connection: off unless you turn it on. */
+  mcpTrustHintsGet: (): Promise<{ ok: boolean; trust?: Record<string, boolean>; error?: string }> =>
+    ipcRenderer.invoke('mcp:trustHints:get'),
+  mcpTrustHintsSet: (p: { id: string; trust: boolean }): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('mcp:trustHints:set', p),
+  auditRecent: (filter?: { integrationId?: string; kind?: string; limit?: number }):
+    Promise<{ ok: boolean; events?: AuditEventView[]; error?: string }> =>
+    ipcRenderer.invoke('audit:recent', filter ?? {}),
+  auditVerify: (): Promise<{ ok: boolean; result?: { ok: true; records: number; files: number; keyed: boolean } | { ok: false; file: string; line: number; reason: string }; error?: string }> =>
+    ipcRenderer.invoke('audit:verify'),
   // Realtime Ted (voice orchestrator) — MAIN mints a short-lived EPHEMERAL token
   // from the BYOK OpenAI key; the real key NEVER crosses IPC. `realtimeHasOpenAiKey`
   // is a presence boolean only (gates the voice toggle, like providerKeyHas).

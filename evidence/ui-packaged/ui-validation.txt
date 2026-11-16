@@ -1,0 +1,60 @@
+PASS  [fresh install] a profile with nothing in it starts at the first-run screen  — WELCOME TO MOSBIUS & CO A CLONE OF YOU, WORKING 24/7 Mosbius & Co turns the CLI agent you 
+PASS  [settings] Settings lists "Integrations & Skills" in its navigation
+PASS  [settings] the hub opens on Discover with the plain-words intro
+PASS  [opt-in] nothing is switched on in a fresh profile
+PASS  [opt-in] the Connected tab says nothing is connected
+PASS  [discover] every provider except the five AI engines carries a verification label  — 24 labels
+PASS  [discover] no provider that nobody has signed in to is marked Verified
+PASS  [discover] search narrows the cards  — 1 Notion card(s)
+PASS  [connect] GitHub offers the code sign-in and asks for the app's client ID, not a password
+PASS  [connect] with the Client ID field empty the Connect button is disabled, so nothing can be started by accident
+PASS  [connect] a sign-in that cannot start says why, in words  — That does not look like a client ID.
+PASS  [connect] and starts nothing: no waiting message, nothing connected
+PASS  [access] the Agent access tab says, per CLI, how far it was checked and whether its shell can read its pass  — Gemini CLI · verified · settings file + one variable · the agent's shell can read its pass · loads integrations only in folders you have trusted in that CLI itself; elsewhere the agent will not see th
+PASS  [access] and says that Gemini loads integrations only in folders the person has trusted in it
+PASS  [access] and says that Codex's protection holds only while its own OS sandbox is on, and that Gemini's shell has no such protection
+PASS  [accessibility] every button, tab, field and link in the hub has a name
+PASS  [accessibility] the tabs form a tablist, exactly one is selected, and the panel is labelled by its tab
+PASS  [accessibility] only the selected tab is in the tab order (roving focus)
+PASS  [accessibility] the page does not scroll sideways
+PASS  [accessibility] Right arrow, End and Home move between tabs from the keyboard  — hub-tab-connected / hub-tab-activity / hub-tab-discover
+PASS  [accessibility] focus follows the selection
+PASS  [accessibility] text contrast measured (reported, not claimed): the lowest ratio in the hub  — 5.47:1 "No one has signed in to this service thr" 11px · 5.47:1 "No one has signed in to this service thr" 11px · 5.47:1 "No one has signed in to this service thr" 11px
+PASS  [accessibility] dark theme (the default): every text in the hub reaches 4.5:1, the WCAG AA level for normal text  — 5.47:1 "No one has signed in to this service thr"
+PASS  [rtl] the document is right-to-left in Arabic  — rtl/ar
+PASS  [rtl] the first tab sits on the right and the last on the left  — first.left 835 > last.left 639
+PASS  [rtl] running text is laid out right-to-left and flush to the right edge  — intro right 876 vs hub right 876
+PASS  [rtl] Left arrow moves forward in right-to-left
+PASS  [rtl] the Agent access tab carries the folder-trust note in Arabic
+PASS  [rtl] no raw translation key is shown on any Arabic tab
+PASS  [rtl] the Arabic tabs have no unnamed controls and no sideways scroll
+PASS  [i18n] Simplified Chinese: the hub and its tabs are in Chinese
+PASS  [i18n] no raw translation key is shown
+PASS  [responsive] at 760 px wide the page does not scroll sideways
+PASS  [responsive] at 560 px wide the hub still does not scroll sideways
+PASS  [theme] the app is in its light theme when the user chose it
+PASS  [theme] light theme: every text in the hub reaches 4.5:1, the WCAG AA level for normal text  — 6.02:1 "No one has signed in to this service thr"
+PASS  [theme] light theme: the hub has no unnamed controls
+PASS  [skills] two skills were installed for the app to find (one per target) by the production installer
+PASS  [skills] the Skills tab lists what this app installed, with where it came from and at which commit
+PASS  [skills] it says what the guard removed from the copy
+PASS  [skills] it names the CLI that reads this folder and labels it honestly
+PASS  [skills] the shared-folder target lists its own skill, names the agents it serves, and labels each as the evidence allows
+PASS  [skills] Check notices a file changed since the install, and says so
+PASS  [skills] the same skill for the other target still reads Unchanged
+PASS  [skills] Remove asks for a second click before anything is deleted
+PASS  [skills] after the second click the skill folder and its record are gone
+PASS  [skills] and the other target's skill and record are untouched
+PASS  [activity] the Activity tab shows the skill actions, newest first
+PASS  [activity] the audit record verifies as intact
+PASS  [restart] after a restart the removal still holds: Claude Code's list is empty
+PASS  [restart] and the shared-folder target still shows it, flagged as changed (the file is still different on disk)
+PASS  [restart] the audit chain still verifies after the restart
+PASS  [consent] an integration the user switched on is listed on Connected, as on
+PASS  [consent] turning it off is written to the profile at once  — {"time":{"enabled":false}}
+PASS  [consent] after a restart it is still off
+PASS  [upgrade] a skill recorded by an older version still lists, with its source, and defaults to Claude Code
+PASS  [upgrade] the older config was read without being rewritten into something else
+PASS  [upgrade] the servers that used to ship ON are switched OFF once (nothing is reachable by an agent unless chosen), and a switch the user made themselves is left alone  — {"time":{"enabled":false},"fetch":{"enabled":false},"github":{"enabled":true}}
+
+58/58 checks passed

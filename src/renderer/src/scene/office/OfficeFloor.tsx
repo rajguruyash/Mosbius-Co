@@ -299,6 +299,7 @@ export function OfficeFloor() {
       const worldCfg = theme.world;
       const backdropTex = worldCfg ? await loadTexture(worldCfg.backdropUrl) : undefined;
       const streetTex = worldCfg ? await loadTexture(worldCfg.streetUrl) : undefined;
+      const streetOvTex = worldCfg ? await loadTexture(worldCfg.streetOvUrl) : undefined;
       const cabTex = worldCfg ? await loadTexture(worldCfg.cabUrl) : undefined;
       const occluderTex = worldCfg ? await loadTexture(worldCfg.occluderUrl) : undefined;
       if (mountIdRef.current !== mountId) { safeDestroy(app); return; }
@@ -422,10 +423,10 @@ export function OfficeFloor() {
       let shownLocation = useStore.getState().floorLocation;
       let trans: { to: string; t: number; swapped: boolean; axis: 'x' | 'y'; dir: 1 | -1; cab: boolean; street: boolean; hold: number } | null = null;
       const T_IN = 0.34, T_OUT = 0.34;
-      const BUILDING = ['rooftop', 'apartment', 'bedrooms', 'maclarens'];
+      const BUILDING = ['rooftop', 'apartment', 'maclarens'];
       const isBase = (id: string): boolean => !!meta?.hq?.[id];
       const SUBTITLE: Record<string, string> = {
-        rooftop: 'out the window, up the fire escape', apartment: 'apartment 4C', bedrooms: 'down the hall',
+        rooftop: 'out the window, up the fire escape', apartment: 'apartment 4C',
         maclarens: 'downstairs, as always', gnb: 'a cab ride downtown', barney: 'the Fortress of Barnitude',
         columbia: 'Architecture 101, room 301', lasertag: 'suit up. vest up.',
       };
@@ -433,7 +434,7 @@ export function OfficeFloor() {
         if (!meta || to === shownLocation || !meta.locations[to]) return;
         const a = meta.order.indexOf(shownLocation), b = meta.order.indexOf(to);
         const inside = BUILDING.includes(to) && BUILDING.includes(shownLocation);
-        const hall = inside && (to === 'bedrooms' || shownLocation === 'bedrooms') && (to === 'apartment' || shownLocation === 'apartment');
+        const hall = false;
         const cab = !inside;
         const street = false; // the pub is entered from the street scene instead (see below)
         trans = { to, t: 0, swapped: false, axis: cab || hall ? 'x' : 'y', dir: b > a ? 1 : -1, cab, street, hold: street ? 1.5 : 0.42 };
@@ -445,7 +446,17 @@ export function OfficeFloor() {
       // Choosing the pub lands you on West 85th first. The door is the way in;
       // inside, the same door leads back out. Agents are untouched — they live
       // in the world underneath and keep working while you stand on the street.
-      const SW = 544, SH = 352, DOOR = { x: 153, y: 214 };
+      const SW = 544, SH = 352;
+      // Everything this scene points at — the door, the steps, the neon signs — is read
+      // from street.json, the anchors street.py writes beside the picture and the website
+      // walks its characters to. Copies typed in here had already drifted off the art.
+      // MacLaren's is a basement bar: the door is BELOW the pavement, at the foot of its
+      // own steps, with a green railing along the street side.
+      const PD = worldCfg?.street.pubDoor ?? { x: 166, y: 258, top: 206, w: 24 };
+      const PS = worldCfg?.street.pubSteps ?? { x0: 124, y0: 240, x1: 148, y1: 258, landingX1: 193, lip: 259, ov: { x: 112, y: 231, w: 90, h: 32 } };
+      const NEON = worldCfg?.street.neons ?? { shamrock: { x: 96, y: 198 }, glass: { x: 243, y: 200 } };
+      const DL = { x: PD.x - PD.w / 2, y: PD.top, w: PD.w, h: PD.y - PD.top };    // the door leaf itself
+      const DOOR = { x: PD.x, y: DL.y + DL.h / 2 };                                // the camera pushes in on its middle
       const streetLayer = new Container();
       streetLayer.visible = false;
       streetLayer.eventMode = 'static';
@@ -455,13 +466,25 @@ export function OfficeFloor() {
       const streetDoor = new Graphics();
       const streetFade = new Graphics();
       const enterTag = new Text({ text: 'ENTER', style: { fontFamily: '"Press Start 2P", monospace', fontSize: 6, fill: 0xffd93d } });
-      enterTag.anchor.set(0.5); enterTag.position.set(DOOR.x, 176); enterTag.visible = false; enterTag.resolution = 4;
+      // over the transom light, clear of the signboard above it
+      enterTag.anchor.set(0.5); enterTag.position.set(PD.x, PD.top - 11); enterTag.visible = false; enterTag.resolution = 4;
       const cabSprite = cabTex ? new Sprite(cabTex) : null;
       if (streetTex) {
         streetTex.source.scaleMode = 'nearest';
         streetWorld.addChild(new Sprite(streetTex));
         if (cabSprite && cabTex) { cabTex.source.scaleMode = 'nearest'; cabSprite.position.set(-200, 276); streetWorld.addChild(cabSprite); }
-        streetWorld.addChild(streetFx, streetDoor, enterTag);
+        streetWorld.addChild(streetFx, streetDoor);
+        // The near railings (the pub's green one and the stoop's) live on their own layer:
+        // nobody walks this scene, so it simply goes over the picture — and over the
+        // door's glow, so the doorway is always seen through the bars.
+        if (streetOvTex) {
+          streetOvTex.source.scaleMode = 'nearest';
+          const ovSprite = new Sprite(streetOvTex);
+          ovSprite.eventMode = 'none';       // a picture, never a click target: the door under it must still get the tap
+          streetWorld.addChild(ovSprite);
+        }
+        enterTag.eventMode = 'none';
+        streetWorld.addChild(enterTag);
         streetLayer.addChild(streetBack, streetWorld, streetFade);
         app.stage.addChild(streetLayer);
         app.stage.addChild(curtain); // the curtain stays on top
@@ -470,7 +493,8 @@ export function OfficeFloor() {
       let streetT = 0, streetClock = 0, doorHover = false;
       streetDoor.eventMode = 'static';
       streetDoor.cursor = 'pointer';
-      streetDoor.hitArea = new Rectangle(108, 178, 92, 88);
+      // the whole entrance: steps, railing and door, from under the signboard to the kerb
+      streetDoor.hitArea = new Rectangle(PS.ov.x, 183, PS.ov.w, PS.lip + 5 - 183);
       streetDoor.on('pointerover', () => { doorHover = true; });
       streetDoor.on('pointerout', () => { doorHover = false; });
       streetDoor.on('pointertap', (ev) => {
@@ -512,8 +536,8 @@ export function OfficeFloor() {
         const g = streetFx;
         g.clear();
         const tw = 0.55 + 0.45 * Math.sin(streetClock * 7) * Math.sin(streetClock * 2.3);
-        g.rect(194, 188, 34, 17).fill({ color: 0xff6e96, alpha: 0.10 + 0.10 * tw });                    // the BEER neon buzzes
-        g.circle(60, 198, 12).fill({ color: 0x5af082, alpha: 0.10 + 0.08 * Math.sin(streetClock * 3) }); // the shamrock breathes
+        g.rect(NEON.glass.x - 17, NEON.glass.y - 9, 34, 18).fill({ color: 0xff6e96, alpha: 0.10 + 0.10 * tw });   // the beer-glass neon buzzes
+        g.circle(NEON.shamrock.x, NEON.shamrock.y, 12).fill({ color: 0x5af082, alpha: 0.10 + 0.08 * Math.sin(streetClock * 3) }); // the shamrock breathes
         g.circle(314, 150, 34).fill({ color: 0xffd682, alpha: 0.05 + 0.03 * Math.sin(streetClock * 1.3) });
         for (let i = 0; i < 16; i++) {                                                                   // fairy lights in the tree
           const sx = 50 + ((i * 37) % 50), sy = 150 + ((i * 53) % 52);
@@ -531,15 +555,16 @@ export function OfficeFloor() {
         d.clear();
         if (streetPhase === 'idle' && doorHover) {
           const a = 0.6 + 0.4 * Math.sin(streetClock * 6);
-          d.rect(136, 184, 34, 58).stroke({ color: 0xffd93d, width: 1, alpha: a });
-          d.rect(138, 186, 30, 54).fill({ color: 0xffd682, alpha: 0.18 });
+          d.rect(DL.x - 2, DL.y - 2, DL.w + 4, DL.h + 4).stroke({ color: 0xffd93d, width: 1, alpha: a });
+          d.rect(DL.x, DL.y, DL.w, DL.h).fill({ color: 0xffd682, alpha: 0.18 });
+          d.rect(PD.x - 18, PD.top - 16, 36, 10).fill({ color: 0x1a1320, alpha: 0.9 });   // a plate for the ENTER tag to sit on
         }
         enterTag.visible = streetPhase === 'idle' && doorHover;
         if (push > 0) {
           const open = Math.min(push * 1.6, 1);
-          d.rect(138, 186, 30, 54).fill(0x2a1a22);
-          d.rect(138 + 15 * (1 - open), 186, 30 * open, 54).fill(0xffd682);
-          d.rect(138, 186, Math.max(30 * (1 - open) * 0.5, 0), 54).fill(0x285440);
+          d.rect(DL.x, DL.y, DL.w, DL.h).fill(0x2a1a22);
+          d.rect(DL.x + (DL.w / 2) * (1 - open), DL.y, DL.w * open, DL.h).fill(0xffd682);
+          d.rect(DL.x, DL.y, Math.max(DL.w * (1 - open) * 0.5, 0), DL.h).fill(0x15543f);
         }
         streetFade.clear();
         if (streetPhase === 'entering') streetFade.rect(0, 0, W, H).fill({ color: 0xffd9a0, alpha: Math.max(push - 0.55, 0) * 2.2 });
@@ -2235,7 +2260,7 @@ export function OfficeFloor() {
 }
 
 const LOCATION_TAB: Record<string, string> = {
-  rooftop: 'Rooftop', apartment: "Ted's place", bedrooms: 'Bedrooms', maclarens: "MacLaren's", gnb: 'GNB',
+  rooftop: 'Rooftop', apartment: "Ted's place", maclarens: "MacLaren's", gnb: 'GNB',
   barney: "Barney's", columbia: 'Columbia', lasertag: 'Laser tag',
 };
 

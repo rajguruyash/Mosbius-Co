@@ -4,6 +4,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 
+// Node 20 has no global `navigator` (Node 21 added it), and pixi.js reads it while it loads, so a test that loaded a module
+// importing pixi.js died on Node 20, which is what CI's setup-node "20" provides. Define a minimal one only where it is
+// missing; Node 21 and later already have their own. Test harness and tools/export-sprites.cjs only: no shipped code runs here.
+if (typeof globalThis.navigator === 'undefined') {
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { userAgent: `Node.js/${process.versions.node.split('.')[0]}`, language: 'en-US', languages: ['en-US'], platform: process.platform, hardwareConcurrency: 1 },
+    configurable: true,
+    writable: true
+  });
+}
+
 const cache = new Map();
 
 function resolveTs(fromDir, request) {

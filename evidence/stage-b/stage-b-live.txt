@@ -1,0 +1,35 @@
+claude 2.1.325 (Claude Code) · model haiku · node v26.3.0 · darwin/arm64
+
+installing the pinned packages from their locks...
+  PASS  time: installed from its lock
+  PASS  filesystem: installed from its lock
+  PASS  git: installed from its lock
+  PASS  notion: installed from its lock
+  PASS  the config the agent reads holds only broker addresses and a capability (no command, argument, environment or credential)  — 4 servers
+
+running claude (a few short turns)...
+  PASS  the CLI connects to every granted server through the broker, and to nothing else  — mosbius-filesystem:connected mosbius-git:connected mosbius-notion:connected mosbius-time:connected
+  PASS  a real time call succeeds through the broker  — ToolSearch, mcp__mosbius-time__get_current_time, mcp__mosbius-filesystem__read_file, mcp__mosbius-git__git_status, mcp__mosbius-notion__API-get-self
+  PASS  a real filesystem read succeeds through the broker
+  PASS  a real git call succeeds through the broker
+  PASS  the Notion call reached Notion with the canary and was refused (401): the call path works, no real account was used  — {"status":401,"object":"error","code":"unauthorized","message":"API token is invalid.","additional_data":{"reason":"toke
+  PASS  the agent is shown only the tools it was granted: no write, no commit, no reset, no Notion write  — 22 tools offered; offered write tools: none
+  PASS  a write the agent was not granted is refused by the broker, and the file is not created  — {"jsonrpc":"2.0","id":3,"error":{"code":-32003,"message":"Not permitted: \"write_file\" is not grant
+  PASS  git_reset (destructive) is refused by the broker  — {"jsonrpc":"2.0","id":4,"error":{"code":-32003,"message":"Not permitted: \"git_reset\" is not grante
+  PASS  every server process is a direct child of the app (this process)  — 4 server processes, all with ppid 6194
+  PASS  no server process was ever a descendant of the CLI, in any of the samples taken while it ran  — 22 process-table samples
+  PASS  the credential is not in the CLI output  — 30366 bytes searched
+  PASS  the credential is not in the agent config  — 846 bytes searched
+  PASS  the credential is not in the spawn arguments the app builds  — 3160 bytes searched
+  PASS  the credential is not in the environment the app adds  — 481 bytes searched
+  PASS  the credential is not in every process-table sample taken while the CLI ran (arguments)  — 1992651 bytes searched
+  PASS  the credential is not in the audit trail  — 7648 bytes searched
+  PASS  the credential is not in the CLI's session transcript (407977 bytes)  — 407977 bytes searched
+  N/A   the environment of the running CLI process (ps eww)  — the OS shows no environment for this process, so nothing was checked here (the environment the app builds for it is checked above)
+  PASS  the credential is not readable from the Notion server process by `ps eww` (argument list or initial environment)  — 940 bytes of its argument list and environment searched
+  PASS  after revocation every server process the app ran for that agent is stopped  — 4 processes
+  PASS  with the revoked capability the same config no longer connects to any server  — mosbius-time:failed mosbius-filesystem:failed mosbius-git:failed mosbius-notion:failed
+  PASS  no server was started for the revoked agent
+
+26/26 checks passed · 6 turns · $0.00443943
+credential visible to a same-user process through `ps eww` on the server: no (it lives only in the server's memory; a same-user process with debugger rights could still read that)

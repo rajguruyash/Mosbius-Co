@@ -6,13 +6,24 @@ on:
   pull_request:
     branches: [main, 'release/**']
 
+permissions:
+  contents: read
+
+# About the action versions (checkout, setup-node): v4 of both runs on Node 20, which GitHub has deprecated for actions
+# (the "Node.js 20 actions are deprecated" warning). v5 and later run on Node 24, and v7 is the current major of each
+# (read from each action's action.yml). That is only the runtime of the ACTIONS: the project's own tooling runtime is
+# the `node-version` below and is unchanged. These workflows trigger on `push` and `pull_request`, never on
+# `pull_request_target`, so checkout v7's refusal to check out a fork's code for that trigger does not apply.
+# test/ci-workflows.test.cjs fails if an action here goes back to a major that runs on Node 20.
+
 jobs:
   typecheck:
     name: Typecheck
     runs-on: macos-latest
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -32,11 +43,51 @@ jobs:
     runs-on: macos-latest
     # Build exercises the native node-pty rebuild; allowed to fail without blocking.
     continue-on-error: true
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  # README.md, INTEGRATIONS.md and the landing page (website/) state facts about the product: which providers exist,
+  # how far each was checked, which agent CLIs are covered. Those parts are GENERATED from the same source files the
+  # app uses. This job fails if a committed copy is stale, if a link or an asset of the page is missing, or if the page
+  # says something the data does not. It writes nothing and deploys nothing.
+  website:
+    name: Documents and website match the app
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      # Reading TypeScript sources and checking files needs no native rebuild.
+      - name: Install dependencies (no install scripts)
+        run: npm ci --ignore-scripts
+      - name: Generated documents match the app's own data
+        run: npm run docs:check
+      - name: Website data, links and claims
+        run: npm run website:check
+
+  # The full automated suite. It is not blocking until it has been seen green on a GitHub runner once: it was written and
+  # run on a Mac, and some of its tests drive Electron and a local keychain. Remove `continue-on-error` after that run.
+  test:
+    name: Tests
+    runs-on: macos-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Full test suite
+        run: node --test test/*.test.cjs

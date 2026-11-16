@@ -1,0 +1,26 @@
+{
+  "tool": "tools/verify-claude-skills-live.cjs",
+  "date": "2026-11-15T18:38:47.311Z",
+  "claude": "2.1.325 (Claude Code)",
+  "platform": "darwin/arm64",
+  "folder_run": "<project>/.claude/skills",
+  "folder_not_run": "~/.claude/skills (same loader; not written to, so the user's own skills are untouched)",
+  "model_called": false,
+  "results": [
+    {
+      "name": "the CLI announced itself (system/init) before any model reply",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the probe skill in <project>/.claude/skills is listed as a skill",
+      "ok": true,
+      "detail": "42 skills listed"
+    },
+    {
+      "name": "and is available as a slash command",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

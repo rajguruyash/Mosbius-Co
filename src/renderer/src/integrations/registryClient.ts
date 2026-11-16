@@ -52,7 +52,7 @@ export interface IntegrationsClient {
   list(): Promise<IntegrationRecordView[]>;
   /** §6 upsert (metadata, no secret) + §6 setSecret when a new secret was typed. */
   save(record: IntegrationRecord, secret?: string): Promise<{ ok: boolean; error?: string }>;
-  remove(id: string): Promise<{ ok: boolean }>;
+  remove(id: string): Promise<{ ok: boolean; error?: string }>;
   test(id: string): Promise<TestResult>;
 }
 
@@ -63,7 +63,7 @@ interface IntegrationsBridge {
   integrationsTemplates(): Promise<IntegrationTemplate[]>;
   integrationsUpsert(record: IntegrationRecord): Promise<UpsertResult>;
   integrationsSetSecret(req: { id: string; secret: string }): Promise<{ ok: boolean; error?: string }>;
-  integrationsRemove(req: { id: string }): Promise<{ ok: boolean }>;
+  integrationsRemove(req: { id: string }): Promise<{ ok: boolean; error?: string }>;
   integrationsTest(req: { id: string; path?: string }): Promise<TestResult>;
 }
 

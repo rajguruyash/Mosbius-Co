@@ -1,0 +1,1014 @@
+{
+  "at": "2026-11-15T18:07:52.394Z",
+  "node": "v26.3.0",
+  "npm": "11.16.0",
+  "uv": "uv 0.11.24 (Homebrew 2026-06-23 aarch64-apple-darwin)",
+  "platform": "darwin/arm64",
+  "results": [
+    {
+      "id": "sequential-thinking",
+      "package": "@modelcontextprotocol/server-sequential-thinking@2.1.1",
+      "manager": "npm",
+      "install": "ok",
+      "installMs": 1258,
+      "childPids": 1,
+      "server": {
+        "name": "sequential-thinking-server",
+        "version": "2.1.1"
+      },
+      "tools": [
+        {
+          "name": "sequentialthinking",
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          }
+        }
+      ],
+      "startMs": 118,
+      "stage": "called",
+      "callMs": 2,
+      "isError": false,
+      "text": "{ \"thoughtNumber\": 1, \"totalThoughts\": 1, \"nextThoughtNeeded\": false, \"branches\": [], \"thoughtHistoryLength\": 1 }",
+      "verdict": "PASS"
+    },
+    {
+      "id": "time",
+      "package": "mcp-server-time@2026.11.11",
+      "manager": "pypi",
+      "install": "ok",
+      "installMs": 1839,
+      "childPids": 1,
+      "server": {
+        "name": "mcp-time",
+        "version": "2026.11.11"
+      },
+      "tools": [
+        {
+          "name": "get_current_time",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "convert_time",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "get_time_ago",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        }
+      ],
+      "startMs": 1844,
+      "stage": "called",
+      "callMs": 8,
+      "isError": false,
+      "text": "{ \"timezone\": \"UTC\", \"datetime\": \"2026-11-15T18:07:25+00:00\", \"day_of_week\": \"Sunday\", \"is_dst\": false }",
+      "verdict": "PASS"
+    },
+    {
+      "id": "fetch",
+      "package": "mcp-server-fetch@2026.11.11",
+      "manager": "pypi",
+      "install": "ok",
+      "installMs": 1247,
+      "childPids": 1,
+      "server": {
+        "name": "mcp-fetch",
+        "version": "2026.11.11"
+      },
+      "tools": [
+        {
+          "name": "fetch",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": true,
+            "readOnlyHint": true
+          }
+        }
+      ],
+      "startMs": 2962,
+      "stage": "called",
+      "callMs": 6232,
+      "isError": false,
+      "text": "Contents of https://example.com/: # Example Domain This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+      "verdict": "PASS"
+    },
+    {
+      "id": "context7",
+      "package": "@upstash/context7-mcp@4.7.0",
+      "manager": "npm",
+      "install": "ok",
+      "installMs": 2284,
+      "childPids": 1,
+      "server": {
+        "name": "Context7",
+        "title": "Context7",
+        "version": "4.7.0",
+        "websiteUrl": "https://context7.com",
+        "description": "Context7 provides up-to-date documentation and code examples for libraries and frameworks.",
+        "icons": [
+          {
+            "src": "https://context7.com/context7-icon-green.svg",
+            "mimeType": "image/svg+xml",
+            "sizes": [
+              "any"
+            ]
+          },
+          {
+            "src": "https://context7.com/context7-icon-green.png",
+            "mimeType": "image/png",
+            "sizes": [
+              "512x512"
+            ]
+          }
+        ]
+      },
+      "tools": [
+        {
+          "name": "resolve-library-id",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true,
+            "idempotentHint": true
+          }
+        },
+        {
+          "name": "query-docs",
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true,
+            "idempotentHint": true
+          }
+        }
+      ],
+      "startMs": 223,
+      "stage": "called",
+      "callMs": 1886,
+      "isError": false,
+      "text": "Available Libraries: - Title: React - Context7-compatible library ID: /reactjs/react.dev - Description: React.dev is the official documentation website for React, a JavaScript library for building user interfaces, providing guides, API refe",
+      "verdict": "PASS"
+    },
+    {
+      "id": "filesystem",
+      "package": "@modelcontextprotocol/server-filesystem@2.3.0",
+      "manager": "npm",
+      "install": "ok",
+      "installMs": 979,
+      "childPids": 1,
+      "server": {
+        "name": "secure-filesystem-server",
+        "version": "2.3.0"
+      },
+      "tools": [
+        {
+          "name": "read_file",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "read_text_file",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "read_media_file",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "read_multiple_files",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "write_file",
+          "annotations": {
+            "readOnlyHint": false,
+            "idempotentHint": true,
+            "destructiveHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "append_file",
+          "annotations": {
+            "readOnlyHint": false,
+            "idempotentHint": false,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "edit_file",
+          "annotations": {
+            "readOnlyHint": false,
+            "idempotentHint": false,
+            "destructiveHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "create_directory",
+          "annotations": {
+            "readOnlyHint": false,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "list_directory",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "list_directory_with_sizes",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "directory_tree",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "move_file",
+          "annotations": {
+            "readOnlyHint": false,
+            "idempotentHint": false,
+            "destructiveHint": true,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "copy_file",
+          "annotations": {
+            "readOnlyHint": false,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "search_files",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "get_file_info",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        },
+        {
+          "name": "list_allowed_directories",
+          "annotations": {
+            "readOnlyHint": true,
+            "idempotentHint": true,
+            "destructiveHint": false,
+            "openWorldHint": false
+          }
+        }
+      ],
+      "startMs": 140,
+      "stage": "called",
+      "callMs": 3,
+      "isError": false,
+      "text": "hello from the workspace",
+      "verdict": "PASS"
+    },
+    {
+      "id": "git",
+      "package": "mcp-server-git@2026.11.11",
+      "manager": "pypi",
+      "install": "ok",
+      "installMs": 511,
+      "childPids": 1,
+      "server": {
+        "name": "mcp-git",
+        "version": "2026.11.11"
+      },
+      "tools": [
+        {
+          "name": "git_status",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "git_diff_unstaged",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "git_diff_staged",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "git_diff",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "git_commit",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false,
+            "readOnlyHint": false
+          }
+        },
+        {
+          "name": "git_add",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": false
+          }
+        },
+        {
+          "name": "git_reset",
+          "annotations": {
+            "destructiveHint": true,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": false
+          }
+        },
+        {
+          "name": "git_log",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "git_create_branch",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false,
+            "readOnlyHint": false
+          }
+        },
+        {
+          "name": "git_checkout",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false,
+            "readOnlyHint": false
+          }
+        },
+        {
+          "name": "git_merge",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": false
+          }
+        },
+        {
+          "name": "git_show",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "git_branch",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "git_remote",
+          "annotations": {
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false,
+            "readOnlyHint": true
+          }
+        }
+      ],
+      "startMs": 1740,
+      "stage": "called",
+      "callMs": 33,
+      "isError": false,
+      "text": "Repository status: On branch main nothing to commit, working tree clean",
+      "verdict": "PASS"
+    },
+    {
+      "id": "playwright",
+      "package": "@playwright/mcp@0.0.85",
+      "manager": "npm",
+      "install": "ok",
+      "installMs": 1072,
+      "childPids": 1,
+      "server": {
+        "name": "Playwright",
+        "version": "1.66.0-alpha-2026-11-09"
+      },
+      "tools": [
+        {
+          "name": "browser_close",
+          "annotations": {
+            "title": "Close browser",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_resize",
+          "annotations": {
+            "title": "Resize browser window",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_console_messages",
+          "annotations": {
+            "title": "Get console messages",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_handle_dialog",
+          "annotations": {
+            "title": "Handle a dialog",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_emulate_media",
+          "annotations": {
+            "title": "Emulate media features",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_evaluate",
+          "annotations": {
+            "title": "Evaluate JavaScript",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_file_upload",
+          "annotations": {
+            "title": "Upload files",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_drop",
+          "annotations": {
+            "title": "Drop files or data onto an element",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_find",
+          "annotations": {
+            "title": "Find in page snapshot",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_fill_form",
+          "annotations": {
+            "title": "Fill form",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_press_key",
+          "annotations": {
+            "title": "Press a key",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_type",
+          "annotations": {
+            "title": "Type text",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_navigate",
+          "annotations": {
+            "title": "Navigate to a URL",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_navigate_back",
+          "annotations": {
+            "title": "Go back",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_network_requests",
+          "annotations": {
+            "title": "List network requests",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_network_request",
+          "annotations": {
+            "title": "Show network request details",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_run_code_unsafe",
+          "annotations": {
+            "title": "Run Playwright code (unsafe)",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_take_screenshot",
+          "annotations": {
+            "title": "Take a screenshot",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_snapshot",
+          "annotations": {
+            "title": "Page snapshot",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_click",
+          "annotations": {
+            "title": "Click",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_drag",
+          "annotations": {
+            "title": "Drag mouse",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_hover",
+          "annotations": {
+            "title": "Hover mouse",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_select_option",
+          "annotations": {
+            "title": "Select option",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_tabs",
+          "annotations": {
+            "title": "Manage tabs",
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "browser_wait_for",
+          "annotations": {
+            "title": "Wait for",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "openWorldHint": true
+          }
+        }
+      ],
+      "startMs": 229,
+      "stage": "called",
+      "callMs": 1875,
+      "isError": false,
+      "text": "### Ran Playwright code ```js await page.goto('http://127.0.0.1:55890/page'); ``` ### Page - Page URL: http://127.0.0.1:55890/page - Page Title: Stage B probe - Console: 1 errors, 0 warnings ### Snapshot - [Snapshot](.playwright-mcp/page-20",
+      "verdict": "PASS"
+    },
+    {
+      "id": "notion",
+      "package": "@notionhq/notion-mcp-server@2.6.1",
+      "manager": "npm",
+      "install": "ok",
+      "installMs": 2249,
+      "childPids": 1,
+      "server": {
+        "name": "Notion API",
+        "version": "1.0.0"
+      },
+      "tools": [
+        {
+          "name": "API-get-user",
+          "annotations": {
+            "title": "Get User",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-get-users",
+          "annotations": {
+            "title": "Get Users",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-get-self",
+          "annotations": {
+            "title": "Get Self",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-post-search",
+          "annotations": {
+            "title": "Post Search",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-get-block-children",
+          "annotations": {
+            "title": "Get Block Children",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-patch-block-children",
+          "annotations": {
+            "title": "Patch Block Children",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-retrieve-a-block",
+          "annotations": {
+            "title": "Retrieve A Block",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-update-a-block",
+          "annotations": {
+            "title": "Update A Block",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-delete-a-block",
+          "annotations": {
+            "title": "Delete A Block",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-retrieve-a-page",
+          "annotations": {
+            "title": "Retrieve A Page",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-patch-page",
+          "annotations": {
+            "title": "Patch Page",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-post-page",
+          "annotations": {
+            "title": "Post Page",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-retrieve-a-page-property",
+          "annotations": {
+            "title": "Retrieve A Page Property",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-retrieve-a-comment",
+          "annotations": {
+            "title": "Retrieve A Comment",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-create-a-comment",
+          "annotations": {
+            "title": "Create A Comment",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-query-data-source",
+          "annotations": {
+            "title": "Query Data Source",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-retrieve-a-data-source",
+          "annotations": {
+            "title": "Retrieve A Data Source",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-update-a-data-source",
+          "annotations": {
+            "title": "Update A Data Source",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-create-a-data-source",
+          "annotations": {
+            "title": "Create A Data Source",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-list-data-source-templates",
+          "annotations": {
+            "title": "List Data Source Templates",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-retrieve-a-database",
+          "annotations": {
+            "title": "Retrieve A Database",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-move-page",
+          "annotations": {
+            "title": "Move Page",
+            "destructiveHint": true
+          }
+        },
+        {
+          "name": "API-retrieve-page-markdown",
+          "annotations": {
+            "title": "Retrieve Page Markdown",
+            "readOnlyHint": true
+          }
+        },
+        {
+          "name": "API-update-page-markdown",
+          "annotations": {
+            "title": "Update Page Markdown",
+            "destructiveHint": true
+          }
+        }
+      ],
+      "startMs": 176,
+      "stage": "called",
+      "callMs": 837,
+      "isError": false,
+      "text": "{\"status\":401,\"object\":\"error\",\"code\":\"unauthorized\",\"message\":\"API token is invalid.\",\"additional_data\":{\"reason\":\"token_invalid\"},\"request_id\":\"449bdad2-c3e9-4eea-89f7-32b3ff4beb54\"}",
+      "verdict": "LIMITED: reached the provider with a fake credential and was refused; no real account was used"
+    },
+    {
+      "id": "brave-search",
+      "package": "@brave/brave-search-mcp-server@2.1.4",
+      "manager": "npm",
+      "install": "ok",
+      "installMs": 895,
+      "childPids": 1,
+      "server": {
+        "version": "2.1.4",
+        "name": "brave-search-mcp-server",
+        "title": "Brave Search MCP Server"
+      },
+      "tools": [
+        {
+          "name": "brave_web_search",
+          "annotations": {
+            "title": "Brave Web Search",
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "brave_local_search",
+          "annotations": {
+            "title": "Brave Local Search",
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "brave_video_search",
+          "annotations": {
+            "title": "Brave Video Search",
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "brave_image_search",
+          "annotations": {
+            "title": "Brave Image Search",
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "brave_news_search",
+          "annotations": {
+            "title": "Brave News Search",
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "brave_summarizer",
+          "annotations": {
+            "title": "Brave Summarizer",
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "brave_llm_context",
+          "annotations": {
+            "title": "Brave LLM Context",
+            "openWorldHint": true
+          }
+        },
+        {
+          "name": "brave_place_search",
+          "annotations": {
+            "title": "Brave Place Search",
+            "openWorldHint": true
+          }
+        }
+      ],
+      "startMs": 211,
+      "stage": "called",
+      "callMs": 805,
+      "isError": true,
+      "text": "422 { \"type\": \"ErrorResponse\", \"error\": { \"id\": \"3d0aed90-8bed-4480-8864-0d835a79d5de\", \"status\": 422, \"detail\": \"The provided API key is invalid.\", \"meta\": { \"component\": \"authentication\" }, \"code\": \"SUBSCRIPTION_TOKEN_INVALID\" }, \"time\": ",
+      "verdict": "LIMITED: reached the provider with a fake credential and was refused; no real account was used"
+    },
+    {
+      "id": "mcp-remote",
+      "package": "mcp-remote@0.16.6",
+      "manager": "npm",
+      "install": "ok",
+      "installMs": 437,
+      "childPids": 1,
+      "server": {
+        "name": "probe",
+        "version": "1"
+      },
+      "tools": [
+        {
+          "name": "echo"
+        }
+      ],
+      "startMs": 243,
+      "stage": "called",
+      "callMs": 1,
+      "isError": false,
+      "text": "echo:{\"via\":\"mcp-remote\"}",
+      "verdict": "PASS"
+    }
+  ]
+}

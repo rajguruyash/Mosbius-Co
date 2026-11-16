@@ -19,6 +19,7 @@ import { SetupPanel } from './SetupPanel';
 import { AgentManager } from './AgentManager';
 import { Icon } from './Icon';
 import { McpDefaultsSettings } from './McpDefaultsSettings';
+import { IntegrationsHub } from './hub/IntegrationsHub';
 import { IntegrationsRegistry } from './IntegrationsRegistry';
 import { AiEnginesSettings } from './AiEnginesSettings';
 import { REALTIME_MODEL } from '@shared/realtimePricing';
@@ -51,12 +52,15 @@ export interface SettingsModalProps {
  */
 interface TriggersApi {
   listWebhooks: () => Promise<WebhookTrigger[]>;
-  saveWebhooks: (list: WebhookTrigger[]) => Promise<{ ok: boolean; error?: string }>;
+  saveWebhooks: (list: WebhookTrigger[]) => Promise<WebhookTrigger[] | { ok: boolean; error?: string }>;
   deleteWebhook: (id: string) => Promise<{ ok: boolean; error?: string }>;
-  generateWebhookSecret: () => Promise<{ ok: boolean; secret?: string }>;
+  /** The main process mints and keeps webhook secrets; neither call returns the value. */
+  webhooksRotateSecret: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  webhooksCopySecret: (id: string) => Promise<{ ok: boolean; error?: string }>;
   webhooksStatus: () => Promise<{ running: boolean; url?: string }>;
   getOrgTrigger: () => Promise<OrgTriggerConfig>;
-  setOrgTrigger: (cfg: OrgTriggerConfig) => Promise<{ ok: boolean; error?: string }>;
+  /** `apiKey` is write-only: a string sets it, null removes it, absent keeps it. The reply has `hasKey`, never the key. */
+  setOrgTrigger: (cfg: { enabled?: boolean; mode?: TriggerMode; apiKey?: string | null }) => Promise<(OrgTriggerConfig & { error?: string }) | undefined>;
 }
 const triggersApi = (): TriggersApi => window.cth as unknown as TriggersApi;
 
@@ -179,8 +183,8 @@ const sectionHeadFlush = { ...sectionHead, marginBottom: 0 } as const;
 /** The 2px rule between Settings sections. */
 const sectionRule = { height: 2, background: 'var(--cth-ink-300)' } as const;
 
-export type Section = 'General' | 'Coding agents' | 'Prerequisites' | 'Agents & Models' | 'Autonomy & Budgets' | 'Connections' | 'Voice' | 'Memory & Knowledge';
-const NAV_SECTIONS: Section[] = ['General', 'Coding agents', 'Prerequisites', 'Agents & Models', 'Autonomy & Budgets', 'Connections', 'Voice', 'Memory & Knowledge'];
+export type Section = 'General' | 'Coding agents' | 'Prerequisites' | 'Agents & Models' | 'Autonomy & Budgets' | 'Integrations & Skills' | 'Connections' | 'Voice' | 'Memory & Knowledge';
+const NAV_SECTIONS: Section[] = ['General', 'Coding agents', 'Prerequisites', 'Agents & Models', 'Autonomy & Budgets', 'Integrations & Skills', 'Connections', 'Voice', 'Memory & Knowledge'];
 /** i18n key for each nav section's label — the Section values themselves stay
  *  as stable identifiers (tab state, deep links). */
 const NAV_SECTION_KEYS: Record<Section, string> = {
@@ -189,6 +193,7 @@ const NAV_SECTION_KEYS: Record<Section, string> = {
   'Prerequisites': 'settings.nav.prerequisites',
   'Agents & Models': 'settings.nav.agentsModels',
   'Autonomy & Budgets': 'settings.nav.autonomyBudgets',
+  'Integrations & Skills': 'settings.nav.integrations',
   'Connections': 'settings.nav.connections',
   'Voice': 'settings.nav.voice',
   'Memory & Knowledge': 'settings.nav.memoryKnowledge'
@@ -392,8 +397,11 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
   // --- Slack integration ---
   const [slackEnabled, setSlackEnabled] = useState(config.slackEnabled ?? false);
-  const [slackSecret, setSlackSecret] = useState(config.slackSigningSecret ?? '');
-  const [slackBotToken, setSlackBotToken] = useState(config.slackBotToken ?? '');
+  // Write-only: the stored values never reach this page. These hold only what is being TYPED
+  // now; `secretsSet` says which ones are already stored.
+  const [slackSecret, setSlackSecret] = useState('');
+  const [slackBotToken, setSlackBotToken] = useState('');
+  const [secretsSet, setSecretsSet] = useState<HarnessConfig['secretsSet']>(config.secretsSet);
   const [slackChannel, setSlackChannel] = useState(config.slackChannelId ?? '');
   const [slackPort, setSlackPort] = useState(String(config.slackPort ?? 3847));
   // App/voice-initiated proactive posting (the "queued" ack). Default OFF —
@@ -420,7 +428,6 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   const [webhookBusy, setWebhookBusy] = useState(false);
   const [webhookNote, setWebhookNote] = useState('');
   /** Which secrets the user has unmasked, by webhook id. Reset on every reopen. */
-  const [shownSecrets, setShownSecrets] = useState<Record<string, boolean>>({});
   /** Webhook awaiting a second delete click — deleting one revokes a live caller. */
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [showWebhookHelp, setShowWebhookHelp] = useState(false);
@@ -429,6 +436,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   const orgTrigger = useStore((s) => s.orgTrigger);
   const setOrgTriggerStore = useStore((s) => s.setOrgTrigger);
   const [showOrgKey, setShowOrgKey] = useState(false);
+  /** What is being typed into the org key field; the stored key is never sent to this page. */
+  const [orgKeyDraft, setOrgKeyDraft] = useState('');
   const [orgBusy, setOrgBusy] = useState(false);
   const [orgNote, setOrgNote] = useState('');
 
@@ -526,7 +535,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   // v0.3.4 fix: the config default is ON ('now on by default', 0.2.7) — seeding
   // with `?? false` displayed OFF while the feature was actually running.
   const [freeflowEnabled, setFreeflowEnabled] = useState(config.freeflowEnabled !== false);
-  const [groqKey, setGroqKey] = useState(config.groqApiKey ?? '');
+  const [groqKey, setGroqKey] = useState('');
   const [freeflowModel, setFreeflowModel] = useState(config.freeflowModel ?? 'whisper-large-v3-turbo');
   const [showGroqKey, setShowGroqKey] = useState(false);
   const [freeflowBusy, setFreeflowBusy] = useState(false);
@@ -548,15 +557,13 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
       setAgentBudget(cc.costCapTokens != null ? String(cc.costCapTokens) : '');
       setVelocityCeiling(cc.circuitBreaker?.tokenVelocityPerMin != null ? String(cc.circuitBreaker.tokenVelocityPerMin) : '');
       setSlackEnabled(cc.slackEnabled ?? false);
-      setSlackSecret(cc.slackSigningSecret ?? '');
-      setSlackBotToken(cc.slackBotToken ?? '');
+      setSecretsSet((c as HarnessConfig).secretsSet);
       setSlackChannel(cc.slackChannelId ?? '');
       setSlackPort(String(cc.slackPort ?? 3847));
       setSlackProactivePosting(cc.slackProactivePosting ?? false);
       const kgOn = (cc as { knowledgeGraph?: { enabled?: boolean } }).knowledgeGraph?.enabled === true;
       setKgEnabled(kgOn);
       setFreeflowEnabled(cc.freeflowEnabled !== false);
-      setGroqKey(cc.groqApiKey ?? '');
       setFreeflowModel(cc.freeflowModel ?? 'whisper-large-v3-turbo');
       setIdleDisconnectMs((c as HarnessConfig).realtimeIdleDisconnectMs ?? 180_000);
     }).catch(() => { /* keep prop-seeded values */ });
@@ -594,19 +601,35 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
   /** Persist the current Slack inputs. Returns the resolved config patch. */
   const slackPatch = (enabled: boolean) => ({
-    signingSecret: slackSecret,
-    botToken: slackBotToken,
+    // empty = leave the stored one alone (never "clear"); removal is its own button
+    signingSecret: slackSecret.trim() ? slackSecret : undefined,
+    botToken: slackBotToken.trim() ? slackBotToken : undefined,
     channelId: slackChannel,
     port: Number(slackPort) || 3847,
     enabled,
     proactivePosting: slackProactivePosting
   });
 
+  /** Re-read which secrets are stored (booleans only) and empty the typed fields. */
+  const refreshSecrets = async () => {
+    try { setSecretsSet(((await window.cth.getConfig()) as HarnessConfig).secretsSet); } catch { /* keep what we had */ }
+    setSlackSecret(''); setSlackBotToken(''); setGroqKey('');
+  };
+  const removeSlackSecret = async (which: 'signingSecret' | 'botToken') => {
+    setSlackBusy(true); setSlackNote('');
+    try {
+      const r = await window.cth.slackSetConfig({ [which]: null });
+      setSlackNote(r.ok ? 'saved' : (r.error ?? 'could not remove'));
+      await refreshSecrets();
+    } catch (e) { setSlackNote(e instanceof Error ? e.message : String(e)); } finally { setSlackBusy(false); }
+  };
+
   const saveSlack = async () => {
     setSlackBusy(true); setSlackNote('');
     try {
-      await window.cth.slackSetConfig(slackPatch(slackEnabled));
-      setSlackNote('saved');
+      const r = await window.cth.slackSetConfig(slackPatch(slackEnabled));
+      setSlackNote(r.ok ? 'saved' : (r.error ?? 'could not save'));
+      await refreshSecrets();
     } catch (e) {
       setSlackNote(e instanceof Error ? e.message : String(e));
     } finally { setSlackBusy(false); }
@@ -617,6 +640,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     try {
       // Persist first so the server starts with the latest secret/port/channel.
       await window.cth.slackSetConfig(slackPatch(true));
+      await refreshSecrets();
       setSlackEnabled(true);
       const res = await window.cth.slackStart();
       if (res.ok) {
@@ -652,7 +676,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     setWebhookBusy(true); setWebhookNote('');
     try {
       const res = await triggersApi().saveWebhooks(list);
-      if (res && res.ok === false) { setWebhookNote(res.error ?? 'could not save'); return; }
+      if (Array.isArray(res)) setWebhookTriggersStore(res); // main's answer: secrets as `hasSecret`, never values
+      else if (res && res.ok === false) { setWebhookNote(res.error ?? 'could not save'); return; }
       setWebhookNote('saved');
       setTimeout(() => setWebhookNote(''), 1500);
     } catch (e) {
@@ -667,25 +692,16 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   /** New endpoint: main mints the secret (256-bit), and it ships DISABLED —
    *  turning on a public surface is always an explicit second click. */
   const addWebhook = async () => {
-    setWebhookBusy(true); setWebhookNote('');
-    let secret = '';
-    try {
-      const res = await triggersApi().generateWebhookSecret();
-      secret = res.ok && res.secret ? res.secret : '';
-    } catch (e) {
-      setWebhookNote(e instanceof Error ? e.message : String(e));
-    } finally { setWebhookBusy(false); }
-    if (!secret) { setWebhookNote('could not generate a secret'); return; }
     const entry: WebhookTrigger = {
       id: newWebhookId(),
       name: `Webhook ${webhookTriggers.length + 1}`,
-      secret,
       enabled: false,
       mode: DEFAULT_TRIGGER_MODE,
       schema: DEFAULT_WEBHOOK_SCHEMA,
       createdAt: Date.now()
     };
-    setShownSecrets((s) => ({ ...s, [entry.id]: true })); // show it once, to copy
+    // No secret is made or shown here: the main process gives the endpoint one when the list
+    // is saved, keeps it, and copies it to the clipboard on request.
     await applyWebhooks([...webhookTriggers, entry]);
   };
 
@@ -693,17 +709,16 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
    *  that is the point, and it never disturbs the other webhooks. */
   const rotateWebhookSecret = async (id: string) => {
     setWebhookBusy(true); setWebhookNote('');
-    let secret = '';
     try {
-      const res = await triggersApi().generateWebhookSecret();
-      secret = res.ok && res.secret ? res.secret : '';
+      const res = await triggersApi().webhooksRotateSecret(id);
+      setWebhookNote(res.ok ? t('webhooksSection.rotated') : (res.error ?? 'could not rotate'));
     } catch (e) {
       setWebhookNote(e instanceof Error ? e.message : String(e));
     } finally { setWebhookBusy(false); }
-    if (!secret) { setWebhookNote('could not generate a secret'); return; }
-    setShownSecrets((s) => ({ ...s, [id]: true }));
-    await patchWebhook(id, { secret });
-    setWebhookNote('new secret — copy it now');
+  };
+  /** The main process puts the secret on the clipboard; this page never holds it. */
+  const copyWebhookSecretFor = async (id: string) => {
+    try { const res = await triggersApi().webhooksCopySecret(id); if (!res.ok) setWebhookNote(res.error ?? 'could not copy'); } catch { /* noop */ }
   };
 
   const removeWebhook = async (id: string) => {
@@ -727,13 +742,18 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   // --- Organisation trigger handlers ---
   /** Same contract as webhooks: mirror first (so the Triggers tab is live), then
    *  persist. Keystroke edits pass `persist: false` and commit on blur. */
-  const applyOrg = async (next: OrgTriggerConfig, persist = true) => {
+  const applyOrg = async (next: OrgTriggerConfig, persist = true, apiKey?: string | null) => {
     setOrgTriggerStore(next);
     if (!persist) return;
     setOrgBusy(true); setOrgNote('');
     try {
-      const res = await triggersApi().setOrgTrigger(next);
-      if (res && res.ok === false) { setOrgNote(res.error ?? 'could not save'); return; }
+      // The key is write-only: it goes out only when the user typed one (or pressed remove), and
+      // what comes back is `hasKey`, never the key.
+      const res = await triggersApi().setOrgTrigger({
+        enabled: next.enabled, mode: next.mode, ...(apiKey !== undefined ? { apiKey } : {})
+      });
+      if (res?.error) { setOrgNote(res.error); return; }
+      if (res) setOrgTriggerStore({ ...next, apiKey: '', hasKey: res.hasKey });
       setOrgNote('saved');
       setTimeout(() => setOrgNote(''), 1500);
     } catch (e) {
@@ -748,16 +768,18 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     const enabled = enabledOverride ?? freeflowEnabled;
     setFreeflowBusy(true); setFreeflowNote('');
     try {
-      await window.cth.freeflowSetConfig({
+      const r = await window.cth.freeflowSetConfig({
         enabled,
-        apiKey: groqKey,
+        // write-only: empty means "leave the stored key alone"; removal is its own button
+        apiKey: groqKey.trim() ? groqKey : undefined,
         model: freeflowModel.trim() || 'whisper-large-v3-turbo'
       });
       setFreeflowEnabledStore(enabled);
+      await refreshSecrets();
       // Mirror boolean key-presence so the voice button enables/disables live
       // without an app restart (presence only — never the key value).
-      setHasGroqKeyStore(!!groqKey.trim());
-      setFreeflowNote('saved');
+      try { setHasGroqKeyStore(!!((await window.cth.getConfig()) as HarnessConfig).secretsSet?.groqApiKey); } catch { /* keep */ }
+      setFreeflowNote(r.ok ? 'saved' : (r.error ?? 'could not save'));
     } catch (e) {
       setFreeflowNote(e instanceof Error ? e.message : String(e));
     } finally { setFreeflowBusy(false); }
@@ -1426,9 +1448,22 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                     </>
                   )}
 
+                  {/* INTEGRATIONS & SKILLS — discover, connect, choose which agent may use what, skills */}
+                  {activeSection === 'Integrations & Skills' && (
+                    <IntegrationsHub config={config} goSection={setActiveSection} />
+                  )}
+
                   {/* CONNECTIONS — everything external (MCP + Slack + webhook + REST) */}
                   {activeSection === 'Connections' && (
                     <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, lineHeight: '15px', color: 'var(--cth-ink-500)', flex: 1, minWidth: 200 }}>
+                          {t('settings.connections.hubPointer')}
+                        </span>
+                        <PixelButton variant="secondary" size="sm" onClick={() => setActiveSection('Integrations & Skills')}>
+                          {t('settings.connections.openHub')}
+                        </PixelButton>
+                      </div>
                       <McpDefaultsSettings config={config} />
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
                     </>
@@ -1512,9 +1547,15 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                   type="password"
                                   value={slackSecret}
                                   onChange={(e) => setSlackSecret(e.target.value)}
-                                  placeholder={t('settings.connections.signingSecretPlaceholder')}
+                                  placeholder={secretsSet?.slackSigningSecret ? t('mcpDefaults.stored') : t('settings.connections.signingSecretPlaceholder')}
+                                  autoComplete="off"
                                   style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
                                 />
+                                {secretsSet?.slackSigningSecret && (
+                                  <PixelButton variant="ghost" size="sm" onClick={() => { void removeSlackSecret('signingSecret'); }} disabled={slackBusy}>
+                                    {t('common.remove')}
+                                  </PixelButton>
+                                )}
                               </label>
                               {/* Bot token: stays in main; never leaves the main process. */}
                               <label style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
@@ -1523,9 +1564,15 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                   type="password"
                                   value={slackBotToken}
                                   onChange={(e) => setSlackBotToken(e.target.value)}
-                                  placeholder="xoxb-..."
+                                  placeholder={secretsSet?.slackBotToken ? t('mcpDefaults.stored') : 'xoxb-...'}
+                                  autoComplete="off"
                                   style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
                                 />
+                                {secretsSet?.slackBotToken && (
+                                  <PixelButton variant="ghost" size="sm" onClick={() => { void removeSlackSecret('botToken'); }} disabled={slackBusy}>
+                                    {t('common.remove')}
+                                  </PixelButton>
+                                )}
                               </label>
                             </div>
 
@@ -1570,7 +1617,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                               {/* Start disabled once connected; Stop only when running. */}
-                              <PixelButton variant="primary" size="sm" onClick={startSlack} disabled={slackBusy || !slackSecret.trim() || running}>
+                              <PixelButton variant="primary" size="sm" onClick={startSlack} disabled={slackBusy || !(slackSecret.trim() || secretsSet?.slackSigningSecret) || running}>
                                 {slackBusy ? '...' : running ? t('settings.connections.connectedBtn') : t('settings.connections.start')}
                               </PixelButton>
                               <PixelButton variant="secondary" size="sm" onClick={stopSlack} disabled={slackBusy || !running}>
@@ -1681,7 +1728,6 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {webhookTriggers.map((w) => {
-                              const shown = shownSecrets[w.id] === true;
                               const endpoint = webhookEndpoint(w.id);
                               const modeBlurb = TRIGGER_MODES.find((m) => m.value === w.mode)?.blurb ?? '';
                               return (
@@ -1747,27 +1793,18 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                     </PixelButton>
                                   </div>
 
-                                  {/* Masked by default; never in a title attribute. */}
+                                  {/* The secret is never shown or held here: it lives in the main process,
+                                      which copies it to the clipboard on request. */}
                                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                     <span style={{ ...slackLabelStyle, width: 56, flexShrink: 0 }}>{t('settings.connections.secret')}</span>
-                                    <input
-                                      type={shown ? 'text' : 'password'}
-                                      readOnly
-                                      value={w.secret}
-                                      onFocus={(e) => e.currentTarget.select()}
-                                      style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
-                                    />
+                                    <span style={{ ...slackInputStyle, flex: 1, color: 'var(--cth-ink-700)', display: 'flex', alignItems: 'center' }}>
+                                      {w.hasSecret ? t('webhooksSection.secretStored') : t('webhooksSection.noSecret')}
+                                    </span>
                                     <PixelButton
                                       variant="secondary"
                                       size="sm"
-                                      onClick={() => setShownSecrets((s) => ({ ...s, [w.id]: !shown }))}
-                                    >
-                                      {shown ? t('common.hide') : t('common.show')}
-                                    </PixelButton>
-                                    <PixelButton
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => { void window.cth.copyToClipboard(w.secret); }}
+                                      onClick={() => { void copyWebhookSecretFor(w.id); }}
+                                      disabled={!w.hasSecret}
                                     >
                                       {t('common.copy')}
                                     </PixelButton>
@@ -1843,20 +1880,25 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           <div style={{ display: 'flex', gap: 6 }}>
                             <input
                               type={showOrgKey ? 'text' : 'password'}
-                              value={orgTrigger.apiKey}
-                              onChange={(e) => { void applyOrg({ ...orgTrigger, apiKey: e.target.value }, false); }}
-                              onBlur={() => { void applyOrg(orgTrigger); }}
-                              placeholder={t('settings.connections.orgKeyPlaceholder')}
+                              value={orgKeyDraft}
+                              onChange={(e) => setOrgKeyDraft(e.target.value)}
+                              onBlur={() => { if (orgKeyDraft.trim()) { void applyOrg(orgTrigger, true, orgKeyDraft.trim()); setOrgKeyDraft(''); setShowOrgKey(false); } }}
+                              placeholder={orgTrigger.hasKey ? t('mcpDefaults.stored') : t('settings.connections.orgKeyPlaceholder')}
                               style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
                             />
                             <PixelButton
                               variant="secondary"
                               size="sm"
                               onClick={() => setShowOrgKey((v) => !v)}
-                              disabled={!orgTrigger.apiKey}
+                              disabled={!orgKeyDraft}
                             >
                               {showOrgKey ? t('common.hide') : t('common.show')}
                             </PixelButton>
+                            {orgTrigger.hasKey && (
+                              <PixelButton variant="ghost" size="sm" onClick={() => { void applyOrg(orgTrigger, true, null); }}>
+                                {t('common.remove')}
+                              </PixelButton>
+                            )}
                           </div>
                         </label>
 
@@ -1934,12 +1976,28 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                                   type={showGroqKey ? 'text' : 'password'}
                                   value={groqKey}
                                   onChange={(e) => setGroqKey(e.target.value)}
-                                  placeholder={t('settings.voice.groqPlaceholder')}
+                                  placeholder={secretsSet?.groqApiKey ? t('mcpDefaults.stored') : t('settings.voice.groqPlaceholder')}
                                   style={{ ...slackInputStyle, fontFamily: 'var(--cth-font-mono)' }}
                                 />
                                 <PixelButton variant="secondary" size="sm" onClick={() => setShowGroqKey((v) => !v)} disabled={!groqKey}>
                                   {showGroqKey ? t('common.hide') : t('common.show')}
                                 </PixelButton>
+                                {secretsSet?.groqApiKey && (
+                                  <PixelButton
+                                    variant="ghost" size="sm" disabled={freeflowBusy}
+                                    onClick={async () => {
+                                      setFreeflowBusy(true);
+                                      try {
+                                        await window.cth.freeflowSetConfig({ apiKey: null });
+                                        await refreshSecrets();
+                                        setHasGroqKeyStore(false);
+                                        setFreeflowNote('saved');
+                                      } catch (e) { setFreeflowNote(e instanceof Error ? e.message : String(e)); } finally { setFreeflowBusy(false); }
+                                    }}
+                                  >
+                                    {t('common.remove')}
+                                  </PixelButton>
+                                )}
                               </div>
                             </label>
 

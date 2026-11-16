@@ -1,5 +1,6 @@
 {
   "common": {
+    "remove": "移除",
     "on": "开",
     "off": "关",
     "cancel": "取消",
@@ -209,6 +210,7 @@
       "prerequisites": "前置条件",
       "agentsModels": "智能体与模型",
       "autonomyBudgets": "自主权与预算",
+      "integrations": "集成与技能",
       "connections": "连接",
       "voice": "语音",
       "memoryKnowledge": "记忆与知识",
@@ -297,6 +299,8 @@
       "docCountPlural": "已索引 {{count}} 个文档"
     },
     "connections": {
+      "hubPointer": "大多数集成现在在“集成与技能”中设置。这里保留手动选项：你自己的登录应用（客户端 ID 和密钥），以及登录引擎的选择。",
+      "openHub": "打开集成与技能",
       "slack": "Slack",
       "slackIntegration": "Slack 集成",
       "showSlackHelp": "显示 Slack 连接步骤",
@@ -482,8 +486,7 @@
     "reviewFields": "生成前请逐项检查——尤其是命令。",
     "hireFlags": "⚠️ 该 hire 附加到命令上的标志：",
     "hireSkills": "该 hire 激活的技能：",
-    "mcpSafe": "MCP 服务器（安全、预启用）：",
-    "mcpConsent": "⚠️ MCP（需要你同意——不会自动启用）：",
+    "mcpConsent": "⚠️ MCP（默认关闭——需你手动开启并授予此代理访问权限）：",
     "mcpEnableInSettings": "——审核后可在设置 → MCP 中启用",
     "sections": {
       "identity": {
@@ -837,18 +840,451 @@
     "setUpMacMini": "在 Mac Mini 上配置",
     "autoModeCaveat": "⚠ 在自动模式下，这些引擎以完整的文件系统 + shell 访问权限运行（无沙箱）——就像 Claude 的绕过模式。把自动模式关掉（通用页）即可让它们先询问。与真实模型调用的端到端实测仍在等待你的密钥 / 本地 LLM。"
   },
+  "hub": {
+    "title": "集成与技能",
+    "intro": "连接你的智能体要用的服务，决定哪个智能体可以使用什么，并管理它们加载的技能。这里的一切在你打开之前都是关闭的。",
+    "flow": "选择服务，点击“连接”，在服务自己的页面上批准，然后选择哪些智能体可以使用它。你的智能体永远看不到你的密码、密钥或登录状态。",
+    "loading": "加载中…",
+    "attention": "需要你重新登录的连接：{{count}} 个。",
+    "search": "搜索集成",
+    "searchPlaceholder": "按名称搜索…",
+    "categories": "分类",
+    "noMatch": "没有匹配项。",
+    "planned": "计划中：暂不可用。",
+    "tabs": {
+      "discover": "发现",
+      "connected": "已连接",
+      "skills": "技能",
+      "access": "智能体权限",
+      "activity": "活动"
+    },
+    "cat": {
+      "all": "全部",
+      "knowledge": "知识库",
+      "work": "工作",
+      "dev": "开发",
+      "comms": "消息",
+      "payments": "支付",
+      "search": "搜索",
+      "crm": "客户管理",
+      "local": "本机运行",
+      "custom": "自定义",
+      "ai": "AI 引擎"
+    },
+    "status": {
+      "connected": "已连接",
+      "needsSignin": "请重新登录",
+      "notConnected": "未连接",
+      "unavailable": "不可用"
+    },
+    "card": {
+      "connect": "连接",
+      "reconnect": "重新连接",
+      "manage": "管理",
+      "close": "关闭",
+      "turnOn": "开启"
+    },
+    "verify": {
+      "verified": "已验证",
+      "limited": "部分验证",
+      "untested": "尚未测试",
+      "planned": "计划中",
+      "na": "不适用",
+      "untestedHelp": "还没有人通过本应用登录过这项服务，所以不标记为已验证。",
+      "limitedHelp": "已用真实密钥检查过，但并非每条路径都测过。把鼠标移到标签上查看详情。"
+    },
+    "way": {
+      "account": "用你的账号登录",
+      "device": "用代码登录",
+      "ownApp": "使用你自己的应用",
+      "key": "使用你创建的密钥",
+      "local": "在本机运行",
+      "engine": "在 AI 引擎中设置"
+    },
+    "wayShort": {
+      "account": "账号",
+      "device": "代码",
+      "own-app": "自有应用",
+      "key": "密钥",
+      "local": "本机",
+      "engine": "引擎"
+    },
+    "account": {
+      "help": "在 {{label}} 自己的页面登录。应用只为这一次登录自行注册，不保存任何自己的密钥。"
+    },
+    "connect": {
+      "tier": "请求权限",
+      "tierRead": "只读",
+      "tierWrite": "读写",
+      "cancel": "取消",
+      "clientId": "客户端 ID",
+      "clientIdPlaceholder": "粘贴应用的公开客户端 ID",
+      "starting": "正在开始…",
+      "waitingBrowser": "正在等你在浏览器中批准…",
+      "done": "{{label}} 已连接并已开启。请在“智能体权限”中选择哪些智能体可以使用它。",
+      "errors": {
+        "not-available": "这项服务不支持这种连接方式。",
+        "needs-client-id": "需要先提供应用的客户端 ID。",
+        "bad-client-id": "这看起来不像客户端 ID。",
+        "in-progress": "这项服务已有一个登录正在等待。",
+        "port-busy": "本地登录端口被占用。请关闭另一个登录后重试。",
+        "discovery-failed": "无法读取服务的登录信息，或其指向了应用不信任的地址。",
+        "registration-failed": "服务不允许应用为这次登录注册。",
+        "denied": "登录被拒绝。",
+        "cancelled": "已取消。",
+        "timeout": "耗时过长，请重试。",
+        "expired": "代码已过期，请重新开始。",
+        "device-flow-disabled": "在服务端注册的应用尚未开启代码登录。",
+        "provider-error": "服务报告了错误。",
+        "invalid-callback": "返回的页面不是应用正在等待的那个。没有保存任何内容。",
+        "exchange-failed": "服务拒绝了这次批准。",
+        "bad-token-response": "服务的回复应用无法使用。",
+        "not-stored": "你已登录，但应用无法安全保存结果。没有保留任何内容。",
+        "unavailable": "无法连接到该服务。",
+        "no-browser": "应用无法打开你的浏览器。",
+        "failed": "没有成功，请重试。"
+      }
+    },
+    "device": {
+      "title": "你的代码",
+      "help": "你会得到一个短代码。在服务的页面上输入它即可批准。",
+      "open": "打开 {{url}} 并输入代码。",
+      "openButton": "打开页面"
+    },
+    "key": {
+      "privacy": "密钥加密保存在这台电脑上，不会再次显示，也不会交给任何智能体。",
+      "saved": "{{label}}：密钥已保存。"
+    },
+    "local": {
+      "help": "在这台电脑上运行。首次开启时会安装一个固定版本且经过校验的副本；不会向任何地方发送数据。",
+      "installFailed": "无法安装 {{label}}。"
+    },
+    "rest": {
+      "title": "你自己的 REST 连接",
+      "intro": "对于没有现成连接的服务，可以添加带自有密钥的 REST API。智能体通过应用调用它，永远看不到密钥。",
+      "help": "{{label}} 通过你创建的密钥以 REST API 方式连接。",
+      "open": "打开 REST 连接"
+    },
+    "engine": {
+      "open": "打开 AI 引擎"
+    },
+    "method": {
+      "dcr": "账号登录",
+      "device": "代码登录",
+      "public": "自有应用"
+    },
+    "connected": {
+      "empty": "还没有连接任何服务。打开“发现”开始。",
+      "since": "连接于 {{date}}",
+      "scope": "已允许：{{scope}}",
+      "renews": "登录会自动续期。",
+      "offNote": "已连接但处于关闭状态：任何智能体都无法使用。",
+      "needOnAndConnected": "请先开启并连接。",
+      "tools": "工具与权限",
+      "disconnected": "{{label}} 已断开。",
+      "disconnectedEnd": "{{label}} 已在此处断开。若要在服务端也终止，请到该服务自己的设置中移除此应用。",
+      "couldNotDisconnect": "无法断开 {{label}}。"
+    },
+    "trust": {
+      "title": "信任此服务器自带的只读与读写标签",
+      "help": "默认关闭：应用尚未分类的工具一律视为可能修改数据。只对你信任的服务器开启。"
+    },
+    "access": {
+      "intro": "谁可以使用什么。一切默认为无权限。可以为所有智能体选择一个级别，也可以为某一个单独覆盖。",
+      "integration": "集成",
+      "inherit": "与所有智能体相同",
+      "nothing": "暂时没有可设置的内容。请先连接并开启一项集成。",
+      "note": "只读指只查看的工具。读写还允许会修改内容的工具。应用尚未分类的工具不在任何一档中；请在“工具与权限”中设置。",
+      "unclassified": "工具尚未分类；只允许你手动挑选的工具。"
+    },
+    "compat": {
+      "title": "各智能体命令行工具能做什么",
+      "legend": "已验证：真实的命令行工具已运行，证据已保留。已接入：应用写入了该工具文档所说会读取的内容；尚未运行。每个智能体拿到的通行证只对一项集成有效，可随时立即关闭，也绝不是登录凭据。",
+      "shellNeedsSandbox": "但仅在该命令行工具自带的操作系统沙箱开启时成立；沙箱关闭后，命令可以从该工具的进程中读到通行证",
+      "folderTrust": "仅在你已在该命令行工具中信任的文件夹里加载集成；在其他文件夹里，智能体看不到它们",
+      "notOffered": "不提供给此命令行工具",
+      "otherCli": "其他命令行工具",
+      "status": {
+        "verified": "已验证",
+        "wired": "已接入（未运行）",
+        "unsupported": "不支持"
+      },
+      "delivery": {
+        "config-file": "配置文件",
+        "command-line-and-env": "命令行 + 一个变量",
+        "settings-file-and-env": "设置文件 + 一个变量"
+      },
+      "shell": {
+        "yes": "该智能体的 shell 读不到它的通行证",
+        "no": "该智能体的 shell 能读到它的通行证",
+        "unknown": "未测量：它的 shell 能读到通行证吗？"
+      }
+    },
+    "activity": {
+      "intro": "做了什么、对什么、由谁、是否被允许。最新的在最前。只记录名称和决定，从不记录内容或密钥。",
+      "integration": "集成",
+      "all": "所有集成",
+      "kind": "类型",
+      "allKinds": "所有类型",
+      "verify": "检查记录",
+      "intact": "记录完好（条目：{{records}}，文件：{{files}}）。",
+      "broken": "记录在 {{file}} 第 {{line}} 行对不上，可能被改动过。",
+      "cannotCheck": "无法检查记录。"
+    },
+    "skills": {
+      "intro": "技能是智能体可以加载的说明。安装技能不会连接任何服务，也不会让智能体获得使用任何东西的权限：应用会把工具授权和加载即运行的命令从安装的副本中去掉。",
+      "installFor": "安装给",
+      "target": {
+        "claude": "Claude Code",
+        "agents": "Codex CLI 和 Gemini CLI"
+      },
+      "folders": "文件夹：",
+      "notRunNote": "本应用没有用技能运行过其中至少一个命令行工具，所以它的标签如实说明了这一点。",
+      "installedTitle": "由本应用安装：{{count}} 个",
+      "installedNone": "本应用还没有为这个目标安装任何东西。",
+      "at": "版本 {{commit}}",
+      "installedOn": "安装于 {{date}}",
+      "integrity": {
+        "ok": "未改动",
+        "changed": "安装后已改动",
+        "missing": "文件夹缺失"
+      },
+      "changedDetail": "已改动：{{changed}} · 已删除：{{missing}} · 已新增：{{added}}",
+      "stripped": "已从副本中去掉（工具授权和加载即运行的命令）：{{count}}。",
+      "toolsAsked": "它请求预先批准的工具：{{count}}。一个也没有授予。",
+      "scripts": "附带脚本或依赖文件。没有安装或运行任何东西：",
+      "dependencies": "需要",
+      "needsConnected": "{{label}}：已连接",
+      "needsNotConnected": "{{label}}：未连接",
+      "mentions": "还提到（并非必需）：{{list}}",
+      "verify": "检查",
+      "checkUpdate": "查找更新",
+      "rollback": "回滚",
+      "reveal": "显示文件夹",
+      "remove": "移除",
+      "confirmRemove": "再点一次以移除",
+      "verifiedOk": "{{name}} 与安装时完全一致。",
+      "verifiedChanged": "{{name}} 自安装后已被改动。",
+      "verifiedMissing": "{{name}} 的文件夹缺失。",
+      "upToDate": "{{name}} 已是最新。",
+      "updateCheckFailed": "无法查找 {{name}} 的更新。",
+      "updated": "{{name}} 已更新。旧版本已保留，可以回滚。",
+      "updateFailed": "{{name}} 没有更新，保持原样。",
+      "rolledBack": "{{name}} 已回到上一个版本。",
+      "rollbackFailed": "无法回滚 {{name}}。",
+      "removed": "{{name}} 已移除。",
+      "removeFailed": "无法移除 {{name}}。",
+      "update": {
+        "title": "更新预览",
+        "from": "{{from}} → {{to}}",
+        "noFileChanges": "文件没有变化，只有提交不同。",
+        "added": "新增",
+        "removed": "删除",
+        "changed": "修改",
+        "lines": "行",
+        "newTools": "新版本请求预先批准的工具：{{count}}。安装时会被去掉：",
+        "newIntegrations": "它将使用：",
+        "newScripts": "新增的脚本或依赖文件（不会运行任何东西）：",
+        "locallyModified": "你或某个智能体在安装后改过这些文件；更新会替换它们（旧副本会保留）：{{files}}",
+        "readFirst": "安装前请先看一遍上面的改动。",
+        "keepsOld": "当前版本会保留，可以回滚。",
+        "apply": "安装更新",
+        "discard": "放弃"
+      },
+      "catalogTitle": "目录",
+      "search": "搜索技能",
+      "searchPlaceholder": "搜索技能…",
+      "catalogUnreachable": "无法连接到目录。",
+      "loading": "加载中…",
+      "install": "安装",
+      "installing": "正在安装…",
+      "have": "已安装",
+      "installedResult": "{{name}} 已安装，版本 {{commit}}。",
+      "nothingGranted": "没有授予任何权限，也没有连接任何服务。",
+      "alreadyInstalled": "已经安装。",
+      "notInstallable": "这一条没有可下载的来源。",
+      "installFailed": "安装没有成功，没有留下任何东西。",
+      "showing": "显示 {{total}} 个中的 {{shown}} 个。可搜索以缩小范围。",
+      "othersTitle": "这台电脑上的其他技能：{{count}} 个",
+      "othersNote": "这些不是本应用安装的，所以它无法检查或更新它们。",
+      "scope": {
+        "user": "你的",
+        "project": "此项目",
+        "bundled": "内置"
+      }
+    },
+    "providers": {
+      "sequential-thinking": "帮助智能体一步步梳理问题。",
+      "time": "告诉智能体日期、时间和时区。",
+      "fetch": "让智能体读取你指定的网页。",
+      "filesystem": "让智能体读取你选择的文件夹。",
+      "git": "让智能体读取 git 仓库的历史。",
+      "context7": "查询各种库的最新文档。",
+      "playwright": "智能体可以操作的浏览器。",
+      "notion": "搜索并读取你的 Notion 页面和数据库。",
+      "linear": "读取 Linear 的议题和项目。",
+      "jira": "搜索并读取 Jira 议题。",
+      "confluence": "搜索并读取 Confluence 页面。",
+      "sentry": "读取 Sentry 的错误和问题。",
+      "stripe": "查询 Stripe 的客户、付款和产品。",
+      "github": "读取仓库、议题和拉取请求。",
+      "google-calendar": "查看你的日历和空闲时间。",
+      "google-drive": "查找并读取云端硬盘中的文件。",
+      "gmail": "搜索并读取你的邮件。",
+      "slack": "搜索并读取 Slack 频道。",
+      "brave-search": "通过 Brave 搜索网页。",
+      "hubspot": "读取 HubSpot 的联系人、公司和交易。",
+      "salesforce": "计划中，暂不可用。",
+      "custom-rest": "用自己的密钥连接任意 REST API。",
+      "anthropic": "为你的智能体提供 Claude 模型。在 AI 引擎中设置。",
+      "openai": "为你的智能体提供 OpenAI 模型。在 AI 引擎中设置。",
+      "google-ai": "为你的智能体提供 Google 的 Gemini 模型。在 AI 引擎中设置。",
+      "openrouter": "用一个 OpenRouter 密钥使用众多模型。在 AI 引擎中设置。",
+      "groq": "通过 Groq 使用快速的托管模型。在 AI 引擎中设置。"
+    }
+  },
   "mcpDefaults": {
+    "pkg": {
+      "ready": "已按固定锁文件安装",
+      "installing": "正在按固定锁文件安装…",
+      "missing": "尚未安装",
+      "failed": "安装失败（会被拒绝，绝不绕过校验）",
+      "install": "安装",
+      "installed": "{{label}} 已安装。",
+      "note": "应用按带哈希校验的锁文件安装它（禁用安装脚本）并自行运行；智能体只能通过代理访问它，因此任何智能体都拿不到它的命令或密钥。",
+      "installFailed": "无法安装 {{label}}。"
+    },
     "title": "默认 MCP 服务器",
-    "desc": "这些服务器会并入每个新智能体的会话设置。安全服务器默认开启；写入/密钥类服务器在你同意前保持关闭。更改在下次生成智能体时生效——正在运行的智能体不受影响。",
+    "desc": "这里的一切在你开启之前都是关闭的；开启某个服务器只是让它可用：每个智能体还需要单独获得访问权限，需要凭据的服务器还要先保存凭据。收回权限会在智能体的下一次请求时立即生效；新授权的服务器在智能体下次启动时生效。",
     "toggleNote": "{{id}}：{{state}}",
     "couldNotSave": "无法保存",
     "tiers": {
-      "safeReadonly": "安全且只读（默认开启）",
+      "safeReadonly": "本地、只读、无需密钥（开启前保持关闭）",
       "write": "写入访问（需要同意）",
       "secret": "需要密钥 / API Key（需要同意）",
-      "safeReadonlyNote": "这些服务器只读取数据，不需要密钥，且限定在智能体工作区内。它们对每个新智能体启用。",
+      "safeReadonlyNote": "这些服务器只读取数据，不需要密钥，且限定在智能体工作区内。它们默认关闭：在你开启并授予该智能体访问权限之前，不会有任何内容到达智能体。",
       "writeNote": "这些服务器可以修改工作区之外的状态。默认关闭——审核后再启用。",
-      "secretNote": "这些服务器需要 API 密钥或凭据。默认关闭——添加凭据并在同意后启用。"
+      "secretNote": "这些服务器需要 API 密钥或凭据。默认关闭——添加凭据并在同意后启用。",
+      "oauthBridge": "你自己的 OAuth 客户端（需要同意）",
+      "oauthBridgeNote": "这些服务发布了官方服务器，但智能体无法自行登录：它需要当场向服务注册凭据，而这些服务不允许这样做。请自行注册一个 OAuth 应用，在此粘贴它的两部分，然后登录一次。Mosbius 通过 mcp-remote 桥接连接。登录信息在这台电脑上加密保存，只有在智能体使用该服务器期间才会以可读形式写出。"
+    },
+    "clientId": "客户端 ID",
+    "clientSecret": "客户端密钥",
+    "token": "令牌",
+    "save": "保存",
+    "stored": "已保存——输入以替换",
+    "notSet": "未设置",
+    "saved": "{{label}}：已保存",
+    "forget": "清除",
+    "forgot": "{{label}}：凭据已移除",
+    "signIn": "登录",
+    "needsBoth": "需要两部分都填写才能登录。",
+    "ready": "就绪——智能体可以使用。",
+    "skippedUntilSet": "在存入凭据之前，生成智能体时会跳过。",
+    "connected": "已连接——登录信息已加密保存。",
+    "notConnected": "未连接——登录后智能体才能使用。",
+    "signingIn": "正在等待你在浏览器中完成登录…",
+    "signedIn": "{{label}}：已连接",
+    "disconnect": "断开连接",
+    "disconnected": "{{label}}：已断开连接，并已在服务端撤销访问权限",
+    "disconnectedLocal": "{{label}}：已从这台电脑移除。无法确认撤销是否成功——请同时在你的 {{label}} 账户中移除该应用的访问权限。",
+    "signInErrors": {
+      "inProgress": "该服务的登录已在浏览器中等待完成。",
+      "portBusy": "端口 {{port}} 正被其他程序占用。请关闭它后重试。",
+      "noNpx": "未找到 npx。请安装 Node.js 后重试。",
+      "timeout": "登录未在 5 分钟内完成。",
+      "failed": "登录未完成。请检查客户端 ID、客户端密钥和重定向地址后重试。",
+      "notStored": "已登录，但登录信息无法加密保存，因此已被丢弃。",
+      "denied": "你在浏览器中拒绝了该请求。",
+      "cancelled": "登录已取消。",
+      "providerError": "服务在登录过程中报告了错误。",
+      "invalidCallback": "返回给本应用的响应看起来不对，已被忽略。请重试。",
+      "exchangeFailed": "服务拒绝了此次登录。请检查客户端 ID、密钥和重定向地址。",
+      "badTokenResponse": "服务的响应方式本应用无法识别。",
+      "unavailable": "无法读取凭据存储，因此未开始登录。",
+      "noBrowser": "无法打开你的浏览器。"
+    }
+  },
+  "mcpAccess": {
+    "engineTitle": "登录方式",
+    "engineBridge": "桥接",
+    "engineInApp": "应用内（新）",
+    "engineNote": "应用内登录是新功能，尚未用真实的 Google 或 Slack 账号试过，除非你在测试，否则请保持使用“桥接”。切换不会删除任何登录信息，随时可以切换回来。已在运行的智能体仍沿用启动时的设置。",
+    "switched": "{{label}} 现在使用的登录方式：{{engine}}。",
+    "switchFailed": "无法切换登录方式。",
+    "imported": {
+      "copied": "已复制你现有的登录信息。",
+      "copiedShort": "已复制你现有的登录信息，但其中没有刷新令牌，所以很快需要重新登录。",
+      "none": "没有可复制的现有登录信息，请在下方登录。",
+      "already": "该集成已有应用内登录信息，保持原样。",
+      "failed": "无法复制现有的登录信息，请在下方重新登录。"
+    },
+    "state": {
+      "unconfigured": "请先填写客户端 ID 和密钥。",
+      "signedOut": "尚未登录。",
+      "connected": "已登录。",
+      "needsSignin": "请重新登录：服务已不再接受保存的登录信息。",
+      "unavailable": "无法读取凭据存储。"
+    },
+    "title": "访问权限",
+    "intro": "在你允许之前，智能体无法使用这里的任何内容。更改会在智能体的下一次请求时生效；之后启动的智能体将获得当时允许的权限。",
+    "claudeOnly": "目前只有 Claude Code 智能体可以使用；运行其他引擎的智能体不会获得此项。",
+    "everyone": "所有智能体",
+    "agentsTitle": "特定智能体",
+    "agentsNone": "楼层上还没有智能体。",
+    "inherit": "与所有智能体相同",
+    "customize": "自定义",
+    "useDefault": "使用默认",
+    "presets": {
+      "none": "无",
+      "read": "读取",
+      "write": "写入",
+      "custom": "选定的工具"
+    },
+    "presetNote": {
+      "none": "智能体完全无法使用此集成。",
+      "read": "仅限分类为只读的工具。在工具被分类之前，此项不允许任何工具：请在下方勾选你需要的工具。",
+      "write": "只读工具和普通写入工具；绝不包括发送、发布或删除类工具。尚未分类的工具不包含在内：请在下方勾选你需要的工具。",
+      "custom": "仅限下方勾选的工具，不包含其他任何工具。"
+    },
+    "expiry": {
+      "label": "持续时间",
+      "never": "直到我更改",
+      "hour": "1 小时",
+      "day": "1 天",
+      "until": "直到 {{time}}"
+    },
+    "tools": {
+      "title": "工具",
+      "allow": "允许",
+      "block": "阻止",
+      "load": "从服务加载工具",
+      "reload": "重新加载工具",
+      "loading": "正在询问服务…",
+      "none": "尚未加载任何工具。"
+    },
+    "class": {
+      "read": "读取",
+      "write": "修改",
+      "destructive": "可发送、修改或删除，或尚未分类"
+    },
+    "classNote": "发送、发布或删除内容的工具，或尚未分类的工具，绝不会被“读取”或“写入”包含，只有按名称勾选后才会被允许。",
+    "confirmDestructive": "允许智能体使用“{{tool}}”吗？它可以发送、修改或删除内容，或者尚未被分类。",
+    "activity": {
+      "title": "最近活动",
+      "none": "尚未使用过。",
+      "refresh": "刷新",
+      "allowed": "已允许",
+      "denied": "已拒绝"
+    },
+    "errors": {
+      "generic": "操作未成功。",
+      "forbidden": "请求被拒绝。",
+      "sign_in_required": "请先登录。",
+      "disabled": "请先打开此集成。",
+      "unavailable": "凭据目前不可用。",
+      "upstream": "服务的响应不符合预期。",
+      "unknown": "未知的集成。"
     }
   },
   "devicePicker": {
@@ -968,6 +1404,10 @@
     "beatCeiling": "心跳频率会根据楼层的繁忙程度调整，因此这是上限，而非精确间隔。"
   },
   "webhooksSection": {
+    "rotated": "已换成新密钥——旧密钥立即失效。请现在复制。",
+    "rotate": "轮换",
+    "noSecret": "还没有密钥——有密钥之前此端点保持关闭。",
+    "secretStored": "密钥已保存——不会显示。点击复制即可交给调用方。",
     "summaryNone": "无",
     "summary": "{{count}} · {{state}}",
     "live": "在线",
@@ -1143,6 +1583,8 @@
     "send": "发送"
   },
   "skillsTab": {
+    "installedGuarded": "Mosbius 已先移除其中 {{count}} 项工具授权或加载时执行的命令：技能不能自行授予工具或运行任何东西。",
+    "shipsCode": "它附带脚本或依赖文件；没有安装或运行任何内容。",
     "installed": "已安装",
     "browse": "浏览",
     "searchInstalled": "搜索已安装的技能…",
@@ -1215,6 +1657,11 @@
     "legendInformTopic": "告知/主题"
   },
   "integrations": {
+    "accessTitle": "受雇工人的访问权限",
+    "accessSaved": "访问权限已更新。",
+    "accessFailed": "无法更改访问权限。",
+    "accessNote": "默认无权限。“读取”只允许 GET 请求；“读写”另外允许 POST、PUT 和 PATCH。DELETE 不在任何一档之内。收回权限会在下一次请求时立即生效。此设置针对编排者雇来的工人。",
+    "access": {"none": "无", "read": "读取", "write": "读取 + 写入", "custom": "自定义（按名称设置）"},
     "errLabel": "请给它一个名称。",
     "errId": "无法从该名称派生出有效的 ID。",
     "errBaseUrl": "必须填写基础 URL。",
@@ -1256,12 +1703,12 @@
     "availability": "可用性",
     "enabled": "已启用",
     "disabled": "已禁用",
-    "availableToAll": "✓ 所有工人可用",
+    "availableToAll": "✓ 已就绪——只有在你于下方授予访问权限后，工人才能使用",
     "notAvailableYet": "工人尚不可用",
     "addSecretToEnable": "添加密钥并启用即可使其可用。",
     "readyOnceSaved": "保存后即就绪。",
     "disabledNoUse": "已禁用——没有工人可以使用它。",
-    "v1Note": "v1 将每个已启用的集成授予所有工人。按工人细粒度授权即将推出。",
+    "v1Note": "默认不共享任何内容：启用某个集成并不会让任何工人获得访问权限。",
     "testConnection": "测试连接",
     "testing": "测试中…",
     "testAfterSave": "先保存集成，再测试实时连接。",
