@@ -175,12 +175,13 @@ test('only fixed fields are written: an extra property, a body, a header never r
 test('credential shapes are scrubbed from every field, and control characters and length are bounded', (t) => {
   const dir = tmp(t);
   const s = new AuditStore({ dir, key: KEY });
-  // Invented credentials in the shapes the scrubber must catch. Split where a scanner would read the whole literal as a real
-  // one (GitHub push protection does, even for a made-up token), as test/voice-messages.test.cjs does for its Slack token.
+  // Invented credentials: each is a provider's prefix (what the scrubber keys on) plus a body that says FAKE, written in two
+  // pieces so no complete credential-shaped literal sits in the source. GitHub secret scanning read an earlier, alphabet-run
+  // version of the Google one as a possible key. None of these exists anywhere; the test only needs the shape.
   const canaries = [
-    'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8', 'xoxb-' + '1234567890-abcdefghijklmnop', 'sk-ant-api03-ZZZZZZZZZZZZZZZZZZZZ',
-    'AIzaSyD-abcdefghijklmnopqrstuvwxyz12345', 'ya29.a0AbCdEfGhIjKlMnOpQrStUv', 'ntn_abcdefghijklmnopqrstuvwxyz0123',
-    'github_pat_11ABCDEFG0abcdefghijklmnop', 'f'.repeat(64)
+    'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8', 'xoxb-' + '1234567890-abcdefghijklmnop', 'sk-ant-api03-' + 'FAKE-FIXTURE-NOT-A-KEY',
+    'AIza' + 'FAKE-FIXTURE-NOT-A-KEY-000', 'ya29.' + 'FAKE-FIXTURE-NOT-A-TOKEN', 'ntn_' + 'FAKE-FIXTURE-NOT-A-TOKEN',
+    'github_pat_' + 'FAKE_FIXTURE_NOT_A_TOKEN', 'f'.repeat(64)
   ];
   for (const c of canaries) {
     s.append({ kind: 'mcp', actor: `agent:${c}`, agentId: c, integrationId: 'x', action: `call ${c}`, reason: `Bearer ${c}`, detail: `see ${c} here` });

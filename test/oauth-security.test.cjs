@@ -261,7 +261,7 @@ test('safeLog keeps codes, numbers and flags and replaces everything that looks 
   const log = safeLog((l) => lines.push(JSON.parse(l)));
   log({
     event: 'signin.end', id: 'google-calendar', ok: false, error: 'invalid-callback', hits: 12, port: 33101,
-    token: 'ya29.A0ARrdaM-abcdefghijklmnopqrstuvwxyz', code: '4/0AVeryRealLookingAuthorizationCode', state: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+    token: 'ya29.' + 'A0ARrdaM-abcdefghijklmnopqrstuvwxyz', code: '4/0AVeryRealLookingAuthorizationCode', state: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
     refresh: '1//0gAbCdEf', text: 'line one\nline two', url: 'https://x.example/cb?code=abc', huge: 'a'.repeat(500), 'bad key!': 'x', nothing: undefined
   });
   assert.deepEqual(lines[0], {

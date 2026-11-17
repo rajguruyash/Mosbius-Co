@@ -50,7 +50,7 @@ test('brokerServerEntry: exactly the broker\'s own address and a capability-shap
     'http://127.0.0.1:41234@evil.example/m/gmail', 'https://gmailmcp.googleapis.com/mcp/v1', 'http://127.0.0.1:99999999/m/gmail', ''
   ]) assert.equal(brokerServerEntry('gmail', { url, authorization: good }), null, url);
   for (const authorization of [
-    token, `bearer ${token}`, `Bearer ${token}x`, `Bearer ${token.slice(1)}`, `Bearer ${token} `, 'Bearer ya29.a0AfH6SMBx-looks-like-a-google-token.with.dots_and_more',
+    token, `bearer ${token}`, `Bearer ${token}x`, `Bearer ${token.slice(1)}`, `Bearer ${token} `, 'Bearer ya29.' + 'a0AfH6SMBx-looks-like-a-google-token.with.dots_and_more',
     `Bearer xoxp-${'1'.repeat(11)}-${'2'.repeat(11)}-${'3'.repeat(11)}-${'a'.repeat(32)}`, `Basic ${token}`, `Bearer ${token}\nX: y`, '', 'Bearer '
   ]) assert.equal(brokerServerEntry('gmail', { url: URL_OF('gmail'), authorization }), null, authorization.slice(0, 40));
 });
