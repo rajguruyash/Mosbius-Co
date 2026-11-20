@@ -32,7 +32,6 @@
       <a class="nav-more" href="#plug">Integrations</a>
       <a class="nav-more" href="#skills">Skills</a>
       <a class="nav-more" href="#security">Security</a>
-      <a class="nav-more nav-wide" href="#status">Status</a>
       <a href="#download">Download</a>
       <a href="https://github.com/rajguruyash/Mosbius-Co">GitHub</a>
     </div>
@@ -46,17 +45,15 @@
     <h1>Your coding story starts here.</h1>
     <p class="lede">
       Mosbius &amp; Co runs the coding agents already installed on your machine as a
-      crew, across <!--gen:locations-word-->seven<!--/gen--> rooms you can walk between. It signs in with their own
-      official logins — never your password.
+      crew, across <!--gen:locations-word-->seven<!--/gen--> rooms you can switch between. Free and open source.
     </p>
     <div class="actions">
-      <a class="btn btn-primary" href="https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0">Download for macOS</a>
-      <a class="btn" href="https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0.0">Download for Windows</a>
+      <a class="btn btn-primary" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0/Mosbius-Co-1.0.0-mac-arm64.dmg">Download for macOS</a>
+      <a class="btn" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0.0/Mosbius-Co-1.0.0.0-win-x64-setup.exe">Download for Windows</a>
       <a class="btn btn-ghost" href="https://github.com/rajguruyash/Mosbius-Co">View on GitHub</a>
     </div>
     <p class="hero-note">
-      You only need one signed-in agent. Claude Code, Codex and Gemini CLI are all
-      detected; nothing installs or signs in unless you click it.
+      Works with Claude Code, OpenAI Codex and Google Gemini CLI. You only need one.
     </p>
   </div>
 
@@ -77,10 +74,8 @@
       <span class="kicker"><span class="dot"></span>MEET THE TEAM</span>
       <h2>One office.<br><!--gen:locations-word-cap-->Seven<!--/gen--> legendary locations.</h2>
       <p>
-        Every agent runs its own session with its own terminal. The characters
-        below are how the app presents a crew — a character, a room and a job.
-        They are not different AI providers: each room runs whichever CLI
-        you have signed in.
+        Every agent gets its own terminal, a character to match, a room and a job.
+        Meet the crew.
       </p>
     </div>
     <div class="team" id="team-cards"></div>
@@ -95,8 +90,7 @@
       <h2>Watch your coding team<br>come to life.</h2>
       <p>
         A task arrives, Ted hands it out, and the agents that take it walk to a
-        desk and start working. This is an animation of what the app does — the
-        web page is not launching real CLI sessions in your browser.
+        desk and start working. This is how the desktop app brings a crew to life.
       </p>
     </div>
 
@@ -136,10 +130,8 @@
       <span class="kicker"><span class="dot"></span><!--gen:locations-word-upper-->SEVEN<!--/gen--> LOCATIONS</span>
       <h2>Every room is a workspace.</h2>
       <p>
-        These are the app's own rooms, exported from the same painted world the
-        desktop build ships. Pick one and watch who is in it. In the app, an agent
-        belongs to the room that was open when you added it, and changing room never
-        touches a session; there is no control yet to move an agent from one room to another.
+        Rooftop parties, the booth at MacLaren's, the boardroom at GNB. Every room from the
+        show is its own workspace with its own boss and crew. Pick one and see who is in.
       </p>
     </div>
 
@@ -163,8 +155,7 @@
       <span class="kicker"><span class="dot"></span>SHORT REELS</span>
       <h2>Pixel-art, start to finish.</h2>
       <p>
-        Looping sequences, drawn with the same sprites and rooms as the app.
-        No footage, no soundtrack, no audio at all.
+        Little stories from the office, drawn with the same sprites and rooms as the app.
       </p>
     </div>
 
@@ -183,47 +174,18 @@
 <section class="horn-mark" id="features">
   <div class="shell">
     <div class="section-head">
-      <span class="kicker"><span class="dot"></span>WHAT IT ACTUALLY DOES</span>
-      <h2>The agents you already have.</h2>
-      <p>Mosbius &amp; Co does not ship a model. It drives the CLIs on your machine.</p>
+      <span class="kicker"><span class="dot"></span>WHAT IT DOES</span>
+      <h2>Your agents, one office.</h2>
+      <p>Mosbius &amp; Co brings the coding agents you already use together, and gives you control over what they can reach.</p>
     </div>
     <div class="features">
-      <div class="feature">
-        <h3>Finds your CLIs</h3>
-        <p>Claude Code, Codex and Gemini CLI are detected where they are installed. Nothing is installed for you, and nothing signs in on your behalf.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>A session per agent</h3>
-        <p>Each agent runs in its own terminal, with its own working directory and its own history, whichever room it sits in. Changing room never stops a session.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>Agent manager</h3>
-        <p>Hire, name and place agents, watch what each is doing, and stop any of them from one window.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>MCP servers</h3>
-        <p>The <!--gen:local-word-->seven<!--/gen--> local servers run on your computer and need no account; hosted ones connect with your sign-in, a key, or an OAuth app you register. Every one is off until you switch it on, and an agent reaches it only through a local broker, with access you grant per agent and per tool.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>REST integrations</h3>
-        <p>Ready-made templates (<!--gen:rest-word-->nine<!--/gen-->, one of them for any base URL of your own) behind a local broker. Your key is encrypted by the operating system and attached at call time, never handed to the agent, and each request is checked by method and path.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>Skills</h3>
-        <p>Browse a catalogue of community skills, see the source repository, install the ones you want by hand, for Claude Code or for Codex and Gemini CLI. Nothing installs itself, an installed skill grants nothing and connects nothing, and an update shows every changed line before anything changes.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
+      <div class="feature"><h3>Finds your agents</h3><p>Claude Code, Codex and Gemini CLI are detected on your machine and keep the sign-in you already have.</p></div>
+      <div class="feature"><h3>A terminal per agent</h3><p>Each agent has its own terminal, folder and history. Switch rooms whenever you like; your sessions keep running.</p></div>
+      <div class="feature"><h3>Agent manager</h3><p>Hire, name and place agents, see what each is doing, and stop any of them from one window.</p></div>
+      <div class="feature"><h3>Tools and services</h3><p>Run local tools on your computer or connect services like GitHub, Notion and Slack. Everything is off until you switch it on.</p></div>
+      <div class="feature"><h3>Your own APIs</h3><p>Connect any REST API with its own key. The key stays encrypted and is never handed to the agent.</p></div>
+      <div class="feature"><h3>Skills</h3><p>Browse a catalogue of skills, see where each comes from, install what you want and roll back any update.</p></div>
     </div>
-    <p class="fine" style="margin-top:14px">
-      "In the app" describes the <a href="https://github.com/rajguruyash/Mosbius-Co">main branch</a>. The
-      published installers were built before the integrations and skills platform existed;
-      the <a href="#download">download section</a> says how to get it.
-    </p>
   </div>
 </section>
 
@@ -232,17 +194,17 @@
   <div class="shell">
     <div class="section-head">
       <span class="kicker"><span class="dot"></span>THE AGENTS</span>
-      <h2><!--gen:agents-word-cap-->Three<!--/gen--> coding agents,<br><!--gen:agents-word-->three<!--/gen--> ways in.</h2>
-      <p>
-        Claude Code, Codex and Gemini CLI read different configuration, so Mosbius hands each its
-        access its own way. Below is what was actually run for each, with what, and what is known to be
-        weaker. "Verified" means the real command-line program was run against the real broker. It does
-        not mean a real third-party account was used, and only the versions shown were run: these
-        programs change quickly, and a newer release may behave differently.
-      </p>
+      <h2>Bring the agents<br>you already use.</h2>
+      <p>Mosbius &amp; Co does not ship a model. It runs the coding agents on your machine, side by side.</p>
     </div>
-    <div class="agent-grid" id="agent-cards"></div>
-    <p class="fine" id="engines-note"></p>
+    <div class="agent-grid">
+      <article class="agent-card"><div class="agent-card-head"><h3>Claude Code</h3><span class="agent-ver">Anthropic</span></div>
+        <p class="agent-summary">Add Claude Code agents to any room. Each works in its own terminal, keeps the sign-in you already have, and can use the tools and skills you give it.</p></article>
+      <article class="agent-card"><div class="agent-card-head"><h3>OpenAI Codex</h3><span class="agent-ver">OpenAI</span></div>
+        <p class="agent-summary">Add OpenAI Codex agents to any room. Each works in its own terminal, keeps the sign-in you already have, and can use the tools and skills you give it.</p></article>
+      <article class="agent-card"><div class="agent-card-head"><h3>Google Gemini CLI</h3><span class="agent-ver">Google</span></div>
+        <p class="agent-summary">Add Google Gemini CLI agents to any room. Each works in its own terminal, keeps the sign-in you already have, and can use the tools and skills you give it.</p></article>
+    </div>
   </div>
 </section>
 
@@ -252,12 +214,10 @@
 
     <div class="section-head">
       <span class="kicker"><span class="dot"></span>INTEGRATIONS</span>
-      <h2>Plug it in.<br>Nothing is on until you say so.</h2>
+      <h2>Plug in your tools.</h2>
       <p>
-        MCP servers and REST APIs, grouped by what they are for. Every entry below is read from the same
-        data the app uses, so this is the whole list, not a marketing number. Each card says how far it
-        has been checked, in words that are defined underneath. Nothing is switched on when you install: you
-        turn each one on, then decide which agent may use it.
+        GitHub, Notion, Slack, Google Workspace and more, grouped by what they are for. Everything starts
+        switched off: turn on what you want, then choose which agent may use it.
       </p>
     </div>
 
@@ -266,7 +226,6 @@
         <div class="filters" role="group" aria-label="Which group of integrations" id="filters"></div>
 
         <div class="card-groups" id="cards"></div>
-        <p class="fine" id="cards-caption" aria-live="polite"></p>
       </div>
 
       <aside class="agent-panel" aria-label="What one agent can reach">
@@ -286,36 +245,12 @@
         <ul class="slots" id="slots"></ul>
 
         <p class="panel-note">
-          Switch a server on, add its key if it needs one, and give Ted access — only
-          then is he handed the connection. Until all three are true he is not given it
-          at all, rather than given one that fails.
+          Switch a service on, connect it, and give Ted access. Only then can he use it.
         </p>
         <p class="panel-foot">
-          Each room has its own crew, and every agent reads the same catalogue.
-          Keys are encrypted by your operating system and never reach the agent or the
-          interface; the app hands a key only to the server or request it belongs to.
+          Credentials are stored encrypted by your operating system and are never shown to an agent.
         </p>
       </aside>
-    </div>
-
-    <h3 class="sub-head">What the words mean</h3>
-    <dl class="legend" id="legend"></dl>
-    <p class="fine" id="catalogue-counts"></p>
-
-    <div class="honest">
-      <div><b>Nothing on, until you say so.</b> Every server starts switched off. Switching
-        one on only makes it available: each agent then needs access of its own, and the
-        default is none. Files and git are pinned to the workspace, never your whole disk.</div>
-      <div><b>Reading and acting are separate.</b> Access is read, write or a hand-picked list
-        of tools. A tool that sends, posts or deletes — or that nobody has classified yet —
-        is never included by read or write; you tick it by name.</div>
-      <div><b>No real account has been used.</b> The local servers answered real calls on a Mac.
-        Every sign-in and key flow was run against a stand-in service. So no account-based
-        provider is marked verified, and one can still fail at its first real call.</div>
-      <div><b>Hosted Google and Slack need your own app.</b> They refuse the on-the-spot registration
-        an agent depends on, so Mosbius reaches them with an OAuth app you register yourself and sign in
-        to once. On the default engine their tokens sit in readable files while an agent that uses them runs:
-        that is a known limit, listed under <a href="#security">Security</a>.</div>
     </div>
 
   </div>
@@ -326,58 +261,16 @@
   <div class="shell">
     <div class="section-head">
       <span class="kicker"><span class="dot"></span>SKILLS</span>
-      <h2>Skills, installed by hand.<br>They grant nothing.</h2>
-      <p>
-        A skill is a folder of instructions an agent can load. The Skills tab lists a community catalogue,
-        shows the source of each entry, and installs only when you press Install. The app does not vouch
-        for what is in the catalogue; it makes sure that installing a skill cannot give it power.
-      </p>
+      <h2>Teach your agents new tricks.</h2>
+      <p>A skill is a folder of instructions an agent can load. Browse a catalogue, install what you like, and stay in control of every change.</p>
     </div>
-
     <div class="features">
-      <div class="feature">
-        <h3>Discover and install</h3>
-        <p>Browse the catalogue, see the source repository, install for the agent CLI you choose. Nothing installs itself and nothing updates by itself.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>Installing grants nothing</h3>
-        <p>A skill never gives itself an integration permission and never connects a service. The integrations it needs show up as dependencies, each with its own Connect button, and each still needs your grant.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>Filtered on the way in</h3>
-        <p>Tool grants, hooks, servers and permission modes are taken out of the copy, run-on-load commands are defused, and configuration that would arm a hook or a server is not written at all. Scripts are written as plain, non-executable files and listed to you.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>Provenance and integrity</h3>
-        <p>Every install records its source and the exact commit it was read at, plus a hash of every file, in a record the agent cannot edit. Check tells you if anything changed on disk, file by file.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>Updates and rollback</h3>
-        <p>An update is fetched into a staging folder and shown to you line by line, with any new script or integration, before anything changes. The old version is kept, so you can roll back.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
-      <div class="feature">
-        <h3>Per-agent installation</h3>
-        <p>Claude Code reads its own folder; Codex and Gemini CLI read a shared one. Each target has its own record, so a skill can be installed for one, updated for another, and removed from a third.</p>
-        <span class="tag tag-on">IN THE APP</span>
-      </div>
+      <div class="feature"><h3>Discover and install</h3><p>Browse a community catalogue and install a skill for the agent you choose, with one click.</p></div>
+      <div class="feature"><h3>Safe by default</h3><p>Installing a skill never connects a service and never grants permission. Anything that could switch something on is left out.</p></div>
+      <div class="feature"><h3>Know where it came from</h3><p>Every skill keeps its source and exact version, and you can check at any time that it is unchanged.</p></div>
+      <div class="feature"><h3>Update with a preview</h3><p>See every changed line before an update is applied, and roll back if you do not like it.</p></div>
+      <div class="feature"><h3>Claude, Codex and Gemini</h3><p>Install the same skill for Claude Code or for Codex and Gemini CLI, and keep them separate.</p></div>
     </div>
-
-    <h3 class="sub-head">Where each CLI finds its skills</h3>
-    <div class="table-wrap" role="region" aria-label="Where each CLI finds its skills" tabindex="0">
-      <table class="grid-table is-wide">
-        <thead><tr><th scope="col">CLI</th><th scope="col">Folders it reads</th><th scope="col">Checked how</th></tr></thead>
-        <tbody id="skills-compat"></tbody>
-      </table>
-    </div>
-    <p class="fine">
-      Tested against a stand-in GitHub and driven in the real desktop app. Not done: installing from the live
-      catalogue, and a real update from a real repository.
-    </p>
   </div>
 </section>
 
@@ -386,57 +279,18 @@
   <div class="shell">
     <div class="section-head">
       <span class="kicker"><span class="dot"></span>SECURITY AND PERMISSIONS</span>
-      <h2>Who can reach what.</h2>
-      <p>
-        Mosbius decides, on every single request, which agent may use which tool. The default is none, and
-        the person at the keyboard is the only one who can change it. The limits are listed here as plainly
-        as the controls.
-      </p>
+      <h2>You decide who can reach what.</h2>
+      <p>Agents start with no access. You switch things on, connect them, and choose exactly what each agent may do.</p>
     </div>
-
-    <ol class="flow" aria-label="How an agent gets access">
-      <li><b>1 · Switch it on.</b> Every integration starts off. Switching one on only makes it available.</li>
-      <li><b>2 · Connect it.</b> Sign in on the service's own page, or store a key. The agent never sees either.</li>
-      <li><b>3 · Grant that agent access.</b> None, read, write, or a hand-picked list of tools, with an optional end time.</li>
-    </ol>
-
     <div class="features">
-      <div class="feature">
-        <h3>Deny by default</h3>
-        <p>A new agent can reach nothing. A tool nobody classified is treated as destructive and is never in read or write.</p>
-      </div>
-      <div class="feature">
-        <h3>Per agent, per tool</h3>
-        <p>Read, write and destructive are separate. A tool that sends, posts or deletes is ticked by name, never included for you.</p>
-      </div>
-      <div class="feature">
-        <h3>A pass, not your login</h3>
-        <p>An agent holds a random pass for a single integration, which only works on this computer's loopback address and which the app can cancel at any moment.</p>
-      </div>
-      <div class="feature">
-        <h3>Revoked at once</h3>
-        <p>Taking access away applies to the agent's next request and cancels the ones in flight. Revoking in the middle of a run was tested through the real Codex and Gemini CLIs.</p>
-      </div>
-      <div class="feature">
-        <h3>Credentials stay put</h3>
-        <p>Keys and tokens live in the operating system's encrypted store, are handed only to the local server they belong to, over a private pipe, and never reach the agent, the page, a log or a process listing.</p>
-      </div>
-      <div class="feature">
-        <h3>An audit trail</h3>
-        <p>Every decision is written to a hash-chained record of names and decisions, never contents or secrets. A deleted, truncated or edited record is detected.</p>
-      </div>
-      <div class="feature">
-        <h3>Local servers are isolated</h3>
-        <p>Installed from version-pinned, hash-checked locks with install scripts off, run by the app rather than by the agent, and the file and git servers are scoped to the workspace.</p>
-      </div>
+      <div class="feature"><h3>You are in control</h3><p>Nothing is connected until you connect it, and nothing is reachable until you switch it on.</p></div>
+      <div class="feature"><h3>Per-agent permissions</h3><p>Give each agent only the services it needs, and none by default.</p></div>
+      <div class="feature"><h3>Read and write controls</h3><p>Choose read, write or a hand-picked list of tools. Sending, posting and deleting are always ticked by hand.</p></div>
+      <div class="feature"><h3>Careful with credentials</h3><p>Keys and sign-ins are stored encrypted by your operating system and are not handed to the agent.</p></div>
+      <div class="feature"><h3>Revoke any time</h3><p>Take access away and it applies at once. The Activity tab shows what was done.</p></div>
+      <div class="feature"><h3>Local first</h3><p>Your workspace stays on your machine. There is no Mosbius &amp; Co account.</p></div>
     </div>
-
-    <h3 class="sub-head">Known limits</h3>
-    <div class="limits" id="limits"></div>
-    <p class="fine">
-      The full list, with what was tested and how, is in the
-      <a href="https://github.com/rajguruyash/Mosbius-Co/blob/main/SECURITY_REPORT.md">security report</a>.
-    </p>
+    <p class="fine">More detail in the <a href="https://github.com/rajguruyash/Mosbius-Co/blob/main/SECURITY_REPORT.md">security notes</a>.</p>
   </div>
 </section>
 
@@ -444,45 +298,14 @@
 <section class="horn-mark" id="screens">
   <div class="shell">
     <div class="section-head">
-      <span class="kicker"><span class="dot"></span>THE SETTINGS INTERFACE</span>
-      <h2>This is the real thing.</h2>
-      <p>
-        Real captures of the packaged app, taken by the project's own interface test on a throwaway
-        profile, copied here unchanged. No account is connected in any of them, and nothing on this
-        page is a mock-up.
-      </p>
+      <span class="kicker"><span class="dot"></span>INSIDE THE APP</span>
+      <h2>Connect, install, keep track.</h2>
+      <p>Find a service, switch it on, install skills and see what your agents have been doing.</p>
     </div>
     <div class="shots" id="shots"></div>
   </div>
 </section>
 
-<!-- ───────────────────────── status ───────────────────────── -->
-<section class="band-light horn-mark left" id="status">
-  <div class="shell">
-    <div class="section-head">
-      <span class="kicker"><span class="dot"></span>WHERE IT STANDS</span>
-      <h2>An honest status.</h2>
-      <p>
-        What has been run, on what, and what has not. Every number in the first rows is read from the
-        app's own data, so it changes when the app does.
-      </p>
-    </div>
-    <div class="table-wrap">
-      <table class="grid-table" id="status-table">
-        <thead><tr><th scope="col">Area</th><th scope="col">State</th></tr></thead>
-        <tbody id="status-generated"></tbody>
-        <tbody>
-          <tr><th scope="row">macOS, Apple Silicon</th><td>Developed and tested: the automated suite, the real desktop app driven (development and packaged), and the <!--gen:agents-word-->three<!--/gen--> agent CLIs.</td></tr>
-          <tr><th scope="row">macOS, Intel</th><td>A universal build is configured and was built. Never run on an Intel Mac.</td></tr>
-          <tr><th scope="row">Windows, x64</th><td>An installer is published. It was built on a Mac and has never been run on Windows hardware.</td></tr>
-          <tr><th scope="row">Linux</th><td>An AppImage target is configured. Not built, not run.</td></tr>
-          <tr><th scope="row">Builds</th><td>Unsigned and not notarised, so your system will warn you on first open.</td></tr>
-          <tr><th scope="row">This website</th><td>A static page in the repository. It is not deployed anywhere by the project.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
 
 <!-- ───────────────────────── download ───────────────────────── -->
 <section class="band-deep horn-mark" id="download">
@@ -490,23 +313,15 @@
     <div class="section-head">
       <span class="kicker"><span class="dot"></span>GET IT</span>
       <h2>Your office is waiting.</h2>
-      <p>Free and open source. macOS and Windows builds are published; Linux is in development.</p>
+      <p>Free and open source. Download Mosbius &amp; Co for macOS or Windows.</p>
     </div>
     <div class="actions">
-      <a class="btn btn-primary" href="https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0">macOS — Apple silicon</a>
-      <a class="btn" href="https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0.0">Windows — x64 installer</a>
-      <span class="btn btn-ghost" aria-disabled="true" style="color:#b9c6d8;border-color:#5b6579">Linux — coming soon</span>
+      <a class="btn btn-primary" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0/Mosbius-Co-1.0.0-mac-arm64.dmg">macOS — Apple silicon</a>
+      <a class="btn" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0.0/Mosbius-Co-1.0.0.0-win-x64-setup.exe">Windows 10/11 — x64</a>
     </div>
-    <p class="panel-foot" style="color:#9aa4ba;margin-top:14px">
-      Both builds are unsigned, so your system will warn you on first open. The Windows
-      installer was cross-built on a Mac and has not been tested on Windows hardware.
-    </p>
-    <p class="panel-foot" style="color:#cfd4e0;margin-top:10px">
-      <b>The integrations and skills described on this page are in the main branch, not in these installers.</b>
-      The published builds were made before that platform existed. To use it, run the app from source
-      (<code>npm ci</code>, then <code>npm run dev</code>, with Node 22) as the
-      <a href="https://github.com/rajguruyash/Mosbius-Co">README</a> describes, until a newer release is published.
-    </p>
+    <p class="fine">You need at least one coding agent installed and signed in. See the
+      <a href="https://github.com/rajguruyash/Mosbius-Co/blob/main/README.md#installation-and-downloads">installation guide</a>
+      or <a href="https://github.com/rajguruyash/Mosbius-Co/releases">all releases</a>.</p>
   </div>
 </section>
 

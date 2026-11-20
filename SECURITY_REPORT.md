@@ -61,3 +61,18 @@ See the table in [INTEGRATIONS.md](INTEGRATIONS.md#who-can-see-the-pass-and-what
 - **NOT MEASURED. Windows and Linux** for everything above.
 - **NOT DONE. No real provider sign-in.** Nothing here shows that Notion, Linear, Atlassian, Sentry, Stripe, GitHub, Google or Slack accepts the app's sign-in. That needs your account and is the largest remaining gap.
 - **Builds are unsigned.** Signing and notarising need your Apple Developer ID; without them macOS asks for Keychain access on first use (F6).
+
+## Known limitations, in plain words
+
+The properties above are tested, and the findings from testing are in this report. The limits, stated plainly:
+
+1. **A pass is a bearer value.** Anything running as you that can read an agent's environment or its config can use that agent's pass until it is cancelled. The app bounds the damage (this computer's loopback address only, one agent, one integration, the grant checked on every request, a pass that dies with the agent, and never the credential itself); it cannot remove the risk.
+2. **Codex: the shell protection needs Codex's OS sandbox.** The pass is kept out of the shell's environment, and with Codex's sandbox on (the app's auto mode, `-s workspace-write`) the shell also cannot inspect the Codex process. **With the sandbox off, a command can read the pass from the Codex process** (measured with a control). If you start Codex with a different sandbox mode, this protection is gone.
+3. **Gemini CLI: its shell can read the pass (finding F9, left open on purpose).** The pass has to be in Gemini's own environment, and a command in Gemini's shell can read the environment of the Gemini process above it (`ps` on macOS; `/proc` on Linux, reasoned and not run). Gemini has no setting that prevents it: it has no per-variable exclusion, and its global redaction would also hide variables of yours, `SSH_AUTH_SOCK` included, whatever the allow list says. Nothing was built that only looks like a fix. It is bounded by what the pass can do (point 1). Gemini also loads an integration only in a folder **you have trusted in Gemini**; elsewhere the integration is disabled and the broker is never contacted.
+4. **The `mcp-remote` bridge leaves tokens in readable files** while an agent that uses it runs. It applies to Gmail, Calendar, Drive and Slack on the default engine; the in-app engine does not do this.
+5. **A hired worker's REST pass is in its environment by design**, because the worker calls the broker with it. It exists only when the worker was granted a REST integration; the default is none.
+6. **No real provider sign-in has been verified.** Every account-based provider is stand-in tested only; see the catalogue.
+7. **The builds are unsigned and not notarised.** On macOS, the first use of the encrypted store makes the system show a Keychain permission dialog, and an unsigned app waits for it.
+8. **Windows and Linux were not run.** Everything above was tested on macOS.
+
+These are **not** claimed anywhere in this repository: that an integration works with a real account, that Windows or Linux work, that Gemini's shell cannot read its pass, or that a skill is safe because it is in the catalogue (the app does not vouch for its entries).

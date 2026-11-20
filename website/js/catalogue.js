@@ -2,59 +2,6 @@
  * `npm run website:build` rewrites it, and the website job in CI fails if the committed copy is stale. */
 window.MOSBIUS_CATALOGUE = {
   "generatedBy": "tools/lib/catalogue.cjs, from src/shared/providers.ts, mcpCatalog.ts, integrations.ts, agentCompat.ts, agentProvider.ts, the English locale, the world file and evidence/**",
-  "terms": [
-    {
-      "id": "implemented",
-      "label": "Implemented",
-      "meaning": "The app has a way to connect an agent to it: code, a catalogue entry or REST template, and a card in Settings. It says nothing about whether it has been run against the real service."
-    },
-    {
-      "id": "locally-tested",
-      "label": "Locally tested",
-      "meaning": "The real server ran on the development Mac and answered a real tool call. It needs no account. macOS only."
-    },
-    {
-      "id": "stand-in-tested",
-      "label": "Stand-in tested",
-      "meaning": "The way the app connects to it (sign-in, sign-in code, your own app, a key, or the REST route) was run end to end against a stand-in service that behaves like a provider. It proves the app's side of the connection, not the provider's."
-    },
-    {
-      "id": "real-account-verified",
-      "label": "Real-account verified",
-      "meaning": "A real sign-in or key was used for a real call, and the evidence file is in the repository. Nothing is in this state yet."
-    },
-    {
-      "id": "not-yet-verified",
-      "label": "Not yet verified",
-      "meaning": "Implemented, but never run against the real service with a real account."
-    },
-    {
-      "id": "not-implemented",
-      "label": "Not implemented",
-      "meaning": "Not available in the app."
-    }
-  ],
-  "counts": {
-    "providers": 22,
-    "providersImplemented": 21,
-    "groups": 8,
-    "mcpCatalogueEntries": 19,
-    "localServers": 7,
-    "restTemplates": 9,
-    "accountSignIn": 6,
-    "ownAppProviders": 4,
-    "locallyTested": 7,
-    "partlyTested": 1,
-    "standInTested": 14,
-    "realAccountVerified": 0,
-    "notYetVerified": 14,
-    "notImplemented": 1,
-    "codingAgentsWithIntegrations": 3,
-    "supportedEngines": 12,
-    "locations": 7,
-    "hubTabs": 5
-  },
-  "countsSentence": "22 providers in 8 groups: 21 implemented, 1 not implemented. 7 are locally tested (real tool calls), 1 partly, 14 have had their connection path run against a stand-in, and 0 have been verified with a real account. Behind them are 19 MCP server entries and 9 REST templates.",
   "groups": [
     {
       "id": "local",
@@ -70,16 +17,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "runs on this computer"
-          ],
-          "implemented": true,
-          "locallyTested": "yes",
-          "standInTested": "na",
-          "realAccountVerified": "na",
-          "notYetVerified": false,
-          "notImplemented": false,
-          "chip": "locally-tested",
-          "chipLabel": "Locally tested",
-          "note": "Installed from its hash-pinned lock, started by the app, and answered a real tool call. Tested on macOS only."
+          ]
         },
         {
           "id": "time",
@@ -90,16 +28,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "runs on this computer"
-          ],
-          "implemented": true,
-          "locallyTested": "yes",
-          "standInTested": "na",
-          "realAccountVerified": "na",
-          "notYetVerified": false,
-          "notImplemented": false,
-          "chip": "locally-tested",
-          "chipLabel": "Locally tested",
-          "note": "Installed from its hash-pinned lock, started by the app, and answered a real tool call. Tested on macOS only."
+          ]
         },
         {
           "id": "fetch",
@@ -110,16 +39,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "runs on this computer"
-          ],
-          "implemented": true,
-          "locallyTested": "yes",
-          "standInTested": "na",
-          "realAccountVerified": "na",
-          "notYetVerified": false,
-          "notImplemented": false,
-          "chip": "locally-tested",
-          "chipLabel": "Locally tested",
-          "note": "Installed from its hash-pinned lock, started by the app, and answered a real tool call. Tested on macOS only."
+          ]
         },
         {
           "id": "filesystem",
@@ -130,16 +50,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "runs on this computer"
-          ],
-          "implemented": true,
-          "locallyTested": "yes",
-          "standInTested": "na",
-          "realAccountVerified": "na",
-          "notYetVerified": false,
-          "notImplemented": false,
-          "chip": "locally-tested",
-          "chipLabel": "Locally tested",
-          "note": "Installed from its hash-pinned lock, started by the app, and answered a real tool call. Tested on macOS only."
+          ]
         },
         {
           "id": "git",
@@ -150,16 +61,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "runs on this computer"
-          ],
-          "implemented": true,
-          "locallyTested": "yes",
-          "standInTested": "na",
-          "realAccountVerified": "na",
-          "notYetVerified": false,
-          "notImplemented": false,
-          "chip": "locally-tested",
-          "chipLabel": "Locally tested",
-          "note": "Installed from its hash-pinned lock, started by the app, and answered a real tool call. Tested on macOS only."
+          ]
         },
         {
           "id": "context7",
@@ -170,16 +72,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "runs on this computer"
-          ],
-          "implemented": true,
-          "locallyTested": "yes",
-          "standInTested": "na",
-          "realAccountVerified": "na",
-          "notYetVerified": false,
-          "notImplemented": false,
-          "chip": "locally-tested",
-          "chipLabel": "Locally tested",
-          "note": "Installed from its hash-pinned lock, started by the app, and answered a real tool call. Tested on macOS only."
+          ]
         },
         {
           "id": "playwright",
@@ -190,16 +83,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "runs on this computer"
-          ],
-          "implemented": true,
-          "locallyTested": "yes",
-          "standInTested": "na",
-          "realAccountVerified": "na",
-          "notYetVerified": false,
-          "notImplemented": false,
-          "chip": "locally-tested",
-          "chipLabel": "Locally tested",
-          "note": "Installed from its hash-pinned lock, started by the app, and answered a real tool call. Tested on macOS only."
+          ]
         }
       ]
     },
@@ -219,16 +103,7 @@ window.MOSBIUS_CATALOGUE = {
           "connectsBy": [
             "sign-in code",
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "The device sign-in needs a GitHub app whose client id you provide, and whether GitHub's hosted server accepts the token such an app mints is not yet known. A personal access token works as before. Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         },
         {
           "id": "sentry",
@@ -241,16 +116,7 @@ window.MOSBIUS_CATALOGUE = {
           "connectsBy": [
             "sign in with your account",
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "The sign-in service publishes what the app needs (read on 2026-11-15). Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         }
       ]
     },
@@ -270,16 +136,7 @@ window.MOSBIUS_CATALOGUE = {
           "connectsBy": [
             "sign in with your account",
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "The sign-in service publishes what the app needs (read on 2026-11-15). The local token-based server answered a fake token with Notion's refusal. Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         },
         {
           "id": "linear",
@@ -292,16 +149,7 @@ window.MOSBIUS_CATALOGUE = {
           "connectsBy": [
             "sign in with your account",
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "The sign-in service publishes what the app needs (read on 2026-11-15). Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         },
         {
           "id": "jira",
@@ -314,16 +162,7 @@ window.MOSBIUS_CATALOGUE = {
           "connectsBy": [
             "sign in with your account",
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "Shares one sign-in with Confluence. The sign-in service publishes what the app needs (read on 2026-11-15). Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         },
         {
           "id": "confluence",
@@ -336,16 +175,7 @@ window.MOSBIUS_CATALOGUE = {
           "connectsBy": [
             "sign in with your account",
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "Shares one sign-in with Jira. The sign-in service publishes what the app needs (read on 2026-11-15). Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         }
       ]
     },
@@ -363,16 +193,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "an OAuth app you register"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "Slack only lets published or internal apps use its server; you need an app a workspace admin has approved. Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         }
       ]
     },
@@ -390,16 +211,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "an OAuth app you register"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "Needs a Google OAuth client you register, and Google's Workspace Developer Preview. Gmail's scopes are restricted: held back on purpose. Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         },
         {
           "id": "google-calendar",
@@ -410,16 +222,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "an OAuth app you register"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "Needs a Google OAuth client you register, and Google's Workspace Developer Preview. Checked against a stand-in and against Google's public endpoints only. Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         },
         {
           "id": "google-drive",
@@ -430,16 +233,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "an OAuth app you register"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "Needs a Google OAuth client you register, and Google's Workspace Developer Preview. Checked against a stand-in and against Google's public endpoints only. Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         }
       ]
     },
@@ -457,16 +251,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "partly",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "partly-tested",
-          "chipLabel": "Partly tested locally",
-          "note": "The server installs from its lock, starts and lists its tools. A call with a made-up key reached Brave and was refused; no real key has been used."
+          ]
         }
       ]
     },
@@ -486,16 +271,7 @@ window.MOSBIUS_CATALOGUE = {
           "connectsBy": [
             "sign in with your account",
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "The sign-in service publishes what the app needs (read on 2026-11-15). Payments and refunds are never reached by a preset. Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         },
         {
           "id": "hubspot",
@@ -506,32 +282,7 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "Uses a private-app token you create. HubSpot's own sign-in needs a secret that cannot ship in a desktop app. Nobody has signed in to this provider through the app yet, so it is not marked verified."
-        },
-        {
-          "id": "salesforce",
-          "label": "Salesforce",
-          "description": "Planned. Not available yet.",
-          "ways": [],
-          "connectsBy": [],
-          "implemented": false,
-          "locallyTested": "no",
-          "standInTested": "no",
-          "realAccountVerified": "no",
-          "notYetVerified": false,
-          "notImplemented": true,
-          "chip": "not-implemented",
-          "chipLabel": "Not implemented",
-          "note": "Salesforce publishes a hosted server, but its developer pages could not be checked, so it is not offered yet."
+          ]
         }
       ]
     },
@@ -549,140 +300,10 @@ window.MOSBIUS_CATALOGUE = {
           ],
           "connectsBy": [
             "a key you create"
-          ],
-          "implemented": true,
-          "locallyTested": "no",
-          "standInTested": "yes",
-          "realAccountVerified": "no",
-          "notYetVerified": true,
-          "notImplemented": false,
-          "chip": "stand-in-tested",
-          "chipLabel": "Stand-in tested",
-          "note": "Any base address with no key, a bearer token or a header you choose. Every request is checked by method and path against the grants. Nobody has signed in to this provider through the app yet, so it is not marked verified."
+          ]
         }
       ]
     }
-  ],
-  "agents": [
-    {
-      "key": "claude",
-      "label": "Claude Code",
-      "version": "2.1.325",
-      "summary": "Gets its integrations from a config file in its own folder that its own settings forbid it to read. Skills live in its own folder.",
-      "integrations": "verified",
-      "skills": "verified",
-      "installCommand": "npm install -g @anthropic-ai/claude-code",
-      "shell": {
-        "passHidden": "yes",
-        "onlyWhileSandboxed": false
-      },
-      "folderTrustRequired": false,
-      "skillFolders": [
-        "~/.claude/skills",
-        "<project>/.claude/skills"
-      ],
-      "skillTarget": "claude",
-      "run": {
-        "file": "evidence/stage-b/stage-b-live.json",
-        "checks": 26,
-        "passed": 26,
-        "date": "2026-11-15"
-      },
-      "skillsRun": {
-        "file": "evidence/claude/claude-skills-live.json",
-        "checks": 3,
-        "passed": 3,
-        "date": "2026-11-15"
-      },
-      "runHow": {
-        "kind": "real-model",
-        "text": "a real model (haiku) and the real pinned local servers; no third-party account"
-      }
-    },
-    {
-      "key": "codex",
-      "label": "Codex CLI",
-      "version": "0.142.2",
-      "summary": "Gets the broker address on its command line and the pass in one variable that is kept out of its shell's environment. Skills live in the shared agents folder.",
-      "integrations": "verified",
-      "skills": "verified",
-      "installCommand": "npm install -g @openai/codex",
-      "shell": {
-        "passHidden": "yes",
-        "onlyWhileSandboxed": true
-      },
-      "folderTrustRequired": false,
-      "skillFolders": [
-        "~/.agents/skills",
-        "<project>/.agents/skills",
-        "<project>/.codex/skills"
-      ],
-      "skillTarget": "agents",
-      "run": {
-        "file": "evidence/codex/codex-live.json",
-        "checks": 39,
-        "passed": 39,
-        "date": "2026-11-16"
-      },
-      "skillsRun": {
-        "file": "evidence/codex/codex-live.json",
-        "checks": 39,
-        "passed": 39,
-        "date": "2026-11-16"
-      },
-      "runHow": {
-        "kind": "stand-in",
-        "text": "a stand-in model and a stand-in provider; no model account and no third-party account"
-      }
-    },
-    {
-      "key": "gemini",
-      "label": "Gemini CLI",
-      "version": "0.68.0",
-      "summary": "Gets a Gemini home of its own whose settings name one variable that holds the pass. Skills live in the shared agents folder.",
-      "integrations": "verified",
-      "skills": "verified",
-      "installCommand": "npm install -g @google/gemini-cli",
-      "shell": {
-        "passHidden": "no",
-        "onlyWhileSandboxed": false
-      },
-      "folderTrustRequired": true,
-      "skillFolders": [
-        "~/.agents/skills",
-        "~/.gemini/skills",
-        "<project>/.agents/skills",
-        "<project>/.gemini/skills"
-      ],
-      "skillTarget": "agents",
-      "run": {
-        "file": "evidence/gemini/gemini-live.json",
-        "checks": 50,
-        "passed": 50,
-        "date": "2026-11-16"
-      },
-      "skillsRun": {
-        "file": "evidence/gemini/gemini-live.json",
-        "checks": 50,
-        "passed": 50,
-        "date": "2026-11-16"
-      },
-      "runHow": {
-        "kind": "stand-in",
-        "text": "a stand-in model and a stand-in provider; no model account and no third-party account"
-      }
-    }
-  ],
-  "otherEngines": [
-    "Grok · xAI",
-    "Kimi Code",
-    "Antigravity · Gemini",
-    "Qwen (local available)",
-    "OpenCode",
-    "Crush · Charm",
-    "Pi",
-    "Copilot",
-    "Cursor"
   ],
   "locations": [
     {
@@ -721,89 +342,22 @@ window.MOSBIUS_CATALOGUE = {
       "label": "Laser Tag"
     }
   ],
-  "hubTabs": [
-    "Discover",
-    "Connected",
-    "Skills",
-    "Agent access",
-    "Activity"
-  ],
-  "engineKeys": [
-    "Anthropic",
-    "OpenAI",
-    "Google AI",
-    "OpenRouter",
-    "Groq"
-  ],
-  "runs": {
-    "localServers": {
-      "file": "evidence/stage-b/packages-node26.json",
-      "checks": 10,
-      "passed": 10,
-      "date": "2026-11-15"
-    },
-    "claudeWithPinnedServers": {
-      "file": "evidence/stage-b/stage-b-live.json",
-      "checks": 26,
-      "passed": 26,
-      "date": "2026-11-15"
-    },
-    "claudeSkills": {
-      "file": "evidence/claude/claude-skills-live.json",
-      "checks": 3,
-      "passed": 3,
-      "date": "2026-11-15"
-    },
-    "codex": {
-      "file": "evidence/codex/codex-live.json",
-      "checks": 39,
-      "passed": 39,
-      "date": "2026-11-16"
-    },
-    "gemini": {
-      "file": "evidence/gemini/gemini-live.json",
-      "checks": 50,
-      "passed": 50,
-      "date": "2026-11-16"
-    },
-    "desktopAppDevelopment": {
-      "file": "evidence/ui/ui-validation.json",
-      "checks": 58,
-      "passed": 58,
-      "date": "2026-11-16"
-    },
-    "desktopAppPackaged": {
-      "file": "evidence/ui-packaged/ui-validation.json",
-      "checks": 58,
-      "passed": 58,
-      "date": "2026-11-16"
-    }
-  },
   "screenshots": [
     {
       "id": "discover",
       "title": "Discover",
       "file": "assets/ui/discover.png",
-      "alt": "The Discover tab of Settings, Integrations and Skills: a card for each service with a plain label on it, and filters by kind.",
-      "caption": "Every service, how it connects, and how far it has been checked. A card says \"Verified\" only for a local server that answered a real call.",
+      "alt": "The Discover tab of Settings, Integrations and Skills: a card for every service, with filters by kind.",
+      "caption": "Find a service and see how it connects. Local tools switch on with one click.",
       "width": 1280,
       "height": 860
     },
     {
-      "id": "connect",
-      "title": "Connect",
-      "file": "assets/ui/connect.png",
-      "alt": "The GitHub card opened in Discover, offering a sign-in with a code, which asks for an app's client ID, or a key you create.",
-      "caption": "Connecting GitHub: a sign-in code that needs an app's client ID, or a key you create. No one has signed in to GitHub through the app yet, and the card says so.",
-      "width": 1280,
-      "height": 860
-    },
-    {
-      "id": "access",
-      "title": "Agent access",
-      "file": "assets/ui/access.png",
-      "alt": "The Agent access tab: what each coding agent CLI can do, whether its shell can read its pass, and the trusted-folder rule for Gemini CLI.",
-      "caption": "What each coding agent can do, and what it cannot: Codex's protection needs its own sandbox, and Gemini's shell can read its pass.",
+      "id": "connected",
+      "title": "Connected",
+      "file": "assets/ui/connected.png",
+      "alt": "The Connected tab: a service switched on, with the other tabs of Settings above it.",
+      "caption": "Switch services on and off, and choose which of their tools may be used.",
       "width": 1280,
       "height": 860
     },
@@ -811,8 +365,8 @@ window.MOSBIUS_CATALOGUE = {
       "id": "skills",
       "title": "Skills",
       "file": "assets/ui/skills.png",
-      "alt": "The Skills tab: an installed skill flagged \"Changed since install\", with its source, its commit and buttons to check, look for an update and remove.",
-      "caption": "A skill that changed on disk after it was installed, found by Check. (The \"demo\" skill was installed by the test harness from a stand-in repository.)",
+      "alt": "The Skills tab: an installed skill with its source, and a searchable catalogue of skills to install.",
+      "caption": "Browse the catalogue, install a skill for the agent you choose, and see where it came from.",
       "width": 1280,
       "height": 1000
     },
@@ -820,8 +374,8 @@ window.MOSBIUS_CATALOGUE = {
       "id": "activity",
       "title": "Activity",
       "file": "assets/ui/activity.png",
-      "alt": "The Activity tab: the record of what was done and whether it was allowed, with a \"record is intact\" check.",
-      "caption": "The tamper-evident record of what was done and whether it was allowed. It holds names and decisions, never contents or secrets.",
+      "alt": "The Activity tab: a record of what was done and whether it was allowed.",
+      "caption": "A running record of what each agent did and whether it was allowed.",
       "width": 1280,
       "height": 1000
     }

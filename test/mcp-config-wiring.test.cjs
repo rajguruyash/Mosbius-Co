@@ -365,7 +365,7 @@ test('the landing page still names these as needing your own OAuth client', () =
   for (const f of ['website/index.html', 'website/js/integrations.js', 'website/js/ecosystem.js', 'website/js/catalogue.js']) {
     assert.equal(/needs OAuth'/.test(read(f)), false, `the old vague reason is back in ${f}`);
   }
-  assert.match(read('website/index.html'), /Hosted Google and Slack need your own app/, 'the page says it in words too');
+  assert.match(read('website/js/integrations.js'), /'own-app': 'Your own OAuth app'/, 'the page says it in words too: each of these shows "Your own OAuth app"');
 });
 
 test('every bridged server has its own fixed port, and tells the user the redirect URI to register', () => {

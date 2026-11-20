@@ -2,7 +2,7 @@
 'use strict';
 
 /**
- * Writes the generated parts of README.md from the catalogue (tools/lib/catalogue.cjs), which is itself derived from the
+ * Writes the generated parts of DEVELOPMENT.md from the catalogue (tools/lib/catalogue.cjs), which is itself derived from the
  * data the app uses. Two blocks, each between a pair of markers:
  *
  *   <!-- gen:agents:start ... -->      the table of coding agents: what each was run with, and its caveats
@@ -19,14 +19,14 @@ const path = require('node:path');
 const { buildCatalogue, ROOT } = require('./lib/catalogue.cjs');
 const { agentsTableMd, catalogueMd } = require('./lib/render.cjs');
 
-const FILE = path.join(ROOT, 'README.md');
+const FILE = path.join(ROOT, 'DEVELOPMENT.md');
 
 function replaceBlock(text, name, body) {
   const start = new RegExp(`<!-- gen:${name}:start[^>]*-->`);
   const endMark = `<!-- gen:${name}:end -->`;
   const m = start.exec(text);
   const e = text.indexOf(endMark);
-  if (!m || e < 0 || e < m.index) throw new Error(`README.md has no gen:${name} markers`);
+  if (!m || e < 0 || e < m.index) throw new Error(`DEVELOPMENT.md has no gen:${name} markers`);
   return `${text.slice(0, m.index + m[0].length)}\n\n${body.trim()}\n\n${text.slice(e)}`;
 }
 
@@ -41,12 +41,12 @@ if (require.main === module) {
   const text = fs.readFileSync(FILE, 'utf8');
   const next = render(text);
   if (process.argv.includes('--check')) {
-    if (next !== text) { console.error('README.md is out of date: run `node tools/gen-docs.cjs` (npm run docs:gen)'); process.exit(1); }
-    console.log('README.md matches the app\'s own data');
+    if (next !== text) { console.error('DEVELOPMENT.md is out of date: run `node tools/gen-docs.cjs` (npm run docs:gen)'); process.exit(1); }
+    console.log('DEVELOPMENT.md matches the app\'s own data');
     process.exit(0);
   }
   fs.writeFileSync(FILE, next);
-  console.log('rewrote the generated blocks in README.md');
+  console.log('rewrote the generated blocks in DEVELOPMENT.md');
 }
 
 module.exports = { render, replaceBlock };

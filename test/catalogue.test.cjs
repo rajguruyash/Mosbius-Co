@@ -195,12 +195,11 @@ test('the locations are the app\'s own, in the order of their keys, and README.m
   assert.match(readme, new RegExp(`Press \\*\\*1\\*\\* to \\*\\*${c.locations.length}\\*\\*`), 'README names the right keys');
 });
 
-test('README.md: the generated blocks are current, and the counts it types by hand agree with the data', () => {
-  const readme = read('README.md');
-  assert.equal(docs.render(readme), readme, 'README.md is out of date: run `npm run docs:gen`');
+test('DEVELOPMENT.md: the generated blocks are current, and the counts the documents type by hand agree with the data', () => {
+  const dev = read('DEVELOPMENT.md');
+  assert.equal(docs.render(dev), dev, 'DEVELOPMENT.md is out of date: run `npm run docs:gen`');
 
   const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
-  const typed = readme.replace(/<!-- gen:[a-z]+:start[\s\S]*?<!-- gen:[a-z]+:end -->/g, ' ');
   const n = c.counts;
   const facts = [
     [/\b([a-z]+) locations\b/gi, n.locations, 'locations'],
@@ -209,20 +208,24 @@ test('README.md: the generated blocks are current, and the counts it types by ha
     [/\b([a-z]+) (?:agent )?CLIs\b/gi, n.codingAgentsWithIntegrations, 'agent CLIs']
   ];
   let seen = 0;
-  for (const [re, value, what] of facts) {
-    for (const m of typed.matchAll(re)) {
-      const i = WORDS.indexOf(m[1].toLowerCase());
-      if (i < 0) continue;      // "the tabs", "different CLIs": not a count
-      seen++;
-      assert.equal(i, value, `README.md says "${m[0]}", but the app has ${value} ${what}`);
+  for (const f of ['README.md', 'DEVELOPMENT.md', 'INTEGRATIONS.md', 'SKILLS.md', 'SECURITY_REPORT.md']) {
+    const typed = read(f).replace(/<!-- gen:[a-z]+:start[\s\S]*?<!-- gen:[a-z]+:end -->/g, ' ');
+    for (const [re, value, what] of facts) {
+      for (const m of typed.matchAll(re)) {
+        const i = WORDS.indexOf(m[1].toLowerCase());
+        if (i < 0) continue;      // "the tabs", "different CLIs": not a count
+        seen++;
+        assert.equal(i, value, `${f} says "${m[0]}", but the app has ${value} ${what}`);
+      }
     }
   }
-  assert.ok(seen >= 4, 'the counts README.md types by hand were found and checked');
-  // no digits-and-noun count is typed outside the generated blocks, where nothing would keep it right
-  assert.equal(/\b\d+ (?:providers|MCP servers|REST templates|integrations|locations)\b/.test(typed), false, 'a provider or location count typed by hand belongs in a generated block');
+  assert.ok(seen >= 2, 'the counts typed by hand were found and checked');
+  // provider statistics belong in a generated block, where nothing would keep them wrong
+  const typedReadme = read('README.md');
+  assert.equal(/\b\d+ (?:providers|MCP servers|REST templates|integrations|locations)\b/.test(typedReadme), false);
 });
 
-test('README.md says the things that must not be lost', () => {
+test('README.md keeps what must not be lost, and the honest detail is kept in the technical documents', () => {
   const readme = read('README.md');
   // the fan-made disclaimer, wherever the product is described
   assert.match(readme, /fan-made/i);
@@ -231,37 +234,40 @@ test('README.md says the things that must not be lost', () => {
   const lines = readme.trimEnd().split('\n');
   assert.equal(lines[lines.length - 1], 'Built upon the original Munder Difflin project; credit to its original creators for the foundational work.');
   assert.equal((readme.match(/Munder\s*Difflin/gi) ?? []).length, 1, 'the upstream project is named exactly once');
-  // the honest status: no real account, and the platforms that were never run
-  assert.match(readme, /No real provider sign-in has been verified/);
-  assert.match(readme, /never run on Windows/i);
-  assert.match(readme, /not built, not run/i);
-  assert.match(readme, /never run on an Intel Mac/i);
-  // the known limits are disclosed, not hidden
-  assert.match(readme, /finding F9, left open on purpose/);
-  assert.match(readme, /With the sandbox off, a command can read the pass from the Codex process/);
-  assert.match(readme, /`mcp-remote` bridge leaves tokens in readable files/);
-  // what does not exist is said not to exist
-  assert.match(readme, /There is no control yet to move an existing agent from one location to another/);
-  // every relative link and image in it points at a file that is in the repository
-  const targets = [...readme.matchAll(/\]\(([^)\s]+)\)/g), ...readme.matchAll(/<img[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]);
-  let local = 0;
-  for (const t of targets) {
-    if (/^(https?:|#|mailto:)/.test(t)) continue;
-    local++;
-    assert.ok(exists(decodeURI(t.split('#')[0])), `README.md points at ${t}, which is not in the repository`);
+  // the engineering state of the project is stated plainly in the documents made for it
+  const dev = read('DEVELOPMENT.md');
+  assert.match(dev, /never run on Windows/i);
+  assert.match(dev, /not built, not run/i);
+  assert.match(dev, /never run on an Intel Mac/i);
+  assert.match(dev, /There is no control yet to move an existing agent from one location to another/);
+  const sec = read('SECURITY_REPORT.md');
+  assert.match(sec, /No real provider sign-in has been verified/);
+  assert.match(sec, /finding F9, left open on purpose/);
+  assert.match(sec, /With the sandbox off, a command can read the pass from the Codex process/);
+  assert.match(sec, /`mcp-remote` bridge leaves tokens in readable files/);
+  // every relative link and image in the README and DEVELOPMENT.md points at a file that is in the repository
+  for (const f of ['README.md', 'DEVELOPMENT.md']) {
+    const text = read(f);
+    const targets = [...text.matchAll(/\]\(([^)\s]+)\)/g), ...text.matchAll(/<img[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]);
+    let local = 0;
+    for (const t of targets) {
+      if (/^(https?:|#|mailto:)/.test(t)) continue;
+      local++;
+      assert.ok(exists(decodeURI(t.split('#')[0])), `${f} points at ${t}, which is not in the repository`);
+    }
+    assert.ok(local > 5, `${f}: the relative links and images were found and checked`);
+    // every in-page link has its heading
+    const slug = (h) => h.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s/g, '-');
+    const anchors = new Set(text.split('\n').filter((l) => /^#{1,6} /.test(l)).map((l) => slug(l.replace(/^#+ /, ''))));
+    for (const t of targets.filter((x) => x.startsWith('#'))) assert.ok(anchors.has(t.slice(1)), `${f} links to ${t}, which no heading produces`);
   }
-  assert.ok(local > 10, 'the relative links and images were found and checked');
-  // every in-page link has its heading
-  const slug = (h) => h.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s/g, '-');
-  const anchors = new Set(readme.split('\n').filter((l) => /^#{1,6} /.test(l)).map((l) => slug(l.replace(/^#+ /, ''))));
-  for (const t of targets.filter((x) => x.startsWith('#'))) assert.ok(anchors.has(t.slice(1)), `README.md links to ${t}, which no heading produces`);
 });
 
-test('every npm script README.md tells you to run exists', () => {
-  const readme = read('README.md');
+test('every npm script the documents tell you to run exists', () => {
   const scripts = JSON.parse(read('package.json')).scripts;
-  const named = new Set([...readme.matchAll(/npm run ([a-z][a-z0-9:-]*)/g)].map((m) => m[1]));
-  assert.ok(named.size >= 5, 'the scripts README.md names were found');
-  for (const s of named) assert.ok(scripts[s], `README.md says \`npm run ${s}\`, which package.json does not have`);
+  const named = new Set();
+  for (const f of ['README.md', 'DEVELOPMENT.md']) for (const m of read(f).matchAll(/npm run ([a-z][a-z0-9:-]*)/g)) named.add(m[1]);
+  assert.ok(named.size >= 5, 'the scripts the documents name were found');
+  for (const s of named) assert.ok(scripts[s], `a document says \`npm run ${s}\`, which package.json does not have`);
   for (const s of ['docs:gen', 'docs:check', 'website:build', 'website:check']) assert.ok(scripts[s], `package.json has ${s}`);
 });

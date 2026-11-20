@@ -1,14 +1,7 @@
-/* The integrations section.
+/* The integrations catalogue.
  *
- * Nothing about a provider is typed in this file. Every group, card, count and status word comes from
- * window.MOSBIUS_CATALOGUE (js/catalogue.js), which tools/build-website.cjs writes from the app's own data: the provider
- * list, how each connects, and how far each has been checked. So this page cannot list a provider the app does not have,
- * miss one it does, or call one checked when it is not. `npm run website:build` runs this file against that data and
- * reads what it renders, and fails if a card is missing or a sentence claims too much.
- *
- * The only thing kept here is presentation: a tile colour and initials per provider, with a fallback, so a provider added
- * to the app still gets a card the day it is added.
- */
+ * Every group and card comes from window.MOSBIUS_CATALOGUE (js/catalogue.js), which tools/build-website.cjs writes from the
+ * app's own provider data, so the page lists exactly what the app offers. Only a tile colour and initials are kept here. */
 (function () {
   'use strict';
 
@@ -37,16 +30,7 @@
     'brave-search': ['#c8401f', 'BR'],
     stripe: ['#635bff', 'ST'],
     hubspot: ['#c4532f', 'H'],
-    salesforce: ['#0b6fa4', 'SF'],
     'custom-rest': ['#0066cc', '+']
-  };
-
-  /* which existing tag style each state uses; the words themselves come from the data */
-  const CHIP_CLASS = {
-    'locally-tested': 'tag-on',
-    'partly-tested': 'tag-consent',
-    'stand-in-tested': 'tag-consent',
-    'not-implemented': 'tag-planned'
   };
 
   function el(tag, cls, text) {
@@ -56,9 +40,10 @@
     return n;
   }
 
-  function termLabel(id) {
-    const t = C.terms.find((x) => x.id === id);
-    return t ? t.label : id;
+  /* how a visitor sets each one up, in plain words */
+  const HOW = { local: 'Runs on your computer', account: 'Sign in', device: 'Sign in with a code', 'own-app': 'Your own OAuth app', key: 'API key' };
+  function howText(p) {
+    return p.ways.map((w) => HOW[w]).filter(Boolean).join(' or ');
   }
 
   function tileFor(p) {
@@ -71,23 +56,11 @@
   }
 
   function cardFor(p) {
-    const card = el('li', 'card' + (p.notImplemented ? ' is-planned' : ''));
+    const card = el('li', 'card');
     card.appendChild(tileFor(p));
     card.appendChild(el('span', 'name', p.label));
-    card.appendChild(el('span', 'meta', p.connectsBy.length ? p.connectsBy.join(' · ') : 'not available yet'));
+    card.appendChild(el('span', 'meta', howText(p)));
     card.appendChild(el('p', 'desc', p.description));
-
-    const status = el('span', 'status');
-    status.appendChild(el('span', 'tag ' + (CHIP_CLASS[p.chip] || 'tag-optin'), p.chipLabel.toUpperCase()));
-    if (p.notYetVerified) status.appendChild(el('span', 'tag tag-optin', termLabel('not-yet-verified').toUpperCase()));
-    card.appendChild(status);
-
-    if (p.note) {
-      const more = el('details', 'checked');
-      more.appendChild(el('summary', null, 'What was checked'));
-      more.appendChild(el('p', null, p.note));
-      card.appendChild(more);
-    }
     return card;
   }
 
@@ -101,39 +74,13 @@
     return block;
   }
 
-  /* One sentence about what is on screen, counted from the cards themselves. */
-  function tally(list) {
-    const count = (fn) => list.filter(fn).length;
-    const parts = [];
-    const local = count((p) => p.chip === 'locally-tested');
-    const partly = count((p) => p.chip === 'partly-tested');
-    const standIn = count((p) => p.chip === 'stand-in-tested');
-    const absent = count((p) => p.notImplemented);
-    if (local) parts.push(local + ' locally tested');
-    if (partly) parts.push(partly + ' partly tested locally');
-    if (standIn) parts.push(standIn + ' stand-in tested');
-    if (absent) parts.push(absent + ' not implemented');
-
-    const needAccount = list.filter((p) => p.realAccountVerified !== 'na' && !p.notImplemented);
-    const real = count((p) => p.realAccountVerified === 'yes');
-    let account = 'None of these needs an account.';
-    if (needAccount.length) {
-      account = real === 0
-        ? (needAccount.length === 1 ? 'It has not been verified with a real account.' : 'None of them has been verified with a real account.')
-        : real + ' of ' + needAccount.length + ' verified with a real account.';
-    }
-    return 'Showing ' + list.length + ': ' + parts.join(', ') + '. ' + account;
-  }
-
   const chips = [];
 
   function show(groupId) {
     const host = $('cards');
-    const caption = $('cards-caption');
     if (!host) return;
     const groups = groupId === 'all' ? C.groups : C.groups.filter((g) => g.id === groupId);
     host.replaceChildren(...groups.map(groupBlock));
-    if (caption) caption.textContent = tally(groups.flatMap((g) => g.providers));
     for (const c of chips) c.setAttribute('aria-pressed', String(c.dataset.group === groupId));
   }
 
@@ -152,36 +99,17 @@
     }
   }
 
-  function renderLegend() {
-    const host = $('legend');
-    if (host) {
-      for (const t of C.terms) {
-        host.appendChild(el('dt', null, t.label));
-        host.appendChild(el('dd', null, t.meaning));
-      }
-    }
-    const counts = $('catalogue-counts');
-    if (counts) {
-      counts.textContent = C.countsSentence + (C.engineKeys.length
-        ? ' The Discover tab in the app also lists the keys the agents\' own engines use (' + C.engineKeys.join(', ') +
-          '); those are set under AI engines and are not integrations, so they are not counted here.'
-        : '');
-    }
-  }
-
-  /* A new agent can reach nothing. The panel says so, instead of listing servers as if they were on:
-   * nothing is switched on at install, and switching one on still gives no agent access to it. */
+  /* A new agent starts with no access; the panel shows that starting point. */
   function renderPanel() {
     const slots = $('slots');
     if (slots) slots.replaceChildren(el('li', 'slot is-empty', 'nothing until you allow it'));
     const count = $('slot-count');
-    if (count) count.textContent = 'NOTHING AT FIRST';
+    if (count) count.textContent = 'NONE AT FIRST';
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     if (!C) return;
     renderFilters();
-    renderLegend();
     renderPanel();
     show('all');
   });

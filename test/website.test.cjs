@@ -1,13 +1,13 @@
 'use strict';
 
 /**
- * The landing page (website/) says what the app says, and nothing more.
+ * The landing page (website/) reads like a product page, and what it lists is what the app offers.
  *
- * The page is plain HTML with no bundler. Everything on it that states a fact about the product (which providers exist,
- * how each connects, how far each was checked, which agent CLIs are covered, how many locations there are) is generated
- * from the app's own data by tools/build-website.cjs, and that script also reads the page the way a visitor gets it.
- * These tests run that build in its check mode, so a stale data file, a broken link, a missing provider or an
- * overclaim fails the suite, and they pin the checks themselves, so the checks cannot quietly stop checking.
+ * The page is plain HTML with no bundler. The integration catalogue, the locations and the screenshots on it are generated
+ * from the app's own data by tools/build-website.cjs, which also reads the page the way a visitor gets it. These tests run
+ * that build in its check mode and pin the checks themselves, so they cannot quietly stop checking. They also keep the
+ * engineering detail (test counts, verification labels, security findings, build caveats) off the public page and the
+ * README: it lives in DEVELOPMENT.md, INTEGRATIONS.md and SECURITY_REPORT.md.
  */
 
 const test = require('node:test');
@@ -36,55 +36,57 @@ const page = () => runSite({
   ]
 });
 
-test('the website build passes in check mode: generated files current, links whole, nothing overclaimed', () => {
+test('the website build passes in check mode: generated files current, links whole, no engineering wording', () => {
   const { problems } = site.build({ check: true });
   assert.deepEqual(problems, [], 'run `npm run website:build` and fix what it reports');
 });
 
-test('the data the page is given is the app\'s own, and is what is committed', () => {
+test('the catalogue the page is given is what the app offers: every provider that is available, nothing that is not', () => {
   assert.equal(read('website/js/catalogue.js'), site.dataFileText(data), 'website/js/catalogue.js is stale: run `npm run website:build`');
-  const flat = data.groups.flatMap((g) => g.providers);
-  assert.deepEqual(flat.map((p) => p.id), catalogue.providers.map((p) => p.id));
-  assert.deepEqual(data.agents.map((a) => a.label), ['Claude Code', 'Codex CLI', 'Gemini CLI']);
-  assert.equal(data.counts.realAccountVerified, 0);
-  // nothing that identifies the machine it was built on, and no credential-shaped value, ends up in a public file
+  const shown = data.groups.flatMap((g) => g.providers).map((p) => p.id);
+  const offered = catalogue.providers.filter((p) => !p.notImplemented).map((p) => p.id);
+  assert.deepEqual(shown, offered);
+  assert.equal(shown.includes('salesforce'), false, 'a provider that is not available yet is not advertised');
+  assert.equal(shown.length, catalogue.counts.providersImplemented);
+  assert.equal(data.locations.length, catalogue.counts.locations);
+  // the data file carries no verification vocabulary, counts, versions or findings
   const text = read('website/js/catalogue.js');
+  assert.equal(site.ENGINEERING_TALK.test(JSON.stringify(data.groups.map((g) => [g.blurb, g.providers.map((p) => p.description)]))), false);
+  for (const key of ['chip', 'chipLabel', 'notYetVerified', 'realAccountVerified', 'standInTested', 'counts', 'terms', 'agents', 'runs']) {
+    assert.equal(text.includes(`"${key}"`), false, `the public data file has "${key}"`);
+  }
   assert.equal(/\/Users\/|\/home\/[a-z]|[A-Z]:\\\\Users/.test(text), false, 'a personal path is in the data file');
-  assert.equal(/gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{20,}|xox[abp]-[0-9A-Za-z-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY/.test(text), false, 'something shaped like a credential is in the data file');
+  assert.equal(/gh[pousr]_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}|xox[abp]-[0-9A-Za-z-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY/.test(text), false);
 });
 
-test('the screenshots are the real captures of the packaged app, byte for byte, and nothing else is beside them', () => {
+test('the screenshots are the app\'s own pictures, copied byte for byte, and nothing else is beside them', () => {
   assert.ok(site.SHOTS.length >= 4);
   for (const s of site.SHOTS) {
-    assert.match(s.from, /^evidence\/ui-packaged\/[\w-]+\.png$/, `${s.id} comes from the packaged-app run`);
-    const src = fs.readFileSync(path.join(ROOT, s.from));
-    const copy = fs.readFileSync(path.join(SITE, 'assets', 'ui', `${s.id}.png`));
-    assert.equal(Buffer.compare(src, copy), 0, `website/assets/ui/${s.id}.png is not the capture it is copied from`);
-    assert.ok(s.alt.length > 40 && s.caption.length > 40, `${s.id} has alt text and a caption`);
+    assert.match(s.from, /^evidence\/ui-packaged\/[\w-]+\.png$/);
+    assert.equal(Buffer.compare(fs.readFileSync(path.join(ROOT, s.from)), fs.readFileSync(path.join(SITE, 'assets', 'ui', `${s.id}.png`))), 0, `${s.id}.png is not the picture it is copied from`);
+    assert.ok(s.alt.length > 30 && s.caption.length > 30, `${s.id} has alt text and a caption`);
   }
   assert.deepEqual(fs.readdirSync(path.join(SITE, 'assets', 'ui')).sort(), site.SHOTS.map((s) => `${s.id}.png`).sort());
-  // the run those captures come from is recorded, and it passed
-  const run = JSON.parse(read('evidence/ui-packaged/ui-validation.json'));
-  const results = run.results ?? run.checks ?? [];
-  assert.ok(results.length > 0 && results.every((r) => r.ok !== false));
-  for (const shot of data.screenshots) assert.ok(shot.width > 0 && shot.height > 0, `${shot.id}: its size is read from the file`);
+  for (const shot of data.screenshots) assert.ok(shot.width > 0 && shot.height > 0);
 });
 
-test('as a visitor gets it: every provider once, each filter its own group, each state in the data\'s words', () => {
+test('as a visitor gets it: every provider once, each filter its own group, a description and a way in on every card', () => {
   const p = page();
   assert.deepEqual(p.missing, [], 'a script asks for an id index.html does not have');
   const cards = p.get('cards');
   const all = data.groups.flatMap((g) => g.providers);
   const names = () => find(cards, (e) => hasClass(e, 'name')).map((e) => e.textContent);
   assert.deepEqual(names(), all.map((x) => x.label));
-
-  const cardEls = find(cards, (e) => hasClass(e, 'card'));
-  cardEls.forEach((card, i) => {
-    const tags = find(card, (e) => hasClass(e, 'tag')).map((e) => e.textContent);
-    assert.equal(tags[0], all[i].chipLabel.toUpperCase(), `${all[i].label}: the first tag is its state`);
-    assert.equal(tags.includes('NOT YET VERIFIED'), all[i].notYetVerified, `${all[i].label}: "not yet verified" follows the data`);
-    assert.equal(tags.some((t) => /^VERIFIED$|REAL-ACCOUNT VERIFIED/.test(t)), false, `${all[i].label} is not called verified`);
+  find(cards, (e) => hasClass(e, 'card')).forEach((card, i) => {
+    assert.ok(find(card, (e) => hasClass(e, 'desc'))[0].textContent.length > 8, `${all[i].label} has a description`);
+    assert.ok(find(card, (e) => hasClass(e, 'meta'))[0].textContent.length > 2, `${all[i].label} says how it is set up`);
+    assert.equal(find(card, (e) => hasClass(e, 'tag')).length, 0, `${all[i].label} carries no status badge`);
   });
+  const how = Object.fromEntries(find(cards, (e) => hasClass(e, 'card')).map((card, i) => [all[i].id, find(card, (e) => hasClass(e, 'meta'))[0].textContent]));
+  assert.equal(how.git, 'Runs on your computer');
+  assert.match(how.gmail, /Your own OAuth app/);
+  assert.match(how.notion, /Sign in/);
+  assert.match(how['brave-search'], /API key/);
 
   const chips = find(p.get('filters'), (e) => hasClass(e, 'chip'));
   assert.deepEqual(chips.map((c) => c.dataset.group), ['all', ...data.groups.map((g) => g.id)]);
@@ -92,146 +94,140 @@ test('as a visitor gets it: every provider once, each filter its own group, each
     chip.click();
     const group = data.groups.find((g) => g.id === chip.dataset.group);
     assert.deepEqual(names(), group.providers.map((x) => x.label), `the ${group.title} filter`);
-    assert.deepEqual(chips.filter((c) => c.getAttribute('aria-pressed') === 'true').map((c) => c.dataset.group), [group.id], 'one filter is pressed at a time');
-    assert.match(p.get('cards-caption').textContent, new RegExp(`^Showing ${group.providers.length}: `));
+    assert.deepEqual(chips.filter((c) => c.getAttribute('aria-pressed') === 'true').map((c) => c.dataset.group), [group.id]);
   }
-  // the legend defines every word the cards use
-  const legend = find(p.get('legend'), (e) => e.tagName === 'DT').map((e) => e.textContent);
-  assert.deepEqual(legend, data.terms.map((t) => t.label));
-  // a new agent can reach nothing, and the panel says so
   assert.match(p.get('slots').textContent, /nothing until you allow it/);
-});
-
-test('as a visitor gets it: the agents, their limits, and a status that counts from the data', () => {
-  const p = page();
-  const agentText = leaves(p.get('agent-cards')).join('\n');
-  for (const a of data.agents) {
-    assert.ok(agentText.includes(a.label), `${a.label} has a card`);
-    assert.ok(agentText.includes(`version run: ${a.version}`), `${a.label}: the version that was run`);
-    assert.ok(agentText.includes(`${a.run.passed} of ${a.run.checks} checks passed`), `${a.label}: the run's own numbers`);
-    assert.ok(agentText.includes(a.installCommand));
-  }
-  assert.match(agentText, /SHELL CAN READ THE PASS/);
-  assert.match(agentText, /NEEDS ITS SANDBOX ON/);
-  assert.match(agentText, /TRUSTED FOLDERS ONLY/);
-
-  const limits = leaves(p.get('limits')).join('\n');
-  for (const must of [
-    /Gemini CLI: its shell can read the pass/, /Finding F9, left open on purpose/,
-    /Codex CLI: the protection needs its sandbox/, /With the sandbox off, a command can read the pass/,
-    /mcp-remote bridge, which keeps their tokens in readable files/, /Gmail/, /Slack/,
-    /No real provider account has been used/, /Windows and Linux were not run/, /A pass is a bearer value/
-  ]) assert.match(limits, must);
-
-  const status = leaves(p.get('status-generated')).join('\n');
-  assert.ok(status.includes(data.countsSentence));
-  assert.match(status, /None has been verified with a real account/);
-  for (const l of data.locations) assert.ok(status.includes(l.label), `${l.label} is in the status table`);
-  // nothing the scripts drew is a missing value
+  const shots = find(p.get('shots'), (e) => e.tagName === 'IMG');
+  assert.equal(shots.length, data.screenshots.length);
   for (const host of p.filled) for (const text of leaves(host)) assert.equal(/\b(undefined|NaN|null)\b|\[object /.test(text), false, `#${host.id}: ${text}`);
 });
 
-test('the page itself: the disclaimer, one credit, the honest status, and no script from anywhere else', () => {
-  assert.match(html, /a fan-made project, not affiliated with,\s+endorsed by, or connected to/);
-  assert.equal((html.match(/Munder\s*Difflin/gi) ?? []).length, 1, 'the upstream project is credited once');
-  assert.match(html, /Built upon the original Munder Difflin project; credit to its original creators for the\s+foundational work\./);
-  assert.match(html, /has never been run on Windows hardware/);
-  assert.match(html, /An AppImage target is configured\. Not built, not run\./);
-  assert.match(html, /It is not deployed anywhere by the project/);
-  assert.match(html, /not in these installers/);
-  assert.match(html, /there is no control yet to move an agent from one room to another/);
-  // every script is the page's own file: nothing is loaded from another origin, and nothing runs inline
-  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
-  assert.ok(scripts.length >= 10);
-  for (const [, attrs, body] of scripts) {
-    const src = /\ssrc="([^"]+)"/.exec(attrs)?.[1];
-    assert.ok(src && /^js\/[\w-]+\.js$/.test(src), `a script is not one of the page's own files: ${attrs}`);
-    assert.equal(body.trim(), '', 'no inline script');
-  }
-  // every section the nav points at is there, and every section can be reached from the nav
+test('the homepage is a product page: its sections, its three agents, its calls to action, and none of the removed ones', () => {
   const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
+  for (const id of ['top', 'team', 'spawn', 'places', 'cinema', 'features', 'agents', 'plug', 'skills', 'security', 'screens', 'download']) assert.ok(ids.has(id), `#${id} is on the page`);
+  for (const id of ['status', 'status-table', 'status-generated', 'limits', 'legend', 'catalogue-counts', 'agent-cards', 'engines-note', 'skills-compat']) assert.equal(ids.has(id), false, `#${id} was removed`);
+  const agents = [...html.matchAll(/<article class="agent-card">[\s\S]*?<h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
+  assert.deepEqual(agents, ['Claude Code', 'OpenAI Codex', 'Google Gemini CLI']);
+  assert.match(html, /Works with Claude Code, OpenAI Codex and Google Gemini CLI\. You only need one\./);
+  // download buttons point at the assets README.md gives, and README.md is what the releases really hold
+  const direct = [...html.matchAll(/href="(https:\/\/github\.com\/rajguruyash\/Mosbius-Co\/releases\/download\/[^"]+)"/g)].map((m) => m[1]);
+  assert.ok(direct.length >= 3, 'hero and download buttons');
+  const readme = read('README.md');
+  for (const url of direct) assert.ok(readme.includes(url), `${url} is not a download README.md gives`);
+  assert.deepEqual([...new Set(direct)].map((u) => u.split('/').pop()).sort(), ['Mosbius-Co-1.0.0-mac-arm64.dmg', 'Mosbius-Co-1.0.0.0-win-x64-setup.exe']);
+  // the disclaimer and one credit stay
+  assert.match(html, /a fan-made project, not affiliated with,\s+endorsed by, or connected to/);
+  assert.equal((html.match(/Munder\s*Difflin/gi) ?? []).length, 1);
+  // every script is the page's own file
+  for (const [, attrs, body] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    assert.match(/\ssrc="([^"]+)"/.exec(attrs)?.[1] ?? '', /^js\/[\w-]+\.js$/);
+    assert.equal(body.trim(), '');
+  }
   const nav = /<nav class="nav">([\s\S]*?)<\/nav>/.exec(html)[1];
   const navTargets = [...nav.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
   for (const id of navTargets) assert.ok(ids.has(id), `the nav links to #${id}`);
-  for (const id of ['agents', 'plug', 'skills', 'security', 'status', 'download']) assert.ok(navTargets.includes(id), `the nav reaches #${id}`);
-  // the page and README.md point at the same published builds
-  const tags = (text) => [...new Set([...text.matchAll(/releases\/tag\/(v[0-9.]+)/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(tags(html), tags(read('README.md')));
+  for (const id of ['agents', 'plug', 'skills', 'security', 'download']) assert.ok(navTargets.includes(id));
 });
 
-test('the counts on the page are generated: the markers are filled from the data and no count is typed beside them', () => {
+test('engineering detail stays out of the public page, its scripts and the README, and stays in the technical documents', () => {
+  const FORBIDDEN = [
+    'An honest status', 'stand-in tested', 'real-account verified', 'shell can read the pass', 'bearer value', 'F9',
+    '50 of 50 checks', '39 of 39 checks', '26 of 26 checks', 'No real provider account has been used',
+    'The published builds were made before', 'This website is a static page', 'WHERE IT STANDS', 'RUN WITH THE REAL CLI',
+    'NEEDS ITS SANDBOX ON', 'Not yet verified', 'Locally tested', 'test harness', 'throwaway', 'npm ci', 'npm run dev',
+    'built before the integrations and skills platform', 'This is the real thing'
+  ];
+  const publicFiles = ['website/index.html', 'website/js/integrations.js', 'website/js/ecosystem.js', 'website/js/catalogue.js', 'README.md'];
+  for (const f of publicFiles) {
+    const text = read(f);
+    for (const phrase of FORBIDDEN) assert.equal(text.toLowerCase().includes(phrase.toLowerCase()), false, `${f} still says "${phrase}"`);
+  }
+  // README: no test counts, versions run, provider statistics or directory tables
+  const readme = read('README.md');
+  assert.equal(/\b\d+ (?:tests|checks|providers|MCP server|REST templates)\b/i.test(readme), false);
+  assert.equal(/\| `src\//.test(readme), false, 'no source-directory table in the README');
+  // ... and the detail did not vanish: it is where an engineer looks for it
+  const dev = read('DEVELOPMENT.md'), sec = read('SECURITY_REPORT.md'), integ = read('INTEGRATIONS.md');
+  assert.match(dev, /39 of 39 checks passed/);
+  assert.match(dev, /Stand-in tested/);
+  assert.match(dev, /There is no control yet to move an existing agent from one location to another/);
+  assert.match(sec, /finding F9, left open on purpose/);
+  assert.match(sec, /With the sandbox off, a command can read the pass from the Codex process/);
+  assert.match(sec, /`mcp-remote` bridge leaves tokens in readable files/);
+  assert.match(sec, /No real provider sign-in has been verified/);
+  assert.match(sec, /A pass is a bearer value/);
+  assert.match(integ, /Gemini's shell can read the pass/);
+  assert.match(read('MOSBIUS_PLATFORM_ROADMAP.md'), /Full suite/);
+  assert.ok(fs.existsSync(path.join(ROOT, 'evidence', 'codex', 'codex-live.json')));
+});
+
+test('README.md is the product README: its sections in order, each link real, the technical documents linked', () => {
+  const readme = read('README.md');
+  const headings = readme.split('\n').filter((l) => /^## /.test(l)).map((l) => l.slice(3));
+  assert.deepEqual(headings, ['Features', 'The seven locations', 'Coding agents', 'Integrations and the MCP ecosystem', 'Skills', 'Agent access and permissions', 'Installation and downloads', 'Quick start', 'Feature previews', 'Technology', 'Documentation', 'Licence and credits']);
+  for (const doc of ['INTEGRATIONS.md', 'SKILLS.md', 'SECURITY_REPORT.md', 'MCP_BROKER_DESIGN.md', 'DEVELOPMENT.md', 'MOSBIUS_PLATFORM_ROADMAP.md', 'CHANGELOG.md']) {
+    assert.ok(readme.includes(`](${doc})`), `README.md links to ${doc}`);
+    assert.ok(fs.existsSync(path.join(ROOT, doc)));
+  }
+  assert.ok(readme.split('\n').length < 160, 'the README stays short');
+  const agents = readme.slice(readme.indexOf('## Coding agents'), readme.indexOf('## Integrations'));
+  for (const name of ['Claude Code', 'OpenAI Codex', 'Google Gemini CLI']) assert.ok(agents.includes(`**${name}**`));
+});
+
+test('the counts on the page are generated: markers are filled from the data and no count is typed beside them', () => {
   const values = site.markerValues(catalogue);
-  const { out, used } = site.fillMarkers(html, values);
+  const { out } = site.fillMarkers(html, values);
   assert.equal(out, html, 'index.html has stale generated values: run `npm run website:build`');
-  assert.ok(used.has('locations-word') && used.has('agents-word') && used.has('rest-word') && used.has('local-word'));
   assert.equal(values['locations-word'], site.word(catalogue.counts.locations));
   assert.throws(() => site.fillMarkers('<!--gen:nope-->x<!--/gen-->', values), /unknown generated marker/);
-  // a filled marker is rewritten from the data, whatever was typed inside it
   assert.equal(site.fillMarkers('a <!--gen:locations-word-->ninety<!--/gen--> b', values).out, `a <!--gen:locations-word-->${values['locations-word']}<!--/gen--> b`);
   assert.deepEqual(site.staleCountProblems(site.proseOf(html), 'index.html'), []);
 });
 
-test('the checks themselves: a typed count and an overclaim are caught, an honest sentence is not', () => {
-  // counts
+test('the checks themselves: engineering wording, a typed count and an overclaim are caught, honest copy is not', () => {
+  for (const bad of ['Every provider is stand-in tested.', 'Gemini: its shell can read the pass.', 'See the bearer value note.', 'Tested 39 of 39 checks passed today.', 'Run npm ci first.', 'Cross-built on a Mac.', 'Unsigned and not notarised.']) {
+    assert.equal(site.engineeringTalk(bad, 'x').length, 1, bad);
+  }
+  for (const good of ['Connect services like GitHub, Notion and Slack.', 'Give each agent only the services it needs.', 'Take access away and it applies at once.', 'Download for macOS.']) {
+    assert.deepEqual(site.engineeringTalk(good, 'x'), [], good);
+  }
   assert.equal(site.staleCountProblems('It ships seven MCP servers.', 'x').length, 1);
-  assert.equal(site.staleCountProblems('There are 22 providers here.', 'x').length, 1);
-  assert.equal(site.staleCountProblems('Pick from twelve more integrations today.', 'x').length, 1);
-  assert.deepEqual(site.staleCountProblems('Move it from one room to another.', 'x'), [], '"one" is not a count that goes stale');
-  assert.deepEqual(site.staleCountProblems(site.proseOf('<p>The <!--gen:local-word-->seven<!--/gen--> local servers run here.</p>'), 'x'), [], 'a generated count is not a typed one');
+  assert.deepEqual(site.staleCountProblems('Move it from one room to another.', 'x'), []);
   assert.equal(site.staleCountProblems(site.proseOf('<p>The seven local servers run here.</p>'), 'x').length, 1);
+  assert.deepEqual(site.staleCountProblems(site.proseOf('<p>The <!--gen:local-word-->seven<!--/gen--> local servers run here.</p>'), 'x'), []);
+  assert.equal(site.claimsProblems('Notion is verified.', accountLabels, 'x').length, 1);
+  assert.deepEqual(site.claimsProblems('Notion is not verified.', accountLabels, 'x'), []);
+  assert.equal(site.claimsProblems('It is production-ready.', accountLabels, 'x').length, 1);
 
-  // claims: a named account-based provider may not be called verified, unless the sentence says it is not
-  const labels = accountLabels;
-  assert.ok(labels.includes('Notion') && labels.includes('GitHub') && labels.includes('Gmail') && labels.includes('Slack'));
-  assert.equal(labels.includes('Filesystem'), false, 'a local server that answered a real call may be called verified');
-  assert.equal(site.claimsProblems('Notion is verified.', labels, 'x').length, 1);
-  assert.equal(site.claimsProblems('GitHub and Slack: verified end to end.', labels, 'x').length, 1);
-  assert.deepEqual(site.claimsProblems('Notion is not verified.', labels, 'x'), []);
-  assert.deepEqual(site.claimsProblems('Nobody has signed in to Notion through the app yet, so it is not marked verified.', labels, 'x'), []);
-  assert.deepEqual(site.claimsProblems('Filesystem is verified: it answered a real tool call.', labels, 'x'), []);
-  assert.deepEqual(site.claimsProblems('Notion works. The local servers are verified.', labels, 'x'), [], 'the claim is judged sentence by sentence');
-  // things the project cannot say of itself
-  assert.equal(site.claimsProblems('It is production-ready.', labels, 'x').length, 1);
-  assert.equal(site.claimsProblems('Fully tested on every platform.', labels, 'x').length, 1);
-  assert.equal(site.claimsProblems('It works on Windows.', labels, 'x').length, 1);
-  assert.deepEqual(site.claimsProblems('It has not been tested on Windows hardware.', labels, 'x'), []);
-
-  // the page as rendered is held to the same rule: a data file that calls an account-based provider verified is caught
+  // a page that regresses is caught by the build: wording in the page, wording in a script, a script asking for a missing id
+  const withTalk = html.replace('<h2>Your agents, one office.</h2>', '<h2>An honest status.</h2>');
+  assert.notEqual(withTalk, html);
+  assert.ok(site.engineeringTalk(site.proseOf(withTalk), 'x').length > 0);
+  const r = site.renderedProblems({ html: html.replace('id="filters"', 'id="filters-gone"'), dataText: site.dataFileText(data), data, accountLabels });
+  assert.ok(r.problems.some((m) => /asks for #filters/.test(m) || /did not render/.test(m)));
   const lie = JSON.parse(JSON.stringify(data));
-  const notion = lie.groups.flatMap((g) => g.providers).find((x) => x.id === 'notion');
-  notion.note = 'Notion is verified with a real account.';
-  const r = site.renderedProblems({ html, dataText: site.dataFileText(lie), data: lie, accountLabels: labels });
-  assert.ok(r.problems.some((m) => /calls "notion" verified/.test(m)), r.problems.join('\n'));
-  // and a card that drifts from the data is caught
-  const drift = JSON.parse(JSON.stringify(data));
-  const r2 = site.renderedProblems({ html: html.replace('id="legend"', 'id="legend-gone"'), dataText: site.dataFileText(drift), data: drift, accountLabels: labels });
-  assert.ok(r2.problems.some((m) => /asks for #legend/.test(m)), 'a script asking for an element the page does not have is caught');
+  lie.groups[0].providers[0].description = 'Verified against a stand-in service.';
+  const r2 = site.renderedProblems({ html, dataText: site.dataFileText(lie), data: lie, accountLabels });
+  assert.ok(r2.problems.some((m) => /engineering wording/.test(m)), r2.problems.join('\n'));
 });
 
 test('the scanner that reads a script\'s words: strings in, comments and code out', () => {
   const lits = site.stringLiterals([
-    '// seven MCP servers in a comment',
-    '/* nine providers in a block comment */',
-    'const a = \'it\\\'s here\'; const b = "two words";',
-    'const c = `x ${a + `${b}`} y`;',
-    'const url = \'https://example.test/a//b\';'
+    '// seven MCP servers in a comment', '/* nine providers in a block comment */',
+    'const a = \'it\\\'s here\'; const b = "two words";', 'const c = `x ${a + `${b}`} y`;', 'const url = \'https://example.test/a//b\';'
   ].join('\n'));
   assert.deepEqual(lits, ['it\'s here', 'two words', 'x … y', 'https://example.test/a//b']);
-  // the two data-driven scripts type no count and no claim of their own
   for (const f of ['integrations.js', 'ecosystem.js']) {
     for (const lit of site.stringLiterals(read(`website/js/${f}`))) {
       assert.deepEqual(site.staleCountProblems(lit, f), []);
-      assert.deepEqual(site.claimsProblems(lit, accountLabels, f), []);
+      assert.deepEqual(site.engineeringTalk(lit, f), []);
     }
   }
 });
 
-test('the page keeps working without the data file: the two scripts stop quietly instead of throwing', () => {
+test('the page keeps working without the data file, and its rooms are the app\'s locations', () => {
   const p = runSite({ html, scripts: [{ name: 'integrations.js', source: read('website/js/integrations.js') }, { name: 'ecosystem.js', source: read('website/js/ecosystem.js') }] });
   assert.deepEqual(p.filled, []);
-});
-
-test('the rooms the page can show are the app\'s locations', () => {
   const vm = require('node:vm');
   const sandbox = { window: {} };
   vm.runInNewContext(read('website/js/rooms-manifest.js'), sandbox);

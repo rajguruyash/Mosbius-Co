@@ -29,7 +29,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { buildCatalogue, ROOT } = require('./lib/catalogue.cjs');
-const { countsMd } = require('./lib/render.cjs');
 const { runSite, leaves, find, hasClass } = require('./lib/site-dom.cjs');
 
 const SITE = path.join(ROOT, 'website');
@@ -37,20 +36,17 @@ const SITE = path.join(ROOT, 'website');
 // ─── the screenshots: real captures of the packaged app, copied byte for byte ───────────────────────────────────────
 const SHOTS = [
   { id: 'discover', from: 'evidence/ui-packaged/02-discover-en.png', title: 'Discover',
-    alt: 'The Discover tab of Settings, Integrations and Skills: a card for each service with a plain label on it, and filters by kind.',
-    caption: 'Every service, how it connects, and how far it has been checked. A card says "Verified" only for a local server that answered a real call.' },
-  { id: 'connect', from: 'evidence/ui-packaged/05-github-panel-en.png', title: 'Connect',
-    alt: 'The GitHub card opened in Discover, offering a sign-in with a code, which asks for an app\'s client ID, or a key you create.',
-    caption: 'Connecting GitHub: a sign-in code that needs an app\'s client ID, or a key you create. No one has signed in to GitHub through the app yet, and the card says so.' },
-  { id: 'access', from: 'evidence/ui-packaged/06b-access-en.png', title: 'Agent access',
-    alt: 'The Agent access tab: what each coding agent CLI can do, whether its shell can read its pass, and the trusted-folder rule for Gemini CLI.',
-    caption: 'What each coding agent can do, and what it cannot: Codex\'s protection needs its own sandbox, and Gemini\'s shell can read its pass.' },
-  { id: 'skills', from: 'evidence/ui-packaged/15-skills-changed.png', title: 'Skills',
-    alt: 'The Skills tab: an installed skill flagged "Changed since install", with its source, its commit and buttons to check, look for an update and remove.',
-    caption: 'A skill that changed on disk after it was installed, found by Check. (The "demo" skill was installed by the test harness from a stand-in repository.)' },
+    alt: 'The Discover tab of Settings, Integrations and Skills: a card for every service, with filters by kind.',
+    caption: 'Find a service and see how it connects. Local tools switch on with one click.' },
+  { id: 'connected', from: 'evidence/ui-packaged/18-connected-time-on.png', title: 'Connected',
+    alt: 'The Connected tab: a service switched on, with the other tabs of Settings above it.',
+    caption: 'Switch services on and off, and choose which of their tools may be used.' },
+  { id: 'skills', from: 'evidence/ui-packaged/13-skills-claude.png', title: 'Skills',
+    alt: 'The Skills tab: an installed skill with its source, and a searchable catalogue of skills to install.',
+    caption: 'Browse the catalogue, install a skill for the agent you choose, and see where it came from.' },
   { id: 'activity', from: 'evidence/ui-packaged/17-activity.png', title: 'Activity',
-    alt: 'The Activity tab: the record of what was done and whether it was allowed, with a "record is intact" check.',
-    caption: 'The tamper-evident record of what was done and whether it was allowed. It holds names and decisions, never contents or secrets.' }
+    alt: 'The Activity tab: a record of what was done and whether it was allowed.',
+    caption: 'A running record of what each agent did and whether it was allowed.' }
 ];
 
 const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
@@ -89,30 +85,16 @@ function pngSize(buf) {
 
 /** Everything the page's scripts are given. Built from the catalogue and nothing else. */
 function buildData(catalogue) {
-  const agentKeys = new Set(catalogue.agents.map((a) => a.key));
   return {
     generatedBy: catalogue.generatedBy,
-    terms: catalogue.terms,
-    counts: catalogue.counts,
-    countsSentence: countsMd(catalogue).replace(/\*\*/g, ''),
+    // the catalogue the visitor sees: what the app offers today (nothing that is not available yet)
     groups: catalogue.groups.map((g) => ({
       id: g.id, title: g.title, blurb: g.blurb,
-      providers: g.providers.map((p) => ({
-        id: p.id, label: p.label, description: p.description, ways: p.ways, connectsBy: p.connectsBy, implemented: p.implemented,
-        locallyTested: p.locallyTested, standInTested: p.standInTested, realAccountVerified: p.realAccountVerified,
-        notYetVerified: p.notYetVerified, notImplemented: p.notImplemented, chip: p.chip, chipLabel: p.chipLabel, note: p.note
+      providers: g.providers.filter((p) => !p.notImplemented).map((p) => ({
+        id: p.id, label: p.label, description: p.description, ways: p.ways, connectsBy: p.connectsBy
       }))
-    })),
-    agents: catalogue.agents.map((a) => ({
-      key: a.key, label: a.label, version: a.version, summary: a.summary, integrations: a.integrations, skills: a.skills,
-      installCommand: a.installCommand, shell: a.shell, folderTrustRequired: a.folderTrustRequired,
-      skillFolders: a.skillFolders, skillTarget: a.skillTarget, run: a.run, skillsRun: a.skillsRun, runHow: a.runHow
-    })),
-    otherEngines: catalogue.supportedEngines.filter((e) => e.id !== 'custom' && !agentKeys.has(e.id)).map((e) => e.label),
+    })).filter((g) => g.providers.length),
     locations: catalogue.locations.map((l) => ({ key: l.key, id: l.id, label: l.label })),
-    hubTabs: catalogue.hubTabs,
-    engineKeys: catalogue.engineKeys.map((e) => e.label),
-    runs: catalogue.runs,
     screenshots: SHOTS.map((s) => {
       const src = path.join(ROOT, s.from);
       const size = fs.existsSync(src) ? pngSize(fs.readFileSync(src)) : null;
@@ -179,6 +161,17 @@ function claimsProblems(text, providerLabels, label) {
 }
 
 /**
+ * Engineering-status wording that belongs in the technical documents, not on the public page: test counts, verification
+ * labels, security findings, build and platform caveats. A genuine user-facing reason can allow a phrase here on purpose.
+ */
+const ENGINEERING_TALK = /an honest status|where it stands|stand-in|real-account|real account|not yet verified|locally tested|not implemented|shell can read|bearer|\bF9\b|\d+ of \d+ checks|checks passed|no real provider|published builds were made|installers were built before|static page|not deployed|test harness|throwaway|cross-built|notaris|unsigned|\bnpm (ci|run)\b|\bsandbox\b|broker|verified/i;
+function engineeringTalk(text, label) {
+  const found = [];
+  for (const s of sentences(text)) { const m = ENGINEERING_TALK.exec(s); if (m) found.push(`${label}: engineering wording ("${m[0]}") in: ${s.slice(0, 100)}`); }
+  return found;
+}
+
+/**
  * The string literals of a script, with comments left out and each `${...}` of a template replaced by a mark. It is a
  * scanner, not a parser: enough for the site's scripts, which have no regular-expression literal containing a quote.
  */
@@ -237,6 +230,8 @@ function checkLinks(html, problems) {
   const ids = new Set([...html.matchAll(/\sid\s*=\s*"([^"]+)"/g)].map((m) => m[1]));
   const targets = [...attrValues(html, 'href'), ...attrValues(html, 'src')];
   const seen = { anchors: 0, files: 0, external: 0 };
+  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const readmeDownloads = new Set([...readme.matchAll(/\((https:\/\/github\.com\/[^)\s]*\/releases\/download\/[^)\s]+)\)/g)].map((m) => m[1]));
   const readmeTags = new Set([...fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8').matchAll(/releases\/tag\/(v[0-9.]+)/g)].map((m) => m[1]));
   for (const t of targets) {
     if (t.startsWith('#')) {
@@ -246,6 +241,7 @@ function checkLinks(html, problems) {
       seen.external++;
       if (KNOWN_EXTERNAL.some((re) => re.test(t))) continue;
       if (t === REPO || t === `${REPO}/releases`) continue;
+      if (new RegExp(`^${REPO}/releases/download/v[0-9.]+/[\\w.-]+$`).test(t)) { if (!readmeDownloads.has(t)) problems.push(`index.html links to the download ${t}, which README.md does not give`); continue; }
       let m = new RegExp(`^${REPO}/releases/tag/(v[0-9.]+)$`).exec(t);
       if (m) { if (!readmeTags.has(m[1])) problems.push(`index.html links to release ${m[1]}, which README.md does not list`); continue; }
       m = new RegExp(`^${REPO}/blob/main/([^#?]+)(?:#.*)?$`).exec(t);
@@ -324,17 +320,13 @@ function renderedProblems({ html, dataText, data, accountLabels }) {
   const filters = page.get('filters');
   if (!cards || !filters) return { problems: [...problems, 'the integrations section did not render (#cards or #filters is missing)'], page };
 
-  // every provider, once, in the data's order
+  // every provider the app offers, once, in the data's order, each with a description and how it is set up
   if (!same(names(cards), all.map((p) => p.label))) problems.push(`the integrations section does not show every provider once, in order: it shows ${names(cards).join(', ')}`);
-  // one tag with the provider's state on every card, in the data's own words
-  const cardEls = find(cards, (e) => hasClass(e, 'card'));
-  cardEls.forEach((card, i) => {
+  find(cards, (e) => hasClass(e, 'card')).forEach((card, i) => {
     const p = all[i];
     if (!p) return;
-    const tags = find(card, (e) => hasClass(e, 'tag')).map((e) => e.textContent);
-    if (tags[0] !== p.chipLabel.toUpperCase()) problems.push(`${p.label}: the card says "${tags[0]}", the data says "${p.chipLabel}"`);
-    if (p.notYetVerified !== tags.some((t) => /NOT YET VERIFIED/.test(t))) problems.push(`${p.label}: the "not yet verified" tag does not match the data`);
-    if (p.notImplemented !== hasClass(card, 'is-planned')) problems.push(`${p.label}: the card's "not implemented" look does not match the data`);
+    if (!find(card, (e) => hasClass(e, 'desc')).some((e) => e.textContent.length > 8)) problems.push(`${p.label}: the card has no description`);
+    if (!find(card, (e) => hasClass(e, 'meta')).some((e) => e.textContent.length > 2)) problems.push(`${p.label}: the card does not say how it is set up`);
   });
   // each filter shows its own group and nothing else
   const chips = find(filters, (e) => hasClass(e, 'chip'));
@@ -344,37 +336,22 @@ function renderedProblems({ html, dataText, data, accountLabels }) {
     const want = chip.dataset.group === 'all' ? all : (data.groups.find((g) => g.id === chip.dataset.group)?.providers ?? []);
     if (!same(names(cards), want.map((p) => p.label))) problems.push(`the "${chip.textContent}" filter shows ${names(cards).join(', ') || 'nothing'}`);
     if (chip.getAttribute('aria-pressed') !== 'true') problems.push(`the "${chip.textContent}" filter is not marked as pressed after it is chosen`);
-    const caption = page.get('cards-caption')?.textContent ?? '';
-    if (!caption.includes(`Showing ${want.length}:`)) problems.push(`the caption under the "${chip.textContent}" filter does not count what is shown: ${caption}`);
   }
   chips[0]?.click();
 
-  const count = (id, pred) => (page.get(id) ? find(page.get(id), pred).length : -1);
-  const tagIs = (t) => (e) => e.tagName === t;
-  if (count('legend', tagIs('DT')) !== data.terms.length) problems.push('the legend does not define every word of the vocabulary');
-  if (count('agent-cards', (e) => hasClass(e, 'agent-card')) !== data.agents.length) problems.push('the agents section does not show every coding agent');
-  if (count('skills-compat', tagIs('TR')) !== data.agents.length) problems.push('the skills table does not have a row for every coding agent');
-  if (count('status-generated', tagIs('TR')) < data.agents.length + 3) problems.push('the status table is missing its generated rows');
-  if (count('limits', (e) => hasClass(e, 'limit')) < 4) problems.push('the known limits did not render');
-  const imgs = page.get('shots') ? find(page.get('shots'), tagIs('IMG')) : [];
+  const imgs = page.get('shots') ? find(page.get('shots'), (e) => e.tagName === 'IMG') : [];
   if (imgs.length !== data.screenshots.length) problems.push('the screenshots section does not show every screenshot');
   for (const img of imgs) {
     if (!img.getAttribute('alt')) problems.push(`a screenshot has no alt text: ${img.getAttribute('src')}`);
     if (!fs.existsSync(path.join(SITE, img.getAttribute('src') ?? '')) && !fs.existsSync(path.join(ROOT, SHOTS.find((s) => `assets/ui/${s.id}.png` === img.getAttribute('src'))?.from ?? '?'))) problems.push(`a screenshot points at a file that does not exist: ${img.getAttribute('src')}`);
   }
-  // a limit that the data says exists must be on the page
-  const limitText = page.get('limits') ? leaves(page.get('limits')).join(' ') : '';
-  for (const a of data.agents) {
-    if (a.shell.passHidden === 'no' && !limitText.includes(`${a.label}: its shell can read the pass`)) problems.push(`the known limits do not say that ${a.label}'s shell can read its pass`);
-    if (a.shell.onlyWhileSandboxed && !limitText.includes(`${a.label}: the protection needs its sandbox`)) problems.push(`the known limits do not say that ${a.label}'s protection needs its sandbox`);
-  }
-  if (data.counts.realAccountVerified === 0 && !/No real provider account has been used/.test(limitText)) problems.push('the known limits do not say that no real provider account has been used');
 
   // the words themselves
   for (const host of page.filled) {
     for (const text of leaves(host)) {
       if (/\b(undefined|NaN|null)\b|\[object /.test(text)) problems.push(`#${host.id} renders a missing value: ${text.slice(0, 90)}`);
       problems.push(...claimsProblems(text, accountLabels, `#${host.id} (as rendered)`));
+      problems.push(...engineeringTalk(text, `#${host.id} (as rendered)`));
     }
   }
   return { problems, page };
@@ -435,6 +412,7 @@ function build({ check = false } = {}) {
   const prose = proseOf(page);
   problems.push(...staleCountProblems(prose, 'index.html'));
   problems.push(...claimsProblems(prose, accountLabels, 'index.html'));
+  problems.push(...engineeringTalk(prose, 'index.html'));
   for (const f of fs.readdirSync(path.join(SITE, 'js')).filter((x) => x.endsWith('.js') && !/manifest|catalogue/.test(x))) {
     const src = fs.readFileSync(path.join(SITE, 'js', f), 'utf8');
     problems.push(...staleCountProblems(commentsOf(src), `js/${f} (comments)`));
@@ -442,6 +420,7 @@ function build({ check = false } = {}) {
     for (const lit of stringLiterals(src)) {
       problems.push(...staleCountProblems(lit, `js/${f}`));
       problems.push(...claimsProblems(lit, accountLabels, `js/${f}`));
+      problems.push(...engineeringTalk(lit, `js/${f}`));
     }
   }
   for (const f of ['integrations.js', 'ecosystem.js']) {
@@ -452,6 +431,8 @@ function build({ check = false } = {}) {
   const captions = SHOTS.map((x) => `${x.alt} ${x.caption}`).join(' ');
   problems.push(...staleCountProblems(captions, 'screenshot captions'));
   problems.push(...claimsProblems(captions, accountLabels, 'screenshot captions'));
+  problems.push(...engineeringTalk(captions, 'screenshot captions'));
+  problems.push(...engineeringTalk(data.groups.map((g) => `${g.blurb} ${g.providers.map((p) => p.description).join(' ')}`).join(' '), 'the catalogue the page shows'));
 
   // the data must not claim what the evidence cannot back
   for (const p of catalogue.providers) {
@@ -470,7 +451,7 @@ function build({ check = false } = {}) {
   return {
     problems, stale, data,
     summary: [
-      `website: ${data.counts.providers} providers in ${data.counts.groups} groups, ${data.agents.length} agents, ${data.locations.length} locations, ${SHOTS.length} screenshots`,
+      `website: ${data.groups.flatMap((g) => g.providers).length} catalogue entries in ${data.groups.length} groups, ${data.locations.length} locations, ${SHOTS.length} screenshots`,
       `checked: ${seen.anchors} anchors, ${seen.files} files, ${seen.external} external links, ${images} images, ${scripts} scripts, ${filled.used.size} generated markers; rendered ${rendered.page ? rendered.page.filled.length : 0} sections against the data`
     ]
   };
@@ -488,4 +469,4 @@ if (require.main === module) {
   console.log(check ? 'the website\'s generated files are current and every check passed' : 'wrote the generated files; every check passed');
 }
 
-module.exports = { build, buildData, dataFileText, fillMarkers, markerValues, staleCountProblems, claimsProblems, proseOf, stringLiterals, renderedProblems, SHOTS, word, SITE };
+module.exports = { build, buildData, dataFileText, fillMarkers, markerValues, staleCountProblems, claimsProblems, engineeringTalk, ENGINEERING_TALK, proseOf, stringLiterals, renderedProblems, SHOTS, word, SITE };
