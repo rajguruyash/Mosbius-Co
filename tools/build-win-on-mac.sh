@@ -19,4 +19,7 @@ sed "s/if (process.platform !== 'win32') process.exit(0);//" tools/patch-node-pt
 node "$STASH/patch.cjs" || true
 (cd node_modules/better-sqlite3 && npx prebuild-install --runtime electron --target "$(node -p "require('electron/package.json').version")" --arch x64 --platform win32)
 npx electron-vite build
-CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win nsis --x64 --publish never -c.npmRebuild=false
+# The same step `npm run build` ends with: slack.ts and knowledge.ts require these two files from out/main at startup.
+node tools/copy-main-assets.cjs
+# Any arguments to this script go on to electron-builder, e.g. -c.extraMetadata.version=1.1.0 to name a release.
+CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win nsis --x64 --publish never -c.npmRebuild=false "$@"

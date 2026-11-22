@@ -1854,5 +1854,311 @@
     "viewSource": "view source",
     "loading": "loading image…",
     "decodeFailed": "could not decode this image — the file may be corrupt or misnamed"
+  },
+  "huddle": {
+    "title": "AGENT HUDDLE",
+    "openHuddle": "Huddle",
+    "settingsTab": "Settings",
+    "titleCount": "AGENT HUDDLE · {{count}}",
+    "openApp": "Back to the full app",
+    "openAppShort": "Open app",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "back": "Back",
+    "close": "Close",
+    "moreAgents": "{{count}} more",
+    "sections": {
+      "needsYou": "Needs you",
+      "agents": "Agents",
+      "tasks": "Tasks",
+      "recent": "Recent"
+    },
+    "empty": {
+      "title": "No agents on the floor",
+      "body": "Add an agent in the main app and it will appear here, working in real time.",
+      "open": "Open the app"
+    },
+    "state": {
+      "idle": "Idle",
+      "working": "Working",
+      "researching": "Researching",
+      "waiting": "Waiting",
+      "completed": "Completed",
+      "needs-input": "Needs input",
+      "needs-approval": "Needs approval",
+      "error": "Error",
+      "paused": "Paused",
+      "stopped": "Stopped"
+    },
+    "activity": {
+      "starting": "Starting up",
+      "thinking": "Thinking",
+      "running": "Running {{arg}}",
+      "runningBare": "Running a command",
+      "reading": "Reading {{arg}}",
+      "readingBare": "Reading",
+      "editing": "Editing {{arg}}",
+      "editingBare": "Editing a file",
+      "searching": "Searching for “{{arg}}”",
+      "searchingBare": "Searching the code",
+      "finding": "Finding {{arg}}",
+      "findingBare": "Finding files",
+      "fetching": "Fetching {{arg}}",
+      "fetchingBare": "Fetching a page",
+      "searchingWeb": "Searching the web: {{arg}}",
+      "searchingWebBare": "Searching the web",
+      "delegating": "Delegating: {{arg}}",
+      "delegatingBare": "Delegating to a helper",
+      "planning": "Planning the work",
+      "usingTool": "Using {{arg}}",
+      "usingToolBare": "Using a tool",
+      "compacting": "Compacting its context",
+      "idle": "Waiting for the next task",
+      "finished": "Finished the task",
+      "askingApproval": "Asking to use {{arg}}",
+      "askingApprovalBare": "Asking for approval",
+      "askingQuestion": "Has a question for you",
+      "paused": "Paused: tools are blocked",
+      "stopping": "Stopping after this step",
+      "stopped": "Not running",
+      "failed": "Stopped: {{arg}}",
+      "failedBare": "Stopped unexpectedly",
+      "looping": "Held by the circuit breaker: {{arg}}",
+      "loopingBare": "Held by the circuit breaker",
+      "waiting": "Waiting on another agent"
+    },
+    "progress": {
+      "steps": "{{done}} of {{total}} steps",
+      "tasks": "{{done}} of {{total}} tasks",
+      "context": "context {{pct}}%",
+      "queuedOne": "{{count}} message waiting",
+      "queuedMany": "{{count}} messages waiting"
+    },
+    "since": {
+      "now": "just now",
+      "seconds": "{{count}}s",
+      "minutes": "{{count}}m",
+      "hours": "{{count}}h"
+    },
+    "controls": {
+      "pause": "Pause",
+      "resume": "Resume",
+      "interrupt": "Stop task",
+      "restart": "Restart",
+      "end": "End session",
+      "pauseTip": "Block this agent's tools at the next step. Resume to let it go on.",
+      "resumeTip": "Let this agent use its tools again.",
+      "interruptTip": "Interrupt what it is doing now (Escape in its terminal). It stays running.",
+      "restartTip": "Restart: a fresh process, continuing the same conversation when it has one.",
+      "endTip": "End this agent's session.",
+      "endConfirm": "End {{name}}'s session?",
+      "endYes": "End session",
+      "endNo": "Keep it",
+      "failed": "That did not work: {{error}}",
+      "ok": "Done"
+    },
+    "tabs": {
+      "conversation": "Conversation",
+      "terminal": "Terminal"
+    },
+    "conversation": {
+      "empty": "Nothing said yet. Send {{name}} a message below.",
+      "loading": "Reading the conversation…",
+      "failed": "Could not read the conversation: {{error}}",
+      "fromTranscript": "From the session transcript",
+      "fromHive": "From the hive thread (this engine keeps no transcript the app can read)",
+      "older": "Older messages are in the transcript file.",
+      "you": "You"
+    },
+    "terminal": {
+      "attaching": "Opening the terminal…",
+      "failed": "Could not open the terminal: {{error}}",
+      "exited": "The process has ended.",
+      "readOnly": "A live view of {{name}}'s terminal. Use the keys below to answer a prompt.",
+      "keys": "Keys",
+      "enter": "Enter",
+      "esc": "Esc",
+      "up": "Up",
+      "down": "Down",
+      "tab": "Tab"
+    },
+    "composer": {
+      "placeholder": "Message {{name}}…",
+      "placeholderBusy": "Message {{name}} (it is working: this waits its turn)…",
+      "placeholderOff": "{{name}} is not running",
+      "send": "Send",
+      "attach": "Attach",
+      "attachFiles": "Files…",
+      "attachImages": "Images…",
+      "remove": "Remove",
+      "drop": "Drop files to attach them to {{name}}",
+      "queued": "Queued for {{name}}. It is delivered when {{name}} is free.",
+      "failed": "Not sent: {{error}}",
+      "pasteFailed": "There is no image on the clipboard.",
+      "kind": {
+        "image": "Image",
+        "file": "File"
+      }
+    },
+    "errors": {
+      "unknown-agent": "that agent is not on the floor",
+      "no-terminal": "it has no terminal",
+      "not-running": "it is not running",
+      "main-window-unavailable": "the main window is not available",
+      "not-for-orchestrator": "the orchestrator is ended from the main app",
+      "invalid-command": "that was not a valid request",
+      "forbidden": "not allowed from here",
+      "timed-out": "it took too long"
+    },
+    "notifications": {
+      "bell": "Notifications",
+      "none": "Nothing needs you.",
+      "noneHistory": "No notifications yet.",
+      "unread": "{{count}} unread",
+      "pending": "{{count}} waiting on you",
+      "markAllRead": "Mark all read",
+      "clear": "Clear history",
+      "resolvedAt": "{{what}} · {{when}} ago",
+      "repeated": "asked {{count}} times",
+      "openAgent": "Open agent",
+      "settings": "Grant access in Settings",
+      "approve": "Approve",
+      "reject": "Reject",
+      "alternative": "Suggest instead…",
+      "answer": "Answer…",
+      "restart": "Restart",
+      "dismiss": "Dismiss",
+      "sendAlternative": "Reject and send",
+      "sendAnswer": "Send answer",
+      "alternativePlaceholder": "Tell {{agent}} what to do instead…",
+      "answerPlaceholder": "Your answer…",
+      "cancel": "Cancel",
+      "failed": "That did not work: {{error}}",
+      "already-resolved": "it was already answered",
+      "not-running": "the agent is no longer running",
+      "not-offered": "that is not available for this notification",
+      "no-such-option": "that option is gone",
+      "outcome": {
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "alternative": "Rejected, sent another way",
+        "option": "Answered",
+        "answered": "Answered",
+        "dismissed": "Dismissed",
+        "opened": "Opened",
+        "resolved": "Resolved"
+      },
+      "by": {
+        "user": "by you",
+        "agent": "by the agent",
+        "system": "automatically"
+      },
+      "category": {
+        "approval": "Approval",
+        "input": "Input needed",
+        "intervention": "Needs attention",
+        "access": "Access needed",
+        "completed": "Completed",
+        "info": "Info"
+      }
+    },
+    "prefs": {
+      "title": "Notifications",
+      "sound": "Play a sound",
+      "desktop": "Show desktop notifications",
+      "routine": "Show routine progress (idle, paused, stopped)",
+      "categories": "Tell me about",
+      "desktopStatus": {
+        "unknown": "Desktop notifications have not been tried yet. Send a test to check.",
+        "ok": "Notifications are being handed to your system.",
+        "unsupported": "Your system does not support desktop notifications here. Sounds and the Huddle still work.",
+        "blocked": "Your system is refusing the notifications. Sounds and the Huddle still work."
+      },
+      "test": "Send a test notification",
+      "systemSettings": "Open system notification settings",
+      "systemHint": "If a test does not appear, allow notifications for this app in your system settings.",
+      "tested": "Sent. If nothing appeared on screen, your system is blocking this app's notifications.",
+      "sounds": {
+        "title": "Sounds",
+        "volume": "Volume",
+        "switch": "Sound on or off: {{name}}",
+        "previews": "Sound previews",
+        "play": "Play {{name}}",
+        "previewHint": "A preview only plays the sound. No notification is sent and no agent is touched.",
+        "previewHintOff": "Notification sounds are off. Previews still play, so you can hear them first.",
+        "cue": {
+          "completed": { "name": "Mosbius Signature Piano — Task Complete", "hint": "A bright piano tune, about three seconds" },
+          "intervention": { "name": "Needs your attention", "hint": "Knock, knock, then a question" },
+          "input": { "name": "Needs your input", "hint": "Two warm notes" },
+          "approval": { "name": "Needs your approval", "hint": "A question in three notes" },
+          "access": { "name": "Needs access", "hint": "A muted pluck and a held breath" },
+          "critical": { "name": "Something went wrong", "hint": "A gentle fall" },
+          "started": { "name": "Agent started", "hint": "A tiny spark" },
+          "signature": { "name": "The Mosbius & Co tune", "hint": "The little tune the others come from" }
+        }
+      }
+    }
+  },
+  "notify": {
+    "approval": {
+      "title": "{{agent}} needs your approval",
+      "body": "It wants to use {{tool}}.",
+      "bodyPlain": "It is waiting for you to approve something."
+    },
+    "input": {
+      "title": "{{agent}} has a question",
+      "body": "It needs an answer from you to go on.",
+      "bodyOptions": "Pick one of its options to go on."
+    },
+    "ask": {
+      "title": "{{agent}} needs your input",
+      "body": "About: {{subject}}"
+    },
+    "completed": {
+      "title": "{{agent}} finished",
+      "body": "Worked for {{duration}}.",
+      "bodyTools": "Worked for {{duration}}, {{tools}} steps."
+    },
+    "crashed": {
+      "title": "{{agent}} stopped unexpectedly",
+      "body": "Exit code {{code}}. Restart it to continue the conversation.",
+      "bodyMessage": "Exit code {{code}}."
+    },
+    "breaker": {
+      "title": "{{agent}} is being held back",
+      "stoppedTitle": "{{agent}} was stopped by the circuit breaker",
+      "body": "It looks stuck in a loop. Have a look before it goes on."
+    },
+    "stuck": {
+      "title": "{{agent}} is waiting on you",
+      "body": "It is showing a prompt in its terminal."
+    },
+    "access": {
+      "title": "{{agent}} needs access to {{integration}}",
+      "body": "It tried to use {{integration}} and has not been given access.",
+      "bodyTool": "It tried to use {{tool}} on {{integration}} and has not been given access."
+    },
+    "idle": {
+      "title": "{{agent}} is waiting for its next task",
+      "body": "It has finished and has nothing queued."
+    },
+    "stopped": {
+      "title": "{{agent}} was stopped",
+      "body": "Its session has ended."
+    },
+    "paused": {
+      "title": "{{agent}} was paused",
+      "body": "Its tools are blocked until you resume it."
+    },
+    "resumed": {
+      "title": "{{agent}} is running again",
+      "body": "Its tools are allowed again."
+    },
+    "more": "{{count}} more updates. Open the Huddle to see them.",
+    "moreTitle": "More from your agents",
+    "test": {
+      "title": "Test notification",
+      "body": "Desktop notifications are working."
+    }
   }
 }

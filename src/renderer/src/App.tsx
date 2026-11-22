@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStore, selectedAgent } from '@/store/store';
 import { startMockLoop, stopMockLoop } from '@/store/mockEvents';
 import type { HarnessConfig } from '@/store/config';
@@ -31,12 +32,15 @@ import { FullscreenTerminal } from '@/components/FullscreenTerminal';
 import { TaskDetailOverlay } from '@/components/TaskDetailOverlay';
 import { IdePanel } from '@/ide/IdePanel';
 import { useHoldOptionToTalk } from '@/freeflow/holdOption';
+import { useHuddleBridge } from '@/huddle/useHuddleBridge';
+import { NotificationBell } from '@/components/NotificationBell';
 import brandLogo from '@brand/logo.png?url';
 
 // Injected at build time from package.json (see electron.vite.config.ts).
 declare const __APP_VERSION__: string;
 
 export function App() {
+  const { t } = useTranslation();
   // Point every {{godName}} string at the orchestrator's real, renameable name.
   useGodNameSync();
   // Mirror the document only for a user who has picked an RTL app language.
@@ -196,6 +200,8 @@ export function App() {
   // hook) so Ted doesn't boot against the current home while the user may be
   // about to switch to a different one.
   useHive(hiveOpened ? config : null);
+  // The Huddle's half in this window: report the roster, carry out its restarts and selections, report the language.
+  useHuddleBridge(hiveOpened && !!config?.onboardingComplete);
 
   // Pre-warm a persistent terminal for every live agent so its output is
   // buffered from spawn. Switching agents then re-attaches an already-rendered
@@ -314,6 +320,24 @@ export function App() {
         }}>
           {config.autoMode ? 'auto mode on' : 'auto mode off'}
         </span>
+        {/* Notifications and the Huddle sit at the right with the other window-level controls. */}
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 12, alignItems: 'center' }}>
+          <NotificationBell />
+          <button
+            className="cth-titlebar-nodrag cth-tip"
+            onClick={() => { void window.cth.huddleEnter(); }}
+            data-tip={t('huddle.title')}
+            aria-label={t('huddle.title')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, height: 28, padding: '0 8px',
+              background: 'var(--cth-paper-100)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)', border: 'none', borderRadius: 2,
+              cursor: 'pointer', color: 'var(--cth-ink-900)', fontFamily: 'var(--cth-font-display)', fontSize: 8, lineHeight: '10px'
+            }}
+          >
+            <HuddleGlyph />
+            {t('huddle.openHuddle')}
+          </button>
+        </span>
         {/* v0.3.4: theme + fullscreen live HERE (top right), not buried in the
             terminal header — and the theme darkens the whole app, terminals
             included (design/theme.ts + tokens.css dark block). */}
@@ -337,7 +361,6 @@ export function App() {
           data-tip={appThemeNow === 'dark' ? 'Light theme' : 'Dark theme'}
           aria-label="Toggle dark mode"
           style={{
-            marginLeft: 'auto',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             width: 28, height: 28, padding: 0,
             background: 'var(--cth-paper-100)',
@@ -535,6 +558,16 @@ function Glyph({ children }: { children: React.ReactNode }) {
       strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true" focusable="false"
     >{children}</svg>
+  );
+}
+
+/** Three small figures side by side: the Huddle. */
+function HuddleGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <circle cx="4" cy="6" r="1.6" /><circle cx="8" cy="5" r="1.6" /><circle cx="12" cy="6" r="1.6" />
+      <path d="M1.6 12.5c.3-2 1.2-3 2.4-3s2.1 1 2.4 3M5.6 11.5c.3-2 1.2-3 2.4-3s2.1 1 2.4 3M9.6 12.5c.3-2 1.2-3 2.4-3s2.1 1 2.4 3" />
+    </svg>
   );
 }
 

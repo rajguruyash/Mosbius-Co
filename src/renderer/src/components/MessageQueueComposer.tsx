@@ -9,6 +9,7 @@ import type { TerminalAutomationBlock } from './terminalAutomation';
 import { freeflowRecorder, useFreeflow } from '@/freeflow/recorder';
 import { useTerminalFontSize } from './terminalFontSize';
 import { isComposingKey } from '@shared/imeGuard';
+import { formatOutgoing } from '@shared/huddle';
 import { useRtl } from '@/i18n/useDirection';
 
 const EMPTY_QUEUE: QueuedMessage[] = [];
@@ -134,13 +135,10 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
 
   const queueIt = () => {
     if (!canSend) return;
-    // Prepend an "Attached files:" block using the same path-based convention as
-    // the Slack inbound path (useHive.ts) so agents Read the files directly.
-    const body = attachments.length
-      ? (text.trim()
-          ? `${text}\n\nAttached files:\n`
-          : 'Attached files:\n') + attachments.map((a) => `- ${a.path} (${a.name})`).join('\n')
-      : text;
+    // Append an "Attached files:" block using the same path-based convention as the Slack inbound path
+    // (useHive.ts) so agents Read the files directly. One function builds it for this composer and for the
+    // Huddle's, so an agent cannot tell which one a message came from.
+    const body = formatOutgoing(text, attachments);
     enqueueMessage(agent.id, body);
     // Counted HERE, at the composer's submit, and NOT inside enqueueMessage:
     // that store action is also how work orders, Slack inbound, nudges and

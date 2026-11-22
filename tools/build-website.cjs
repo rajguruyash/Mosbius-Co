@@ -49,6 +49,14 @@ const SHOTS = [
     caption: 'A running record of what each agent did and whether it was allowed.' }
 ];
 
+// ─── the Huddle's pictures and videos: real captures of the app, copied byte for byte ──────────────────────────────────
+// tools/huddle-validate.cjs --only media and --only desktop record them into screenshots/huddle/, where the README shows them
+// too. The page carries copies of the ones it uses, so that website/ stands alone. (The README's GIFs stay in screenshots/huddle/ only.)
+const HUDDLE_MEDIA = [
+  'huddle-desktop.mp4', 'huddle-desktop-poster.jpg', 'huddle-story.mp4', 'huddle-story-poster.jpg',
+  'huddle-compact.png', 'huddle-expanded.png', 'huddle-agent.png'
+];
+
 const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
 const word = (n) => (WORDS[n] ?? String(n));
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -228,7 +236,7 @@ const REPO = 'https://github.com/rajguruyash/Mosbius-Co';
 
 function checkLinks(html, problems) {
   const ids = new Set([...html.matchAll(/\sid\s*=\s*"([^"]+)"/g)].map((m) => m[1]));
-  const targets = [...attrValues(html, 'href'), ...attrValues(html, 'src')];
+  const targets = [...attrValues(html, 'href'), ...attrValues(html, 'src'), ...attrValues(html, 'poster')];
   const seen = { anchors: 0, files: 0, external: 0 };
   const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   const readmeDownloads = new Set([...readme.matchAll(/\((https:\/\/github\.com\/[^)\s]*\/releases\/download\/[^)\s]+)\)/g)].map((m) => m[1]));
@@ -265,6 +273,22 @@ function checkImages(html, problems) {
     if (!/\salt\s*=/.test(m[0])) problems.push(`an <img> has no alt attribute: ${m[0].slice(0, 80)}`);
   }
   return n;
+}
+
+/** The Huddle section: every file copied from screenshots/huddle/ is used, and a video is silent, plays inline, has a still and a name. */
+function checkHuddle(html, problems) {
+  const clean = html.replace(/<!--[\s\S]*?-->/g, '');
+  const used = new Set([...attrValues(clean, 'src'), ...attrValues(clean, 'poster'), ...attrValues(clean, 'href')]
+    .filter((t) => t.startsWith('assets/huddle/')).map((t) => t.slice('assets/huddle/'.length)));
+  for (const f of HUDDLE_MEDIA) if (!used.has(f)) problems.push(`index.html does not use assets/huddle/${f}`);
+  for (const f of used) if (!HUDDLE_MEDIA.includes(f)) problems.push(`index.html uses assets/huddle/${f}, which this script does not copy: add it to HUDDLE_MEDIA`);
+  for (const m of clean.matchAll(/<video\b[^>]*>/gi)) {
+    for (const need of ['muted', 'playsinline', 'poster=', 'aria-label=']) if (!new RegExp(`\\s${need}`, 'i').test(m[0])) problems.push(`a <video> has no ${need.replace('=', '')}: ${m[0].slice(0, 90)}`);
+    if (/\sautoplay\b/i.test(m[0])) problems.push('a <video> has the autoplay attribute: js/huddle.js starts it while it is on screen, and nobody has to have it start by itself');
+  }
+  for (const m of clean.matchAll(/<img\b[^>]*assets\/huddle\/[^>]*>/gi)) {
+    if (!/\swidth\s*=\s*"\d+"/.test(m[0]) || !/\sheight\s*=\s*"\d+"/.test(m[0])) problems.push(`a Huddle picture has no width and height (the page jumps as it loads): ${m[0].slice(0, 90)}`);
+  }
 }
 
 function scriptSources(html) {
@@ -390,6 +414,17 @@ function build({ check = false } = {}) {
     }
   }
 
+  // 2b. the Huddle's pictures and video
+  for (const f of HUDDLE_MEDIA) {
+    const src = path.join(ROOT, 'screenshots', 'huddle', f);
+    if (!fs.existsSync(src)) { problems.push(`the Huddle file screenshots/huddle/${f} is missing: run tools/huddle-validate.cjs --only media`); continue; }
+    write(path.join(SITE, 'assets', 'huddle', f), fs.readFileSync(src));
+  }
+  const huddleDir = path.join(SITE, 'assets', 'huddle');
+  if (fs.existsSync(huddleDir)) {
+    for (const f of fs.readdirSync(huddleDir)) if (!HUDDLE_MEDIA.includes(f)) problems.push(`website/assets/huddle/${f} is not one of the files this script copies: remove it, or add it to HUDDLE_MEDIA`);
+  }
+
   // 3. the markers in index.html
   const indexFile = path.join(SITE, 'index.html');
   const html = fs.readFileSync(indexFile, 'utf8');
@@ -404,6 +439,7 @@ function build({ check = false } = {}) {
   const seen = checkLinks(page, problems);
   const images = checkImages(page, problems);
   const scripts = checkScripts(page, problems);
+  checkHuddle(page, problems);
   checkRooms(catalogue, problems);
 
   // the names that must never be called verified without saying they are not: every provider that is not a local server
@@ -469,4 +505,4 @@ if (require.main === module) {
   console.log(check ? 'the website\'s generated files are current and every check passed' : 'wrote the generated files; every check passed');
 }
 
-module.exports = { build, buildData, dataFileText, fillMarkers, markerValues, staleCountProblems, claimsProblems, engineeringTalk, ENGINEERING_TALK, proseOf, stringLiterals, renderedProblems, SHOTS, word, SITE };
+module.exports = { build, buildData, dataFileText, fillMarkers, markerValues, staleCountProblems, claimsProblems, engineeringTalk, ENGINEERING_TALK, proseOf, stringLiterals, renderedProblems, SHOTS, HUDDLE_MEDIA, word, SITE };

@@ -33,6 +33,7 @@ import {
 import { notifyArabicTerminalChangeAll } from '@/components/terminalPool';
 import { isComposingKey } from '@shared/imeGuard';
 import { LANGUAGES, setLanguage } from '@/i18n';
+import { NotificationSettings } from './NotificationSettings';
 
 export interface SettingsModalProps {
   config: HarnessConfig;
@@ -1119,29 +1120,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
 
-                      {/* Desktop notifications toggle */}
-                      <div>
-                        <div style={sectionHead}>
-                          {t('settings.general.notifications')}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>
-                              {t('settings.general.desktopNotifications')}
-                            </span>
-                            <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
-                              {t('settings.general.desktopNotificationsDesc')}
-                            </span>
-                          </div>
-                          <PixelButton
-                            variant={notifications ? 'primary' : 'secondary'}
-                            size="sm"
-                            onClick={toggleNotifications}
-                          >
-                            {notifications ? t('common.on') : t('common.off')}
-                          </PixelButton>
-                        </div>
-                      </div>
+                      {/* Notifications: sounds, banners, which kinds, and whether the system is showing them */}
+                      <NotificationSettings headStyle={sectionHead} />
 
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
 

@@ -104,17 +104,20 @@ test('as a visitor gets it: every provider once, each filter its own group, a de
 
 test('the homepage is a product page: its sections, its three agents, its calls to action, and none of the removed ones', () => {
   const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
-  for (const id of ['top', 'team', 'spawn', 'places', 'cinema', 'features', 'agents', 'plug', 'skills', 'security', 'screens', 'download']) assert.ok(ids.has(id), `#${id} is on the page`);
+  for (const id of ['top', 'team', 'spawn', 'places', 'cinema', 'features', 'huddle', 'agents', 'plug', 'skills', 'security', 'screens', 'download']) assert.ok(ids.has(id), `#${id} is on the page`);
   for (const id of ['status', 'status-table', 'status-generated', 'limits', 'legend', 'catalogue-counts', 'agent-cards', 'engines-note', 'skills-compat']) assert.equal(ids.has(id), false, `#${id} was removed`);
   const agents = [...html.matchAll(/<article class="agent-card">[\s\S]*?<h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
   assert.deepEqual(agents, ['Claude Code', 'OpenAI Codex', 'Google Gemini CLI']);
   assert.match(html, /Works with Claude Code, OpenAI Codex and Google Gemini CLI\. You only need one\./);
   // download buttons point at the assets README.md gives, and README.md is what the releases really hold
   const direct = [...html.matchAll(/href="(https:\/\/github\.com\/rajguruyash\/Mosbius-Co\/releases\/download\/[^"]+)"/g)].map((m) => m[1]);
-  assert.ok(direct.length >= 3, 'hero and download buttons');
+  assert.ok(direct.length >= 2, 'hero and download buttons');
   const readme = read('README.md');
   for (const url of direct) assert.ok(readme.includes(url), `${url} is not a download README.md gives`);
-  assert.deepEqual([...new Set(direct)].map((u) => u.split('/').pop()).sort(), ['Mosbius-Co-1.0.0-mac-arm64.dmg', 'Mosbius-Co-1.0.0.0-win-x64-setup.exe']);
+  assert.deepEqual([...new Set(direct)].map((u) => u.split('/').pop()).sort(), ['Mosbius-Co-1.1.0-mac-arm64.dmg']);
+  // this release is for macOS on Apple silicon only, and the page says so: no Windows download is offered anywhere on it
+  assert.equal(/win-x64|\.exe\b|Download for Windows/i.test(html), false, 'no Windows download for this release');
+  assert.match(html, /macOS on Apple silicon only/);
   // the disclaimer and one credit stay
   assert.match(html, /a fan-made project, not affiliated with,\s+endorsed by, or connected to/);
   assert.equal((html.match(/Munder\s*Difflin/gi) ?? []).length, 1);
@@ -164,14 +167,81 @@ test('engineering detail stays out of the public page, its scripts and the READM
 test('README.md is the product README: its sections in order, each link real, the technical documents linked', () => {
   const readme = read('README.md');
   const headings = readme.split('\n').filter((l) => /^## /.test(l)).map((l) => l.slice(3));
-  assert.deepEqual(headings, ['Features', 'The seven locations', 'Coding agents', 'Integrations and the MCP ecosystem', 'Skills', 'Agent access and permissions', 'Installation and downloads', 'Quick start', 'Feature previews', 'Technology', 'Documentation', 'Licence and credits']);
+  assert.deepEqual(headings, ['Features', 'The seven locations', 'Agent Huddle', 'Coding agents', 'Integrations and the MCP ecosystem', 'Skills', 'Agent access and permissions', 'Installation and downloads', 'Quick start', 'Feature previews', 'Technology', 'Documentation', 'Licence and credits']);
   for (const doc of ['INTEGRATIONS.md', 'SKILLS.md', 'SECURITY_REPORT.md', 'MCP_BROKER_DESIGN.md', 'DEVELOPMENT.md', 'MOSBIUS_PLATFORM_ROADMAP.md', 'CHANGELOG.md']) {
     assert.ok(readme.includes(`](${doc})`), `README.md links to ${doc}`);
     assert.ok(fs.existsSync(path.join(ROOT, doc)));
   }
-  assert.ok(readme.split('\n').length < 160, 'the README stays short');
+  assert.ok(readme.split('\n').length < 215, 'the README stays short');
   const agents = readme.slice(readme.indexOf('## Coding agents'), readme.indexOf('## Integrations'));
   for (const name of ['Claude Code', 'OpenAI Codex', 'Google Gemini CLI']) assert.ok(agents.includes(`**${name}**`));
+});
+
+const HUDDLE_POINTS = [
+  ['Your Agents, Always Within Reach', 'Huddle Mode'],
+  ['Step In Only When It Matters', 'Intelligent Notifications'],
+  ['Unified Agent Control', 'Switch between agents, inspect conversations, access terminals, send instructions, and manage tasks from a single compact interface. Your entire AI team stays coordinated and accessible from anywhere on your desktop.']
+];
+
+test('the Huddle section is simple: three points in the owner\'s own words, and videos and pictures that are the app\'s own captures, copied byte for byte, each used on the page', () => {
+  assert.ok(html.includes('id="huddle"'));
+  const section = /<section[^>]*id="huddle"[\s\S]*?<\/section>/.exec(html)[0];
+  // the three points, exactly, and nothing else among them
+  const points = [...section.matchAll(/<div class="feature"><h3>([^<]+)<\/h3><p>([^<]+)<\/p><\/div>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(points, HUDDLE_POINTS);
+  assert.equal([...section.matchAll(/class="feature"/g)].length, 3, 'no more than the three points');
+  assert.match(section, /New in v1\.1\.0, for macOS on Apple silicon\./);
+  assert.doesNotMatch(section, /Coming in the next release/, 'the Huddle is out: nothing says it is coming');
+  assert.ok(site.proseOf(section).length < 900, 'the section stays short');
+  assert.equal(site.engineeringTalk(site.proseOf(section), 'the Huddle section').length, 0);
+  // the files
+  const media = path.join(ROOT, 'screenshots', 'huddle');
+  for (const f of site.HUDDLE_MEDIA) {
+    assert.equal(Buffer.compare(fs.readFileSync(path.join(media, f)), fs.readFileSync(path.join(SITE, 'assets', 'huddle', f))), 0, `${f} is not the file it is copied from`);
+    assert.ok(html.includes(`assets/huddle/${f}`), `${f} is not used on the page`);
+  }
+  assert.deepEqual(fs.readdirSync(path.join(SITE, 'assets', 'huddle')).sort(), [...site.HUDDLE_MEDIA].sort(), 'nothing else is beside them');
+  // two videos, each silent, looping, playing inline, with a still and a name, and none that starts by itself
+  const videos = [...section.matchAll(/<video\b[^>]*>/gi)].map((m) => m[0]);
+  assert.equal(videos.length, 2);
+  for (const v of videos) {
+    for (const attr of ['muted', 'playsinline', 'loop', 'poster=', 'aria-label=', 'data-huddle-video']) assert.match(v, new RegExp(`\\s${attr}`), `a video has ${attr}`);
+    assert.doesNotMatch(v, /\sautoplay\b/, 'nothing starts by itself: huddle.js starts a video while it is on screen');
+  }
+  assert.match(videos[0], /huddle-desktop-poster\.jpg/);
+  // every picture says what it shows and has its size, so that the page does not jump as it loads
+  const pictures = [...section.matchAll(/<img\b[^>]*assets\/huddle\/[^>]*>/gi)].map((m) => m[0]);
+  assert.equal(pictures.length, site.HUDDLE_MEDIA.filter((f) => f.endsWith('.png')).length);
+  for (const img of pictures) {
+    assert.match(img, /\salt="[^"]{40,}"/, `alt text: ${img.slice(0, 60)}`);
+    const file = /assets\/huddle\/([\w-]+\.png)/.exec(img)[1];
+    const png = fs.readFileSync(path.join(SITE, 'assets', 'huddle', file));
+    assert.deepEqual([Number(/\swidth="(\d+)"/.exec(img)?.[1]), Number(/\sheight="(\d+)"/.exec(img)?.[1])], [png.readUInt32BE(16), png.readUInt32BE(20)], `${file}: the width and height on the page are the picture's own`);
+  }
+  // a page that stays light, and the script that plays the videos is the page's own and keeps to reduced motion
+  const bytes = site.HUDDLE_MEDIA.reduce((n, f) => n + fs.statSync(path.join(SITE, 'assets', 'huddle', f)).size, 0);
+  assert.ok(bytes < 9 * 1024 * 1024, `the Huddle's pictures and videos are ${Math.round(bytes / 1024)} KB`);
+  const js = read('website/js/huddle.js');
+  assert.match(js, /reducedMotion/);
+  assert.match(js, /IntersectionObserver/);
+  assert.match(html, /<script src="js\/huddle\.js"><\/script>/);
+});
+
+test('the README shows the Huddle the same simple way: the three points, the videos as GIFs with the full video linked, the pictures, every file real', () => {
+  const readme = read('README.md');
+  const section = readme.slice(readme.indexOf('## Agent Huddle'), readme.indexOf('## Coding agents'));
+  for (const [title, text] of HUDDLE_POINTS) assert.ok(section.includes(`**${title}.** ${text}`), `the README gives "${title}"`);
+  assert.equal([...section.matchAll(/^- \*\*/gm)].length, 3, 'no more than the three points');
+  assert.match(section, /> New in v1\.1\.0, for macOS on Apple silicon\./);
+  assert.doesNotMatch(section, /Coming in the next release/, 'the Huddle is out: nothing says it is coming');
+  const files = [...section.matchAll(/(?:src="|href=")(screenshots\/huddle\/[\w-]+\.(?:png|gif|mp4))/g)].map((m) => m[1]);
+  for (const f of new Set(files)) assert.ok(fs.existsSync(path.join(ROOT, f)), `${f} is not in the repository`);
+  for (const f of ['huddle-desktop.gif', 'huddle-desktop.mp4', 'huddle-approve.gif', 'huddle-answer.gif', 'huddle-story.mp4', 'huddle-compact.png', 'huddle-expanded.png', 'huddle-agent.png']) assert.ok(files.includes(`screenshots/huddle/${f}`), `${f} is shown or linked`);
+  for (const m of section.matchAll(/<img\b[^>]*>/g)) assert.match(m[0], /\salt="[^"]{30,}"/, 'every picture has alt text');
+  assert.ok(readme.includes('[Agent Huddle](#agent-huddle)'), 'the contents line links to it');
+  // GitHub will not play a video inside a README: GIFs show the motion there, and the video is a link to the file
+  assert.equal(/<video\b/i.test(readme), false);
+  for (const f of ['huddle-desktop.gif', 'huddle-approve.gif', 'huddle-answer.gif']) assert.ok(fs.statSync(path.join(ROOT, 'screenshots', 'huddle', f)).size < 8 * 1024 * 1024, `${f} is small enough to show`);
 });
 
 test('the counts on the page are generated: markers are filled from the data and no count is typed beside them', () => {

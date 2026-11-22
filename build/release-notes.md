@@ -1,5 +1,5 @@
-- **Integrations & Skills** is new in Settings.
-- **Account sign-in** for Notion, Linear and more. Not yet tried with real accounts.
-- **Codex and Gemini CLI agents** get integrations too.
-- **Off until you switch it on.** Agents get what you grant.
-- **Skills can be checked and rolled back.**
+- **Huddle:** a small floating window for every agent.
+- **Notifications** you can act on: approve, answer, restart.
+- **Chat and terminal** for any agent, from the Huddle.
+- **A sound** for each kind of event.
+- **Pause, resume, stop** and message agents.

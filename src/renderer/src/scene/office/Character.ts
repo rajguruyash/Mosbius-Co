@@ -12,7 +12,7 @@ import { colors } from '@/design/tokens';
 // cover our status model.
 
 export type CharacterAnimation = 'idle' | 'walk' | 'type' | 'read';
-export type StatusGlyph = 'none' | 'blocked' | 'success' | 'compacting' | 'looping';
+export type StatusGlyph = 'none' | 'blocked' | 'success' | 'compacting' | 'looping' | 'question' | 'error' | 'paused';
 
 function lerp(a: number, b: number, t: number): number {
   const tt = Math.min(Math.max(t, 0), 1);
@@ -852,6 +852,26 @@ export class Character {
       const p = (Math.sin(this.glyphElapsed * 6) + 1) / 2; // 0..1
       const s = 2 + p * 3;
       g.rect(-s, yTop - s, s * 2, s * 2).fill(0x9b7ede);
+    } else if (this.statusGlyph === 'question') {
+      // a question for the human: a violet "?" that bobs
+      const bob = Math.round(Math.sin(this.glyphElapsed * 7) * 1.2);
+      const y = yTop + bob;
+      g.rect(-2, y, 4, 1).fill(0x9482d3);
+      g.rect(1, y + 1, 2, 2).fill(0x9482d3);
+      g.rect(0, y + 3, 2, 1).fill(0x9482d3);
+      g.rect(-1, y + 4, 2, 1).fill(0x9482d3);
+      g.rect(-1, y + 6, 2, 2).fill(0x9482d3);
+    } else if (this.statusGlyph === 'error') {
+      // it failed: a red cross that shudders
+      const sh = Math.floor(this.glyphElapsed * 14) % 2 === 0 ? -0.5 : 0.5;
+      for (let i = -3; i <= 3; i++) {
+        g.rect(i + sh - 0.5, yTop + 3 + i - 0.5, 1.4, 1.4).fill(0xd96a62);
+        g.rect(i + sh - 0.5, yTop + 3 - i - 0.5, 1.4, 1.4).fill(0xd96a62);
+      }
+    } else if (this.statusGlyph === 'paused') {
+      // held by its operator: two steady bars
+      g.rect(-3, yTop, 2, 7).fill(0x6d87d6);
+      g.rect(1, yTop, 2, 7).fill(0x6d87d6);
     } else if (this.statusGlyph === 'looping') {
       // #5C — orange 4-dot warning ring with one lit dot spinning around it.
       const idx = Math.floor(this.glyphElapsed * 8) % 4;

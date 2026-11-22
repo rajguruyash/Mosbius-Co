@@ -1854,5 +1854,311 @@
     "viewSource": "查看源码",
     "loading": "正在加载图片…",
     "decodeFailed": "无法解码此图片——文件可能已损坏或扩展名有误"
+  },
+  "huddle": {
+    "title": "智能体小队",
+    "openHuddle": "小队",
+    "settingsTab": "设置",
+    "titleCount": "智能体小队 · {{count}}",
+    "openApp": "返回完整应用",
+    "openAppShort": "打开应用",
+    "expand": "展开",
+    "collapse": "收起",
+    "back": "返回",
+    "close": "关闭",
+    "moreAgents": "另有 {{count}} 个",
+    "sections": {
+      "needsYou": "需要你",
+      "agents": "智能体",
+      "tasks": "任务",
+      "recent": "最近"
+    },
+    "empty": {
+      "title": "楼层上还没有智能体",
+      "body": "在主应用中添加一个智能体，它会在这里实时显示工作状态。",
+      "open": "打开应用"
+    },
+    "state": {
+      "idle": "空闲",
+      "working": "工作中",
+      "researching": "调研中",
+      "waiting": "等待中",
+      "completed": "已完成",
+      "needs-input": "需要输入",
+      "needs-approval": "需要批准",
+      "error": "出错",
+      "paused": "已暂停",
+      "stopped": "已停止"
+    },
+    "activity": {
+      "starting": "正在启动",
+      "thinking": "思考中",
+      "running": "运行 {{arg}}",
+      "runningBare": "运行命令",
+      "reading": "读取 {{arg}}",
+      "readingBare": "读取中",
+      "editing": "编辑 {{arg}}",
+      "editingBare": "编辑文件",
+      "searching": "搜索“{{arg}}”",
+      "searchingBare": "搜索代码",
+      "finding": "查找 {{arg}}",
+      "findingBare": "查找文件",
+      "fetching": "获取 {{arg}}",
+      "fetchingBare": "获取网页",
+      "searchingWeb": "网络搜索：{{arg}}",
+      "searchingWebBare": "网络搜索",
+      "delegating": "委派：{{arg}}",
+      "delegatingBare": "委派给助手",
+      "planning": "规划工作",
+      "usingTool": "使用 {{arg}}",
+      "usingToolBare": "使用工具",
+      "compacting": "正在压缩上下文",
+      "idle": "等待下一个任务",
+      "finished": "已完成任务",
+      "askingApproval": "请求使用 {{arg}}",
+      "askingApprovalBare": "请求批准",
+      "askingQuestion": "有问题要问你",
+      "paused": "已暂停：工具被阻止",
+      "stopping": "在本步骤后停止",
+      "stopped": "未运行",
+      "failed": "已停止：{{arg}}",
+      "failedBare": "意外停止",
+      "looping": "被断路器拦住：{{arg}}",
+      "loopingBare": "被断路器拦住",
+      "waiting": "等待另一个智能体"
+    },
+    "progress": {
+      "steps": "{{done}}/{{total}} 步",
+      "tasks": "{{done}}/{{total}} 个任务",
+      "context": "上下文 {{pct}}%",
+      "queuedOne": "{{count}} 条消息等待中",
+      "queuedMany": "{{count}} 条消息等待中"
+    },
+    "since": {
+      "now": "刚刚",
+      "seconds": "{{count}} 秒",
+      "minutes": "{{count}} 分钟",
+      "hours": "{{count}} 小时"
+    },
+    "controls": {
+      "pause": "暂停",
+      "resume": "继续",
+      "interrupt": "停止任务",
+      "restart": "重启",
+      "end": "结束会话",
+      "pauseTip": "在下一步阻止此智能体使用工具。点击继续即可恢复。",
+      "resumeTip": "允许此智能体再次使用工具。",
+      "interruptTip": "中断它正在做的事（在其终端中按 Esc）。它会继续保持运行。",
+      "restartTip": "重启：启动一个新进程；如果有对话，则接着原来的对话继续。",
+      "endTip": "结束此智能体的会话。",
+      "endConfirm": "结束 {{name}} 的会话？",
+      "endYes": "结束会话",
+      "endNo": "保留",
+      "failed": "没有成功：{{error}}",
+      "ok": "完成"
+    },
+    "tabs": {
+      "conversation": "对话",
+      "terminal": "终端"
+    },
+    "conversation": {
+      "empty": "还没有任何对话。在下方给 {{name}} 发一条消息。",
+      "loading": "正在读取对话…",
+      "failed": "无法读取对话：{{error}}",
+      "fromTranscript": "来自会话记录",
+      "fromHive": "来自蜂巢线程（此引擎没有应用可读取的会话记录）",
+      "older": "更早的消息在会话记录文件中。",
+      "you": "你"
+    },
+    "terminal": {
+      "attaching": "正在打开终端…",
+      "failed": "无法打开终端：{{error}}",
+      "exited": "进程已结束。",
+      "readOnly": "{{name}} 终端的实时视图。用下面的按键回答提示。",
+      "keys": "按键",
+      "enter": "回车",
+      "esc": "Esc",
+      "up": "上",
+      "down": "下",
+      "tab": "Tab"
+    },
+    "composer": {
+      "placeholder": "给 {{name}} 发消息…",
+      "placeholderBusy": "给 {{name}} 发消息（它正在工作，会排队等待）…",
+      "placeholderOff": "{{name}} 未在运行",
+      "send": "发送",
+      "attach": "附件",
+      "attachFiles": "文件…",
+      "attachImages": "图片…",
+      "remove": "移除",
+      "drop": "拖放文件，附加给 {{name}}",
+      "queued": "已为 {{name}} 排队。等 {{name}} 空闲时送达。",
+      "failed": "未发送：{{error}}",
+      "pasteFailed": "剪贴板中没有图片。",
+      "kind": {
+        "image": "图片",
+        "file": "文件"
+      }
+    },
+    "errors": {
+      "unknown-agent": "该智能体不在楼层上",
+      "no-terminal": "它没有终端",
+      "not-running": "它未在运行",
+      "main-window-unavailable": "主窗口不可用",
+      "not-for-orchestrator": "总管需要在主应用中结束",
+      "invalid-command": "这不是有效的请求",
+      "forbidden": "此处不允许",
+      "timed-out": "耗时过长"
+    },
+    "notifications": {
+      "bell": "通知",
+      "none": "没有需要你处理的事。",
+      "noneHistory": "还没有通知。",
+      "unread": "{{count}} 条未读",
+      "pending": "{{count}} 项等你处理",
+      "markAllRead": "全部标为已读",
+      "clear": "清除历史",
+      "resolvedAt": "{{what}} · {{when}}前",
+      "repeated": "已询问 {{count}} 次",
+      "openAgent": "打开智能体",
+      "settings": "在设置中授予访问权限",
+      "approve": "批准",
+      "reject": "拒绝",
+      "alternative": "改为建议…",
+      "answer": "回答…",
+      "restart": "重启",
+      "dismiss": "忽略",
+      "sendAlternative": "拒绝并发送",
+      "sendAnswer": "发送回答",
+      "alternativePlaceholder": "告诉 {{agent}} 改为怎么做…",
+      "answerPlaceholder": "你的回答…",
+      "cancel": "取消",
+      "failed": "没有成功：{{error}}",
+      "already-resolved": "已经处理过了",
+      "not-running": "该智能体已不在运行",
+      "not-offered": "此通知不支持该操作",
+      "no-such-option": "该选项已不存在",
+      "outcome": {
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "alternative": "已拒绝，并改用其他方式",
+        "option": "已回答",
+        "answered": "已回答",
+        "dismissed": "已忽略",
+        "opened": "已打开",
+        "resolved": "已解决"
+      },
+      "by": {
+        "user": "由你",
+        "agent": "由智能体",
+        "system": "自动"
+      },
+      "category": {
+        "approval": "批准",
+        "input": "需要输入",
+        "intervention": "需要处理",
+        "access": "需要访问权限",
+        "completed": "已完成",
+        "info": "信息"
+      }
+    },
+    "prefs": {
+      "title": "通知",
+      "sound": "播放提示音",
+      "desktop": "显示桌面通知",
+      "routine": "显示常规进度（空闲、暂停、停止）",
+      "categories": "通知我关于",
+      "desktopStatus": {
+        "unknown": "尚未尝试桌面通知。发送一条测试来检查。",
+        "ok": "通知已交给你的系统。",
+        "unsupported": "你的系统在此不支持桌面通知。提示音和小队窗口仍然可用。",
+        "blocked": "你的系统拒绝了这些通知。提示音和小队窗口仍然可用。"
+      },
+      "test": "发送测试通知",
+      "systemSettings": "打开系统通知设置",
+      "systemHint": "如果测试没有出现，请在系统设置中允许此应用发送通知。",
+      "tested": "已发送。如果屏幕上没有出现，说明你的系统正在拦截此应用的通知。",
+      "sounds": {
+        "title": "声音",
+        "volume": "音量",
+        "switch": "声音开关：{{name}}",
+        "previews": "声音预览",
+        "play": "播放：{{name}}",
+        "previewHint": "预览只会播放声音，不会发送通知，也不会影响任何智能体。",
+        "previewHintOff": "通知提示音已关闭。预览仍会播放，方便你先听一听。",
+        "cue": {
+          "completed": { "name": "Mosbius 招牌钢琴 — 任务完成", "hint": "明亮的钢琴旋律，约三秒" },
+          "intervention": { "name": "需要你处理", "hint": "咚咚敲门，然后一个问句" },
+          "input": { "name": "需要你输入", "hint": "两个温暖的音" },
+          "approval": { "name": "需要你批准", "hint": "三个音组成的问句" },
+          "access": { "name": "需要访问权限", "hint": "一声闷音拨弦和一口屏住的气" },
+          "critical": { "name": "出错了", "hint": "轻柔地向下滑落" },
+          "started": { "name": "智能体已启动", "hint": "一点小火花" },
+          "signature": { "name": "Mosbius & Co 主旋律", "hint": "其他声音都由它变化而来的小曲" }
+        }
+      }
+    }
+  },
+  "notify": {
+    "approval": {
+      "title": "{{agent}} 需要你批准",
+      "body": "它想使用 {{tool}}。",
+      "bodyPlain": "它在等你批准某件事。"
+    },
+    "input": {
+      "title": "{{agent}} 有个问题",
+      "body": "它需要你回答才能继续。",
+      "bodyOptions": "选择它给出的一个选项即可继续。"
+    },
+    "ask": {
+      "title": "{{agent}} 需要你的输入",
+      "body": "关于：{{subject}}"
+    },
+    "completed": {
+      "title": "{{agent}} 已完成",
+      "body": "工作了 {{duration}}。",
+      "bodyTools": "工作了 {{duration}}，共 {{tools}} 步。"
+    },
+    "crashed": {
+      "title": "{{agent}} 意外停止",
+      "body": "退出码 {{code}}。重启即可继续这段对话。",
+      "bodyMessage": "退出码 {{code}}。"
+    },
+    "breaker": {
+      "title": "{{agent}} 被拦住了",
+      "stoppedTitle": "{{agent}} 被断路器停止",
+      "body": "它似乎陷入了循环。请在它继续之前看一下。"
+    },
+    "stuck": {
+      "title": "{{agent}} 在等你",
+      "body": "它的终端里正显示一个提示。"
+    },
+    "access": {
+      "title": "{{agent}} 需要访问 {{integration}}",
+      "body": "它尝试使用 {{integration}}，但尚未获得访问权限。",
+      "bodyTool": "它尝试在 {{integration}} 上使用 {{tool}}，但尚未获得访问权限。"
+    },
+    "idle": {
+      "title": "{{agent}} 在等下一个任务",
+      "body": "它已完成，队列中没有任务。"
+    },
+    "stopped": {
+      "title": "{{agent}} 已停止",
+      "body": "它的会话已结束。"
+    },
+    "paused": {
+      "title": "{{agent}} 已暂停",
+      "body": "在你继续它之前，它的工具被阻止。"
+    },
+    "resumed": {
+      "title": "{{agent}} 已恢复运行",
+      "body": "它的工具再次被允许。"
+    },
+    "more": "还有 {{count}} 条更新。打开小队窗口查看。",
+    "moreTitle": "智能体的更多动态",
+    "test": {
+      "title": "测试通知",
+      "body": "桌面通知工作正常。"
+    }
   }
 }

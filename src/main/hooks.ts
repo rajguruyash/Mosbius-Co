@@ -20,6 +20,8 @@ import type { ControlRegistry } from './control';
 import type { CircuitBreaker } from './breaker';
 import { estimateCostUsd } from './pricing';
 import { validateHookEvent } from '../shared/hookEvents';
+import type { HookObservation } from './activityTracker';
+export type { HookObservation } from './activityTracker';
 
 /** Maximum JSON payload bytes in one newline-delimited hook frame. */
 const MAX_HOOK_FRAME_BYTES = 256 * 1024;
@@ -35,6 +37,8 @@ interface HookPayload {
   context_window?: { total_input_tokens?: number; context_window_size?: number };
   cwd?: string;
   tool_name?: string;
+  /** The CLI's id for this tool call (PreToolUse / PostToolUse), when it sends one. */
+  tool_use_id?: string;
   tool_input?: unknown;
   stop_hook_active?: boolean;
   prompt?: string;
@@ -133,6 +137,9 @@ export class HookServer {
    *  prompt only bloats the transcript. One entry per agent is sufficient: an
    *  agent has one live session, and a new session id replaces the old entry. */
   private deliveredGoalByAgent = new Map<string, { sessionId: string | null; goal: string | null }>();
+  /** The agent-lifecycle observer (the activity tracker and the notification service live behind it). When one is
+   *  installed it owns desktop notifications for agent lifecycle events, so the old per-hook toasts stand down. */
+  private observer: ((agentId: string | undefined, h: HookObservation) => void) | null = null;
 
   constructor(
     private hive: HiveManager,
@@ -151,6 +158,11 @@ export class HookServer {
      *  agent is parked on a permission/HITL prompt so it never types into it. */
     private onEvent?: (agentId: string | undefined, event: string, message: string | undefined) => void
   ) {}
+
+  /** Install (or clear) the lifecycle observer. */
+  setObserver(fn: ((agentId: string | undefined, h: HookObservation) => void) | null): void {
+    this.observer = fn;
+  }
 
   /** Bind the hook socket. Asynchronous and safe to call repeatedly — a
    *  listening server is left alone. Before #277 this returned SILENTLY when the
@@ -387,6 +399,16 @@ export class HookServer {
     if (agentId && typeof p.transcript_path === 'string' && p.transcript_path) {
       this.transcriptPaths.set(agentId, p.transcript_path);
     }
+    // The lifecycle observer sees every real hook (not the status line or cost samples, which are telemetry), before
+    // any early return below: a halted or denied agent is still an agent whose state the person wants to know.
+    if (this.observer && agentId && event !== 'Status' && event !== 'CostSample') {
+      try {
+        this.observer(agentId, {
+          event, tool: p.tool_name, toolUseId: typeof p.tool_use_id === 'string' && p.tool_use_id ? p.tool_use_id.slice(0, 120) : undefined, toolInput: p.tool_input, message: p.message, notificationType: p.notification_type,
+          prompt: p.prompt, source: p.source, stopHookActive: p.stop_hook_active
+        });
+      } catch (e) { console.error('[hive] lifecycle observer threw:', e); }
+    }
 
     // Status-line payloads carry the session's EXACT context accounting —
     // current tokens AND the real window size (200k vs 1M, which nothing else
@@ -494,7 +516,7 @@ export class HookServer {
       // path bypassed terminal-draft/HITL safety and could spend credits while a
       // user was answering a question. Inbox files remain durable; the renderer
       // wakes the agent later through its guarded idle-only delivery path.
-      this.notify(agentId ?? 'Agent', 'finished — idle');
+      this.notify(agentId ?? 'Agent', 'finished — idle', true);
       this.emit(agentId, event, p);
       return {};
     }
@@ -588,7 +610,7 @@ export class HookServer {
       (p.notification_type === 'idle' ||
         (p.message ?? '').toLowerCase().includes('waiting for your input'))
     ) {
-      this.notify(agentId ?? 'Agent', p.message ?? 'needs your attention');
+      this.notify(agentId ?? 'Agent', p.message ?? 'needs your attention', true);
     }
 
     // Forward everything else to the renderer so avatars reflect real activity.
@@ -599,7 +621,10 @@ export class HookServer {
   /** Fire a native desktop notification — gated on the user's `notifications`
    *  setting. Only the OS toast is gated; the hive:hookEvent emit is always sent
    *  so avatars/UI stay live regardless. Best-effort: never throw into the hook. */
-  private notify(title: string, body: string): void {
+  private notify(title: string, body: string, lifecycle = false): void {
+    // An installed observer (the notification service) owns agent-lifecycle banners; this path remains for the
+    // system alert ("hooks are down"), which is not about an agent, and for runs without an observer.
+    if (lifecycle && this.observer) return;
     if (!this.getConfig().notifications) return;
     try {
       if (!Notification.isSupported()) return;

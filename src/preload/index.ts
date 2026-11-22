@@ -23,6 +23,12 @@ import type { ModelCatalog } from '../shared/modelCatalogPayload';
 export type { ModelCatalog, CatalogModel } from '../shared/modelCatalogPayload';
 import type { HookEvent } from '../shared/hookEvents';
 export type { HookEvent } from '../shared/hookEvents';
+import type { HuddleState, RosterAgent } from '../shared/huddle';
+export type { HuddleState, HuddleAgentView, RosterAgent } from '../shared/huddle';
+import type { NotificationPrefs, NotificationPrefsPatch, NotificationRecord } from '../shared/notifications';
+export type { NotificationPrefs, NotificationPrefsPatch, NotificationRecord } from '../shared/notifications';
+import type { NotifySnapshot } from '../main/notifyService';
+export type { NotifySnapshot } from '../main/notifyService';
 import type { LocalSkill, CatalogSkill } from '../main/skills';
 export type { LocalSkill, CatalogSkill } from '../main/skills';
 import type { ManagedSkill, UpdateCheck, Integrity } from '../main/skillManager';
@@ -1546,6 +1552,53 @@ const api = {
   /** Open the project's releases page for a notify-only update. */
   updateOpenRelease: (url?: string): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('update:openRelease', url),
+
+  // ─── Huddle + notifications ─────────────────────────────────────────────────
+  // The Huddle is a second, floating window onto the SAME agents. Nothing here starts, stops or copies an agent:
+  // the main process holds the state, this window reports its roster (names, faces) and carries out what the
+  // main process asks of it (restart an agent, select one).
+  /** Minimise this window and float the Huddle. */
+  huddleEnter: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('huddle:enter'),
+  /** Leave the Huddle and bring this window back. */
+  huddleExit: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('huddle:exit'),
+  /** Tell the main process who is on the floor. One-way; sent whenever the roster changes. */
+  huddlePublishRoster: (roster: RosterAgent[]): void => ipcRenderer.send('huddle:publishRoster', roster),
+  huddleState: (): Promise<HuddleState | null> => ipcRenderer.invoke('huddle:getState'),
+  onHuddleState: (cb: (s: HuddleState) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, payload: HuddleState) => cb(payload);
+    ipcRenderer.on('huddle:state', listener);
+    return () => ipcRenderer.removeListener('huddle:state', listener);
+  },
+  /** Something the Huddle (or a notification) asked this window to do: restart an agent, select one, open Settings. */
+  onHuddleCommand: (cb: (c: { corr: string; type: 'restart' | 'select' | 'openSettings'; agentId?: string; section?: string }) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, payload: { corr: string; type: 'restart' | 'select' | 'openSettings'; agentId?: string; section?: string }) => cb(payload);
+    ipcRenderer.on('huddle:command', listener);
+    return () => ipcRenderer.removeListener('huddle:command', listener);
+  },
+  /** Say how a command from the main process went (it waits for this). */
+  huddleCommandDone: (corr: string, result: { ok: boolean; error?: string }): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('huddle:commandDone', corr, result),
+  /** The current language, so banners from the main process read in it. */
+  reportLanguage: (lng: string): void => ipcRenderer.send('app:reportLanguage', lng),
+  notifications: (): Promise<NotifySnapshot | null> => ipcRenderer.invoke('notify:get'),
+  onNotifications: (cb: (s: NotifySnapshot) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, payload: NotifySnapshot) => cb(payload);
+    ipcRenderer.on('notify:changed', listener);
+    return () => ipcRenderer.removeListener('notify:changed', listener);
+  },
+  notificationResolve: (req: { id: string; action: string; text?: string; index?: number }): Promise<{ ok: boolean; error?: string; queued?: boolean }> =>
+    ipcRenderer.invoke('notify:resolve', req),
+  notificationRead: (id: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('notify:markRead', id),
+  notificationsReadAll: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('notify:markAllRead'),
+  notificationsClear: (): Promise<{ ok: boolean; removed?: number }> => ipcRenderer.invoke('notify:clear'),
+  notificationPrefs: (patch: NotificationPrefsPatch): Promise<{ ok: boolean; prefs?: NotificationPrefs }> => ipcRenderer.invoke('notify:setPrefs', patch),
+  notificationsTest: (): Promise<{ ok: boolean; status?: string }> => ipcRenderer.invoke('notify:testDesktop'),
+  /** Play one of the app's sounds, and nothing else: no notification, no change to any agent. */
+  notificationPreviewSound: (kind: string): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('notify:previewSound', kind),
+  notificationsOpenSystemSettings: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('notify:openSystemSettings'),
+  /** Only present when the app was started by the real-app tour. */
+  huddleDebug: (): Promise<unknown> => ipcRenderer.invoke('huddle:debug'),
+  huddleDebugMove: (x: number, y: number): Promise<unknown> => ipcRenderer.invoke('huddle:debugMove', x, y),
   /** Which OS this window runs on, for platform-specific copy. */
   platform: process.platform as string,
   arch: process.arch as string,

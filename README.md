@@ -8,13 +8,16 @@
 
 Open a workspace, add agents, and watch them work. Each agent is a real command-line coding agent in its own terminal, signed in with the account you already have. Mosbius & Co. adds what a pile of terminal windows lacks: one place to see every agent, a crew with a boss on every floor, shared tasks and memory, and a controlled way to give each agent access to outside tools.
 
-**Contents:** [Features](#features) · [Seven locations](#the-seven-locations) · [Coding agents](#coding-agents) · [Integrations](#integrations-and-the-mcp-ecosystem) · [Skills](#skills) · [Access and permissions](#agent-access-and-permissions) · [Downloads](#installation-and-downloads) · [Quick start](#quick-start) · [Previews](#feature-previews) · [Technology](#technology) · [Documentation](#documentation) · [Licence](#licence-and-credits)
+> **New in v1.1.0: the Agent Huddle.** Your AI team doesn't need a babysitter. A small window keeps every agent within reach, and notifications you can answer tell you when to step in. [See the Huddle](#agent-huddle). For macOS on Apple silicon.
+
+**Contents:** [Features](#features) · [Seven locations](#the-seven-locations) · [Agent Huddle](#agent-huddle) · [Coding agents](#coding-agents) · [Integrations](#integrations-and-the-mcp-ecosystem) · [Skills](#skills) · [Access and permissions](#agent-access-and-permissions) · [Downloads](#installation-and-downloads) · [Quick start](#quick-start) · [Previews](#feature-previews) · [Technology](#technology) · [Documentation](#documentation) · [Licence](#licence-and-credits)
 
 ## Features
 
 - **A crew, not a pile of windows.** Many agents at once, each in its own terminal with its own folder, history and memory. Mix Claude Code, Codex and Gemini CLI in the same office.
 - **Work alone or together.** Use one agent and ignore the rest, or let a boss hand out tasks and agents pass work to each other.
 - **A command centre.** For the selected agent: terminal, monitor, tasks, an "ask me" queue, triggers, memory, a graph, activity, skills and hired workers.
+- **Agent Huddle and notifications.** Step away from the main window and keep a small, always-on-top Huddle beside your work: every agent as a character, what it is doing and who needs you. Desktop notifications tell you when a task finishes or an agent needs a decision, and you can approve, reject or answer from there, or open an agent's conversation and terminal. A finished task rings a bright piano hook, every other kind of event has its own short, warm, original tune, and Settings lets you hear every one and set the volume.
 - **A world worth looking at.** Painted pixel-art rooms where characters sit down to work, wander off and take a break at the booth in MacLaren's.
 - **Plug in your tools.** Connect services such as GitHub, Notion, Linear, Slack and Google Workspace, and decide exactly which agent may use what.
 - **Skills.** Browse a catalogue of agent skills and install the ones you want.
@@ -47,6 +50,33 @@ Each location is its own workspace with its own boss and team. Press **1** to **
   </tr>
   <tr>
     <td width="33%" valign="top"><img src="screenshots/lasertag.png" alt="Laser tag arena"><br><b>Laser tag</b><br><sub>Neon barriers and two bases.</sub></td>
+  </tr>
+</table>
+
+## Agent Huddle
+
+- **Your Agents, Always Within Reach.** Huddle Mode.
+- **Step In Only When It Matters.** Intelligent Notifications.
+- **Unified Agent Control.** Switch between agents, inspect conversations, access terminals, send instructions, and manage tasks from a single compact interface. Your entire AI team stays coordinated and accessible from anywhere on your desktop.
+
+> New in v1.1.0, for macOS on Apple silicon.
+
+<p align="center"><a href="screenshots/huddle/huddle-desktop.mp4"><img src="screenshots/huddle/huddle-desktop.gif" alt="The whole app is open with agents at work in Barney's apartment. The pointer goes to Huddle and clicks it, the app minimises, the Huddle comes up in the top right corner of the empty desktop, and the view moves in on it: every agent at work, and requests arriving" width="760"></a><br><sub><a href="screenshots/huddle/huddle-desktop.mp4">▶ Watch the full video</a> (no sound): it goes on to open the Huddle out, with its notifications, an agent's conversation and its terminal</sub></p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="screenshots/huddle/huddle-approve.gif" alt="The Huddle: an agent asks to run a command, a Needs you card appears with the buttons Approve, Reject and Suggest instead, a click on Approve answers it, and the agent carries on"><br><b>Approve from the Huddle</b></td>
+    <td width="50%" valign="top"><img src="screenshots/huddle/huddle-answer.gif" alt="The Huddle: an agent asks which database to use, a card offers Postgres, SQLite and MySQL, a click on SQLite answers it, and the agent carries on"><br><b>Answer a question</b></td>
+  </tr>
+</table>
+
+<p align="center"><sub><a href="screenshots/huddle/huddle-story.mp4">▶ Watch the close-up as one video</a> (no sound)</sub></p>
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><img src="screenshots/huddle/huddle-compact.png" alt="The compact Huddle: every agent as a pixel character, one waiting for approval, one searching the code and two idle, with a badge on the bell"><br><b>Compact</b></td>
+    <td width="33%" valign="top"><img src="screenshots/huddle/huddle-expanded.png" alt="The expanded Huddle: an approval card with Approve, Reject and Suggest instead above the list of agents and their progress"><br><b>Expanded</b></td>
+    <td width="33%" valign="top"><img src="screenshots/huddle/huddle-agent.png" alt="One agent in the Huddle: its state, the approval it is waiting on, tabs for conversation and terminal, and a box to message it"><br><b>One agent</b></td>
   </tr>
 </table>
 
@@ -101,14 +131,15 @@ Sending, posting and deleting are never included by "read" or "write"; you tick 
 
 ## Installation and downloads
 
-**[⬇ Download for macOS](https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0/Mosbius-Co-1.0.0-mac-arm64.dmg)** &nbsp;·&nbsp; **[⬇ Download for Windows](https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0.0/Mosbius-Co-1.0.0.0-win-x64-setup.exe)** &nbsp;·&nbsp; [All releases](https://github.com/rajguruyash/Mosbius-Co/releases)
+**[⬇ Download for macOS (Apple silicon)](https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.1.0/Mosbius-Co-1.1.0-mac-arm64.dmg)** &nbsp;·&nbsp; [All releases](https://github.com/rajguruyash/Mosbius-Co/releases)
+
+Version 1.1.0, the Huddle release, is for **macOS on Apple silicon only**. Windows and Linux are not part of this release. Earlier releases stay on the [releases page](https://github.com/rajguruyash/Mosbius-Co/releases); they do not have the Huddle.
 
 | Platform | Package | Release |
 |---|---|---|
-| macOS | `.dmg`, Apple Silicon | [v1.0.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0) |
-| Windows 10/11 | `.exe` installer, 64-bit | [v1.0.0.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.0.0.0) |
+| macOS | `.dmg`, Apple Silicon | [v1.1.0](https://github.com/rajguruyash/Mosbius-Co/releases/tag/v1.1.0) |
 
-You need at least one coding agent installed and signed in. On macOS, open the `.dmg`, drag the app into Applications, and the first time right-click it and choose **Open**. On Windows, run the installer; if SmartScreen appears, choose **More info → Run anyway**. Running from source, requirements and troubleshooting are in [DEVELOPMENT.md](DEVELOPMENT.md).
+You need at least one coding agent installed and signed in. On macOS, open the `.dmg`, drag the app into Applications, and the first time right-click it and choose **Open**. Running from source, requirements and troubleshooting are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Quick start
 

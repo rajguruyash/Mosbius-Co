@@ -64,7 +64,11 @@ export default defineConfig({
     define,
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/preload/index.ts') }
+        // The main window's bridge, and the Huddle window's narrower one.
+        input: {
+          index: resolve(__dirname, 'src/preload/index.ts'),
+          huddle: resolve(__dirname, 'src/preload/huddle.ts')
+        }
       }
     }
   },
@@ -73,7 +77,11 @@ export default defineConfig({
     root: resolve(__dirname, 'src/renderer'),
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/renderer/index.html') }
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          // The Huddle: a second, floating window onto the same agents.
+          huddle: resolve(__dirname, 'src/renderer/huddle.html')
+        }
       }
     },
     plugins: [react()],

@@ -5,3 +5,16 @@ Munder Difflin (c) 2026 Chaitanya Giri. The pixel art under
 src/renderer/src/assets/himym/ is original to this fork and is offered under
 the same MIT terms. The upstream project's LimeZu tile pack is NOT included.
 See src/renderer/src/assets/ATTRIBUTION.md.
+
+
+NOTE ON AUDIO
+
+Every notification sound is composed in code (src/main/soundSynth.ts) and is
+original to this fork, offered under the same MIT terms. No recorded audio, and
+no sample taken from a recording, ships with the app or is part of this
+repository.
+
+A person can put a WAV file of their own, named for a cue (completed.wav and so
+on), in the app's data folder under sounds/custom/ to hear it instead of the
+app's own sound for that cue, on their own machine. The app never writes to that
+folder, and nothing in it is part of the app or of any installer.

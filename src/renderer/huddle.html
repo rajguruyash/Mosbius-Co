@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mosbius &amp; Co — Huddle</title>
+    <!-- The Huddle: a small floating window onto the same agents as the main window. Same rules as the app's page:
+         nothing is loaded from the network, and no script is inline. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self';" />
+    <style>html, body, #root { background: transparent; }</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/huddle/main.tsx"></script>
+  </body>
+</html>

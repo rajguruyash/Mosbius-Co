@@ -36,15 +36,16 @@ import {
   getLogGraph, getCommitFiles, getFileAtRev, compareRefs, listWorktrees, checkoutRef
 } from './git';
 import { linkWorktreeDeps, unlinkWorktreeDeps } from './worktreeDeps';
-import { HiveManager, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
+import { HiveManager, redactSecrets, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
 import { HookServer } from './hooks';
+import { setupHuddle, type HuddleRuntime } from './huddleSetup';
 import { CircuitBreaker, type BreakerInput } from './breaker';
 import { CumulativeSampleGate, type UsageProvider } from './usage';
 import { MemoryManager } from './memory';
 import { KnowledgeManager } from './knowledge';
 import { MemoryReflector, type ReflectSettings } from './reflect';
 import { PersistStore } from './db';
-import { readAgentUsage, readContextTokens, seedSessionTranscript, resolveSessionCwd } from './transcript';
+import { readAgentUsage, readContextTokens, seedSessionTranscript, resolveSessionCwd, projectDir } from './transcript';
 import { listIssues, listCIRuns } from './github';
 import { SlackWebhookServer, SlackReplyServer, postSlackReply, type SlackEventFile } from './slack';
 import {
@@ -267,9 +268,13 @@ const ptyToAgent = new Map<string, string>();
  *  install disabled) so the freshly-installed CLI launches in the SAME pty/window —
  *  no user click. Cleared the moment it's consumed, so it can never loop installs. */
 const pendingInstallRelaunch = new Map<string, { opts: AgentSpawnOptions; owner: Electron.WebContents | null; bin: string; rung: string }>();
+/** The Huddle and notification runtime. Built once the app is ready (it needs the saved preferences). */
+let huddle: HuddleRuntime | null = null;
 const hive = new HiveManager(
   () => readConfig().harnessHome,
   (channel, payload) => {
+    // An agent wrote to the human: that is a request for input, whichever window is looking.
+    if (channel === 'hive:message') { try { huddle?.noteHiveMessage(payload as Parameters<HuddleRuntime['noteHiveMessage']>[0]); } catch { /* never block routing */ } }
     const wc = liveWebContents();
     if (!wc) return false;
     try { wc.send(channel, payload); return true; } catch { return false; }
@@ -462,6 +467,12 @@ function auditStore(): AuditStore {
 /** Record one audit event. Never throws and never blocks anything else. */
 function recordAudit(e: AuditInput): void {
   try { auditStore().append(e); } catch { /* the trail must never break what it records */ }
+  // A REST request an agent was refused for lack of access tells the person (and an allowed one answers an open request
+  // for that access): the notification service learns it from the same record. MCP calls tell it from their own audit
+  // callback, which also carries the tool name.
+  if (e.kind === 'rest' && e.agentId && e.integrationId && (e.decision === 'allow' || e.decision === 'deny')) {
+    try { huddle?.noteMcpAudit({ agentId: e.agentId, integrationId: e.integrationId, decision: e.decision, reason: e.reason }); } catch { /* a notification must never break the audit */ }
+  }
 }
 // Every credential the user stores or removes leaves a record, whichever screen did it. The
 // observer is handed the REF (a name such as `mcp:github`), never a value. Sign-in tokens
@@ -668,6 +679,7 @@ const integrationBroker = new IntegrationBroker({
         kind: 'mcp', actor: `agent:${e.agentId}`, agentId: e.agentId, integrationId: e.integrationId,
         action: e.tool ?? e.method, decision: e.decision, reason: e.reason
       });
+      huddle?.noteMcpAudit({ agentId: e.agentId, integrationId: e.integrationId, tool: e.tool, decision: e.decision, reason: e.reason });
     }
   }
 });
@@ -777,6 +789,8 @@ function teardownPty(id: string): void {
   // 1) Archive the agent — retained + flagged; only live-PTY agents are active.
   const agentId = ptyToAgent.get(id);
   if (agentId) {
+    // A kill is a clean end. (A natural exit has already reported its real code and signal, and this is then a no-op.)
+    try { huddle?.noteExit(agentId, { exitCode: 0 }); } catch { /* the Huddle must not break teardown */ }
     ptyToAgent.delete(id);
     // Drop watchdog state so a dead agent can't get nudged or leak its grace.
     try { workerWake.forget(agentId, id); } catch { /* best-effort */ }
@@ -930,6 +944,8 @@ ptyManager.setExitHandler((id, exitCode, info) => {
         tail: info?.tail,
         command: info?.command
       });
+      // The real way it ended, for the activity tracker and the notification that follows from it.
+      huddle?.noteExit(dyingAgent, { exitCode, signal: info?.signal, tail: info?.tail });
     }
   } catch (e) { console.error('[pty] recordAgentExit failed:', e); }
 
@@ -1509,7 +1525,9 @@ function reengageGod(digest: string): void {
 }
 
 /** A native toast for breaker constrain/stop, gated on the notifications setting. */
-function breakerToast(title: string, body: string): void {
+function breakerToast(title: string, body: string, lifecycle = false): void {
+  // The notification service owns breaker events (it also tells the Huddle); this toast remains for everything else.
+  if (lifecycle && huddle) return;
   if (!readConfig().notifications) return;
   try { if (Notification.isSupported()) new Notification({ title, body }).show(); }
   catch { /* unsupported platform */ }
@@ -1582,6 +1600,7 @@ function runBreakerBeat(progressWindowMs: number): void {
   }
   for (const d of breaker.tick(inputs, now)) {
     try { liveWebContents()?.send('control:breakerState', d.state); } catch { /* window gone */ }
+    try { huddle?.noteBreaker(d.state as Parameters<HuddleRuntime['noteBreaker']>[0]); } catch { /* the Huddle must not break the beat */ }
     if (d.action === 'none') continue;
     const name = reg.agents[d.state.agentId]?.name ?? d.state.agentId;
     const reason = d.state.reason;
@@ -1591,11 +1610,11 @@ function runBreakerBeat(progressWindowMs: number): void {
     } else if (d.action === 'constrain') {
       hive.send({ to: d.state.agentId, act: 'request', subject: 'Circuit breaker: constrain',
         body: `Automated guardrail escalated: ${reason}. Stop active work now: switch to read-only/plan, write a short plan of your next step, and send it to god for sign-off BEFORE running more tools.` }, 'breaker');
-      breakerToast(`${name} constrained`, reason);
+      breakerToast(`${name} constrained`, reason, true);
     } else if (d.action === 'stop') {
       const ptyId = ptyForAgent(d.state.agentId);
       if (ptyId) { try { ptyManager.kill(ptyId); } catch { /* already gone */ } teardownPty(ptyId); }
-      breakerToast(`${name} stopped by circuit breaker`, reason);
+      breakerToast(`${name} stopped by circuit breaker`, reason, true);
     }
   }
 }
@@ -2683,6 +2702,8 @@ function createWindow(opts: { floor?: boolean } = {}): BrowserWindow {
   // primary. The primary is also seeded synchronously so boot events route now.
   win.on('focus', () => { mainWindow = win; });
   if (!isFloor) mainWindow = win;
+  // Brought back by the Dock, the app switcher or a click on its thumbnail: the Huddle has done its job.
+  if (!isFloor) win.on('restore', () => huddle?.window.mainWindowReturned());
 
   // Permission gate for the renderer (our own trusted, local content). The only
   // permission we constrain is microphone capture: it's allowed ONLY while a mic
@@ -3404,6 +3425,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
     await enableCodexRemoteForSpawn(opts, opts.hive.id);
   }
   const res = ptyManager.spawn(opts, owner);
+  if (res.ok && opts.hive?.id) huddle?.noteSpawn(opts.hive.id);
   if (res.ok) analytics.track('agent_spawned', { provider });
   else analytics.track('agent_spawn_failed', { provider, reason: spawnFailReason(res.error) });
   // A process that did not start holds no capability: take the one minted for it back at once.
@@ -3420,6 +3442,9 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
 }
 ipcMain.handle('pty:write', (_evt, id: string, data: string) => {
   if (typeof id !== 'string' || typeof data !== 'string') return { ok: false, error: 'invalid args' };
+  // Keys typed into a terminal may be the answer to a prompt it is showing.
+  const typingAgent = ptyToAgent.get(id);
+  if (typingAgent) huddle?.noteUserWrite(typingAgent, data);
   return ptyManager.write(id, data);
 });
 ipcMain.handle('pty:resize', (_evt, id: string, cols: number, rows: number) => {
@@ -4857,6 +4882,7 @@ ipcMain.handle('telemetry:snapshot', () => telemetry.snapshot());
 // before Marshall's policy lands; he produces, this lane consumes.
 ipcMain.handle('control:setBreakerState', (_evt, state: unknown) => {
   try { liveWebContents()?.send('control:breakerState', state); } catch { /* window tore down */ }
+  try { huddle?.noteBreaker(state as Parameters<HuddleRuntime['noteBreaker']>[0]); } catch { /* ignore */ }
   return { ok: true };
 });
 
@@ -4865,6 +4891,7 @@ ipcMain.handle('control:setBreakerState', (_evt, state: unknown) => {
 ipcMain.handle('control:pause', (_evt, agentId: unknown, on: unknown) => {
   if (typeof agentId !== 'string') return null;
   control.pause(agentId, on === true);
+  huddle?.noteControl(agentId);
   return control.snapshot(agentId);
 });
 ipcMain.handle('control:autoDelivery', (_evt, agentId: unknown, paused: unknown) => {
@@ -4879,6 +4906,7 @@ ipcMain.handle('control:autoDelivery', (_evt, agentId: unknown, paused: unknown)
 ipcMain.handle('control:resume', (_evt, agentId: unknown) => {
   if (typeof agentId !== 'string') return null;
   control.resume(agentId);
+  huddle?.noteControl(agentId);
   return control.snapshot(agentId);
 });
 ipcMain.handle('control:gateTool', (_evt, agentId: unknown, tool: unknown, on: unknown) => {
@@ -4898,6 +4926,7 @@ ipcMain.handle('control:steer', (_evt, agentId: unknown, text: unknown) => {
 ipcMain.handle('control:halt', (_evt, agentId: unknown) => {
   if (typeof agentId !== 'string') return null;
   control.halt(agentId);
+  huddle?.noteControl(agentId);
   return control.snapshot(agentId);
 });
 ipcMain.handle('control:snapshot', (_evt, agentId: unknown) =>
@@ -6375,6 +6404,34 @@ app.whenReady().then(() => {
   // Guarded: a DB failure (e.g. a bad native build) must degrade to defaults,
   // never block app startup.
   try { persist.open(); } catch (e) { console.error('[db] open failed:', e); }
+  // The Huddle and notifications: needs the saved preferences, so after the store is open and before any window.
+  try {
+    huddle = setupHuddle({
+      isDev,
+      ptyManager,
+      hive: hive as unknown as Parameters<typeof setupHuddle>[0]['hive'],
+      control,
+      hookServer,
+      persist,
+      allWindows: () => allWindows,
+      getMainWindow: () => mainWindow,
+      killAgent: (agentId, ptyId) => {
+        const r = ptyManager.kill(ptyId);
+        teardownPty(ptyId); // also records the clean end in the activity tracker
+        // the main window did not initiate this kill, so tell it to archive the card (as the voice kill does)
+        try { liveWebContents()?.send('hive:agentArchived', { id: agentId }); } catch { /* window torn down */ }
+        return r;
+      },
+      redact: (t) => redactSecrets(t),
+      trackMessageSent: () => analytics.trackMessageSent('composer'),
+      transcriptFor: (cwd, sessionId) => {
+        const file = join(projectDir(cwd), `${sessionId}.jsonl`);
+        return existsSync(file) ? file : null;
+      },
+      log: (m) => console.log(`[huddle] ${m}`)
+    });
+    hookServer.setObserver((agentId, h) => huddle?.observeHook(agentId, h));
+  } catch (e) { console.error('[huddle] setup failed:', e); }
   // Auto-update from GitHub releases (packaged builds only; gated on the
   // `autoUpdate` config flag). Download-in-background + restart-to-apply toast;
   // never restarts on its own. Falls back to a notify-only releases/latest
@@ -6424,6 +6481,7 @@ app.whenReady().then(() => {
   }
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    else huddle?.appActivated();
   });
 });
 
@@ -6434,7 +6492,10 @@ app.on('before-quit', (e) => {
   const count = ptyManager.list().length;
   if (count === 0) return;
   e.preventDefault();
+  // The quit question is asked in the main window, which may be minimised behind the Huddle.
+  huddle?.leaveHuddle();
   if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
     mainWindow.webContents.send('app:closeRequested', { ptyCount: count });
   }

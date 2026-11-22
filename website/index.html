@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mosbius &amp; Co — your coding story starts here</title>
-<meta name="description" content="Mosbius &amp; Co is a desktop app that runs the coding agents already on your machine as a crew, in a pixel-art office. Free and open source. macOS and Windows builds are published.">
+<meta name="description" content="Mosbius &amp; Co is a desktop app that runs the coding agents already on your machine as a crew, in a pixel-art office. Free and open source. Version 1.1.0, the Huddle release, is for macOS on Apple silicon.">
 <meta property="og:title" content="Mosbius &amp; Co">
 <meta property="og:description" content="Run the coding agents already on your machine as a crew, in one pixel-art office.">
 <meta property="og:type" content="website">
@@ -28,6 +28,7 @@
       <a class="nav-more nav-wide" href="#team">The crew</a>
       <a class="nav-more nav-xwide" href="#spawn">How it works</a>
       <a class="nav-more nav-wide" href="#places">Locations</a>
+      <a class="nav-more nav-xwide" href="#huddle">Huddle</a>
       <a class="nav-more" href="#agents">Agents</a>
       <a class="nav-more" href="#plug">Integrations</a>
       <a class="nav-more" href="#skills">Skills</a>
@@ -48,12 +49,14 @@
       crew, across <!--gen:locations-word-->seven<!--/gen--> rooms you can switch between. Free and open source.
     </p>
     <div class="actions">
-      <a class="btn btn-primary" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0/Mosbius-Co-1.0.0-mac-arm64.dmg">Download for macOS</a>
-      <a class="btn" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0.0/Mosbius-Co-1.0.0.0-win-x64-setup.exe">Download for Windows</a>
+      <a class="btn btn-primary" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.1.0/Mosbius-Co-1.1.0-mac-arm64.dmg">Download for macOS</a>
       <a class="btn btn-ghost" href="https://github.com/rajguruyash/Mosbius-Co">View on GitHub</a>
     </div>
     <p class="hero-note">
       Works with Claude Code, OpenAI Codex and Google Gemini CLI. You only need one.
+    </p>
+    <p class="hero-note">
+      New in 1.1.0: <a href="#huddle">the Huddle</a>, a small window that keeps every agent within reach. For macOS on Apple silicon.
     </p>
   </div>
 
@@ -189,6 +192,66 @@
   </div>
 </section>
 
+<!-- ───────────────────────── agent huddle ───────────────────────── -->
+<section class="band-deep horn-mark" id="huddle">
+  <div class="shell">
+    <div class="section-head">
+      <span class="kicker"><span class="dot"></span>AGENT HUDDLE</span>
+      <h2>Meet the Huddle.</h2>
+    </div>
+
+    <figure class="huddle-desktop">
+      <div class="video-frame">
+        <video data-huddle-video muted loop playsinline controls preload="none"
+               poster="assets/huddle/huddle-desktop-poster.jpg" width="1920" height="1200"
+               aria-label="The whole app is open with agents at work in Barney's apartment. The pointer goes to Huddle and clicks it, the app minimises, and the Huddle comes up in the top right corner of the empty desktop. The view moves in on it: every agent at work, requests arriving, then the Huddle opened out to approve one and answer another, to read its notifications, to read an agent's conversation and its terminal, and to type a message to another agent and see its reply.">
+          <source src="assets/huddle/huddle-desktop.mp4" type="video/mp4">
+          <a href="assets/huddle/huddle-desktop.mp4">Watch the video</a>
+        </video>
+      </div>
+    </figure>
+
+    <div class="features huddle-points">
+      <div class="feature"><h3>Your Agents, Always Within Reach</h3><p>Huddle Mode</p></div>
+      <div class="feature"><h3>Step In Only When It Matters</h3><p>Intelligent Notifications</p></div>
+      <div class="feature"><h3>Unified Agent Control</h3><p>Switch between agents, inspect conversations, access terminals, send instructions, and manage tasks from a single compact interface. Your entire AI team stays coordinated and accessible from anywhere on your desktop.</p></div>
+    </div>
+
+    <div class="huddle-gallery">
+      <figure class="huddle-video">
+        <div class="video-frame">
+          <video data-huddle-video muted loop playsinline controls preload="none"
+                 poster="assets/huddle/huddle-story-poster.jpg" width="432" height="580"
+                 aria-label="The Huddle at work: a request to run a command is approved and a question is answered, both from the Huddle, and an agent finishes its task.">
+            <source src="assets/huddle/huddle-story.mp4" type="video/mp4">
+            <a href="assets/huddle/huddle-story.mp4">Watch the video</a>
+          </video>
+        </div>
+      </figure>
+      <figure class="shot huddle-shot">
+        <a class="shot-link" href="assets/huddle/huddle-compact.png">
+          <img src="assets/huddle/huddle-compact.png" width="624" height="740" loading="lazy" decoding="async"
+               alt="The compact Huddle, a small window listing every agent as a pixel character. One is waiting for approval to run a command, one is searching the code and two are idle. A badge on the bell counts what is waiting.">
+        </a>
+      </figure>
+      <figure class="shot huddle-shot">
+        <a class="shot-link" href="assets/huddle/huddle-expanded.png">
+          <img src="assets/huddle/huddle-expanded.png" width="864" height="1160" loading="lazy" decoding="async"
+               alt="The expanded Huddle. Under the heading Needs you is an approval card for a command, with the buttons Approve, Reject and Suggest instead. Below it is every agent, with what it is doing and a progress bar.">
+        </a>
+      </figure>
+      <figure class="shot huddle-shot">
+        <a class="shot-link" href="assets/huddle/huddle-agent.png">
+          <img src="assets/huddle/huddle-agent.png" width="1040" height="1320" loading="lazy" decoding="async"
+               alt="One agent's view in the Huddle: its state, buttons to pause, stop, restart or end it, the approval it is waiting on, tabs for its conversation and terminal, and a box to message it.">
+        </a>
+      </figure>
+    </div>
+
+    <p class="fine">New in v1.1.0, for macOS on Apple silicon.</p>
+  </div>
+</section>
+
 <!-- ───────────────────────── agents ───────────────────────── -->
 <section class="band-light horn-mark left" id="agents">
   <div class="shell">
@@ -313,15 +376,15 @@
     <div class="section-head">
       <span class="kicker"><span class="dot"></span>GET IT</span>
       <h2>Your office is waiting.</h2>
-      <p>Free and open source. Download Mosbius &amp; Co for macOS or Windows.</p>
+      <p>Free and open source. Version 1.1.0, the Huddle release, is for macOS on Apple silicon.</p>
     </div>
     <div class="actions">
-      <a class="btn btn-primary" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0/Mosbius-Co-1.0.0-mac-arm64.dmg">macOS — Apple silicon</a>
-      <a class="btn" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.0.0.0/Mosbius-Co-1.0.0.0-win-x64-setup.exe">Windows 10/11 — x64</a>
+      <a class="btn btn-primary" href="https://github.com/rajguruyash/Mosbius-Co/releases/download/v1.1.0/Mosbius-Co-1.1.0-mac-arm64.dmg">macOS — Apple silicon</a>
     </div>
-    <p class="fine">You need at least one coding agent installed and signed in. See the
+    <p class="fine">This release is for macOS on Apple silicon only. Windows and Linux are not part of it.
+      You need at least one coding agent installed and signed in. See the
       <a href="https://github.com/rajguruyash/Mosbius-Co/blob/main/README.md#installation-and-downloads">installation guide</a>
-      or <a href="https://github.com/rajguruyash/Mosbius-Co/releases">all releases</a>.</p>
+      or <a href="https://github.com/rajguruyash/Mosbius-Co/releases">all releases</a>; earlier ones do not have the Huddle.</p>
   </div>
 </section>
 
@@ -357,6 +420,7 @@
 <script src="js/cinema.js"></script>
 <script src="js/integrations.js"></script>
 <script src="js/ecosystem.js"></script>
+<script src="js/huddle.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

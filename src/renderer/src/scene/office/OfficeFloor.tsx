@@ -18,6 +18,7 @@ import {
   installContextLossRecovery, planInitFailure, DEFAULT_MAX_INIT_RETRIES
 } from './glRecovery';
 import { HIMYM_THEME } from './themeRegistry';
+import { activityStateOf, floorAttention, glyphFor, onActivityStates, walksToDoor } from './activityStates';
 import type { Tile, Facing, ErrandKind, ErrandSpot, WorldSeat } from './themeRegistry';
 
 // The map, tileset atlases, desk-claim order, errand spots, coffee-economy
@@ -67,6 +68,8 @@ interface Runtime {
   prevAction?: string;
   prevCarrying?: string;
   prevPrompt?: string;
+  /** The Huddle's answer for this agent last time (see activityStates.ts), so a change re-applies the state. */
+  prevAttention?: string | null;
   brk?: CafeBreak;
   /** This desk's monitor overlay — lit while its agent is seated. */
   screen?: { container: Container; setOn(on: boolean): void; update(dt: number): void; destroy(): void };
@@ -1849,8 +1852,14 @@ export function OfficeFloor() {
       };
 
       // Map an agent's store state onto its on-floor character.
-      const applyState = (agent: Agent, rt: Runtime, force = false) => {
+      const applyState = (agentIn: Agent, rt: Runtime, force = false) => {
+        // The main process knows things the store's status does not (a question, an approval, a failure, a pause) and knows
+        // them for EVERY agent. An agent that needs a person's decision is shown as the orchestrator always was when it
+        // needed one (the walk to the door); the other three states add their own symbol and change nothing else.
+        const att = floorAttention(activityStateOf(agentIn.id));
+        const agent: Agent = walksToDoor(att) && agentIn.status !== 'blocked' ? { ...agentIn, status: 'blocked' } : agentIn;
         const changed = force
+          || rt.prevAttention !== att
           || rt.prevStatus !== agent.status
           || rt.prevAction !== agent.action
           || rt.prevCarrying !== agent.carrying
@@ -1869,6 +1878,7 @@ export function OfficeFloor() {
           && rt.busySince !== undefined && Date.now() - rt.busySince >= CHEER_MIN_BUSY_MS;
         if (!isBusy) rt.busySince = undefined;
         rt.prevStatus = agent.status;
+        rt.prevAttention = att;
         rt.prevAction = agent.action;
         rt.prevCarrying = agent.carrying;
         rt.prevPrompt = agent.lastPrompt;
@@ -1973,6 +1983,8 @@ export function OfficeFloor() {
             else { c.startWandering(); c.showThought(liveActivity(agent, t('office.activity.idle'))); }
             break;
         }
+        // the symbol for what is being asked of a person: a question, a failure or a pause (an approval keeps the red "!")
+        if (att) c.setStatusGlyph(glyphFor(att));
       };
 
       const syncAgents = () => {
@@ -1994,6 +2006,8 @@ export function OfficeFloor() {
       syncAgents();
 
       let lastSelected: string | null = useStore.getState().selectedId;
+      // the Huddle's answers changing (an agent started asking for a person, or was answered) re-applies the same states
+      const offActivity = onActivityStates(() => syncAgents());
       const unsubscribe = useStore.subscribe((s, prev) => {
         if (s.agents !== prev.agents || s.agentLocations !== prev.agentLocations) syncAgents();
         if (s.selectedId !== lastSelected) {
@@ -2012,7 +2026,7 @@ export function OfficeFloor() {
           else { closeStreet(); startTransition(s.floorLocation); }
         }
       });
-      (app as any).__unsub = unsubscribe;
+      (app as any).__unsub = () => { unsubscribe(); offActivity(); };
 
       // Fly an envelope from a sender's desk to each recipient when the hive
       // routes a message. Endpoints are snapshotted at spawn, so the paper flies

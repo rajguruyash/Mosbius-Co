@@ -123,6 +123,21 @@ windows (760 and 560 px); light and dark. Screenshots in `evidence/ui` and `evid
 | CI workflows for Windows and Linux | written (`platforms.yml`), parse, UNVERIFIED: it now runs only when started by hand from the Actions tab (it builds unsigned installers and keeps them for a week), and has never run |
 | Documents synchronised | PASS: README, CHANGELOG, release notes, `INTEGRATIONS.md`, `SKILLS.md`, `SECURITY_REPORT.md`, `MCP_BROKER_DESIGN.md` 12.7 and the landing page. The tables and counts in the README, `INTEGRATIONS.md` and the website are generated from one catalogue (`tools/lib/catalogue.cjs`, derived from the files the app uses and the `evidence/` runs), and `npm run docs:check` and `npm run website:check` fail on drift. Not checked by a machine: the prose of `SKILLS.md`, `SECURITY_REPORT.md` and `MCP_BROKER_DESIGN.md`, which is written by hand |
 
+## 8. Agent Huddle and notifications
+
+Design, file map and limits: [DEVELOPMENT.md](DEVELOPMENT.md#agent-huddle-and-notifications). Everything below ran against a stand-in agent (a program that reports through hooks like a CLI; it is not a model). No real provider account was used.
+
+| Item | Status |
+|---|---|
+| Notification service (categories, priorities, de-duplication, history, preferences, desktop banner, sounds) | PASS in unit tests (`test/notification-service.test.cjs`, `test/sound-synth.test.cjs`) and in the real app through `tools/huddle-validate.cjs` |
+| Agent state machine and the floor's new glyphs | PASS in unit tests (`test/agent-activity.test.cjs`, `test/activity-glyph.test.cjs`, `test/hooks-observer.test.cjs`) |
+| Huddle window (compact, expanded, one agent), docking, saved position, no focus taken | PASS in the real app with the stand-in agent: window flags read back from the main process, and the application that was in front kept the keyboard when the Huddle appeared; the window can take the keyboard only after a text field is clicked and gives it back when the field is left. UNVERIFIED: a real operating-system mouse click or drag on the window (the harness clicks through the DevTools protocol and moves the window with `setPosition`, which fire the same events the app listens to), full-screen applications |
+| Approve, reject, choose, answer, restart, from a notification or from the Huddle | PASS against the stand-in agent, each reaching only the right agent. PASS against the real `claude` CLI 2.1.325 for the keys, on a Bash prompt and a file-edit prompt (Enter approves, Escape rejects, Down presses then Enter take the entry the highlight is on, Escape then a typed line reaches the model): `tools/verify-claude-prompt-keys.cjs`, 27 of 27, with a loopback stand-in for the model and no account. UNVERIFIED: what a real model asks for, and prompts from Codex and Gemini CLI |
+| Notification permission switched off in the system | UNVERIFIED: macOS and Linux give no signal. The app says "handed to the system", offers a test banner and the system settings, and the bell, the sound and the Huddle keep working |
+| Voice input in the Huddle | TODO: the app's dictation is bound to the main window |
+| Windows, Linux | NOT RUN |
+| Full suite after these changes | PASS on the v1.1.0 tree as it was staged for release: 2203 tests, 2200 pass, 0 fail, 3 skipped (the same three as before: two opt-in real-client tests and one Windows-only); typecheck, `docs:check`, `website:check` and `check:links` pass. On the built macOS Apple silicon installer: `tools/huddle-validate.cjs` passes 144 of 144 checks and `tools/ui-validate.cjs` 58 of 58. `tools/verify-claude-prompt-keys.cjs` passed 27 of 27 against the real `claude` CLI in an earlier run and was not repeated for this build |
+
 ## External dependencies (what only the owner can do)
 
 Each is a non-blocking request. Work on everything else continues.

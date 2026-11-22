@@ -1854,5 +1854,311 @@
     "viewSource": "عرض المصدر",
     "loading": "جارٍ تحميل الصورة…",
     "decodeFailed": "تعذّر فك ترميز هذه الصورة — قد يكون الملف تالفًا أو امتداده خاطئًا"
+  },
+  "huddle": {
+    "title": "تجمّع الوكلاء",
+    "openHuddle": "التجمّع",
+    "settingsTab": "الإعدادات",
+    "titleCount": "تجمّع الوكلاء · {{count}}",
+    "openApp": "العودة إلى التطبيق الكامل",
+    "openAppShort": "افتح التطبيق",
+    "expand": "توسيع",
+    "collapse": "طيّ",
+    "back": "رجوع",
+    "close": "إغلاق",
+    "moreAgents": "{{count}} آخرون",
+    "sections": {
+      "needsYou": "بحاجة إليك",
+      "agents": "الوكلاء",
+      "tasks": "المهام",
+      "recent": "الأحدث"
+    },
+    "empty": {
+      "title": "لا وكلاء على الأرضية",
+      "body": "أضف وكيلًا في التطبيق الرئيسي وسيظهر هنا وهو يعمل لحظةً بلحظة.",
+      "open": "افتح التطبيق"
+    },
+    "state": {
+      "idle": "خامل",
+      "working": "يعمل",
+      "researching": "يبحث",
+      "waiting": "ينتظر",
+      "completed": "اكتمل",
+      "needs-input": "يحتاج إدخالًا",
+      "needs-approval": "يحتاج موافقة",
+      "error": "خطأ",
+      "paused": "متوقف مؤقتًا",
+      "stopped": "متوقف"
+    },
+    "activity": {
+      "starting": "يبدأ التشغيل",
+      "thinking": "يفكّر",
+      "running": "يشغّل {{arg}}",
+      "runningBare": "يشغّل أمرًا",
+      "reading": "يقرأ {{arg}}",
+      "readingBare": "يقرأ",
+      "editing": "يحرّر {{arg}}",
+      "editingBare": "يحرّر ملفًا",
+      "searching": "يبحث عن «{{arg}}»",
+      "searchingBare": "يبحث في الشيفرة",
+      "finding": "يبحث عن {{arg}}",
+      "findingBare": "يبحث عن ملفات",
+      "fetching": "يجلب {{arg}}",
+      "fetchingBare": "يجلب صفحة",
+      "searchingWeb": "يبحث في الويب: {{arg}}",
+      "searchingWebBare": "يبحث في الويب",
+      "delegating": "يُفوّض: {{arg}}",
+      "delegatingBare": "يُفوّض إلى مساعد",
+      "planning": "يخطّط للعمل",
+      "usingTool": "يستخدم {{arg}}",
+      "usingToolBare": "يستخدم أداة",
+      "compacting": "يضغط سياقه",
+      "idle": "ينتظر المهمة التالية",
+      "finished": "أنهى المهمة",
+      "askingApproval": "يطلب استخدام {{arg}}",
+      "askingApprovalBare": "يطلب موافقة",
+      "askingQuestion": "لديه سؤال لك",
+      "paused": "متوقف مؤقتًا: الأدوات محظورة",
+      "stopping": "يتوقف بعد هذه الخطوة",
+      "stopped": "لا يعمل",
+      "failed": "توقف: {{arg}}",
+      "failedBare": "توقف على نحو غير متوقع",
+      "looping": "أوقفه القاطع: {{arg}}",
+      "loopingBare": "أوقفه القاطع",
+      "waiting": "ينتظر وكيلًا آخر"
+    },
+    "progress": {
+      "steps": "{{done}} من {{total}} خطوات",
+      "tasks": "{{done}} من {{total}} مهام",
+      "context": "السياق {{pct}}%",
+      "queuedOne": "{{count}} رسالة في الانتظار",
+      "queuedMany": "{{count}} رسائل في الانتظار"
+    },
+    "since": {
+      "now": "الآن",
+      "seconds": "{{count}} ث",
+      "minutes": "{{count}} د",
+      "hours": "{{count}} س"
+    },
+    "controls": {
+      "pause": "إيقاف مؤقت",
+      "resume": "استئناف",
+      "interrupt": "إيقاف المهمة",
+      "restart": "إعادة تشغيل",
+      "end": "إنهاء الجلسة",
+      "pauseTip": "احظر أدوات هذا الوكيل عند الخطوة التالية. استأنف ليتابع.",
+      "resumeTip": "اسمح لهذا الوكيل باستخدام أدواته مجددًا.",
+      "interruptTip": "أوقف ما يفعله الآن (مفتاح Escape في طرفيته). يبقى قيد التشغيل.",
+      "restartTip": "إعادة التشغيل: عملية جديدة، تُكمل المحادثة نفسها إن وُجدت.",
+      "endTip": "أنهِ جلسة هذا الوكيل.",
+      "endConfirm": "إنهاء جلسة {{name}}؟",
+      "endYes": "إنهاء الجلسة",
+      "endNo": "إبقاؤه",
+      "failed": "لم ينجح ذلك: {{error}}",
+      "ok": "تم"
+    },
+    "tabs": {
+      "conversation": "المحادثة",
+      "terminal": "الطرفية"
+    },
+    "conversation": {
+      "empty": "لم يُقل شيء بعد. أرسل رسالة إلى {{name}} في الأسفل.",
+      "loading": "جارٍ قراءة المحادثة…",
+      "failed": "تعذّرت قراءة المحادثة: {{error}}",
+      "fromTranscript": "من سجل الجلسة",
+      "fromHive": "من خيط الخلية (هذا المحرّك لا يحتفظ بسجل يستطيع التطبيق قراءته)",
+      "older": "الرسائل الأقدم في ملف السجل.",
+      "you": "أنت"
+    },
+    "terminal": {
+      "attaching": "جارٍ فتح الطرفية…",
+      "failed": "تعذّر فتح الطرفية: {{error}}",
+      "exited": "انتهت العملية.",
+      "readOnly": "عرض مباشر لطرفية {{name}}. استخدم المفاتيح أدناه للإجابة عن سؤال.",
+      "keys": "المفاتيح",
+      "enter": "إدخال",
+      "esc": "Esc",
+      "up": "أعلى",
+      "down": "أسفل",
+      "tab": "Tab"
+    },
+    "composer": {
+      "placeholder": "رسالة إلى {{name}}…",
+      "placeholderBusy": "رسالة إلى {{name}} (إنه يعمل، ستنتظر دورها)…",
+      "placeholderOff": "{{name}} لا يعمل",
+      "send": "إرسال",
+      "attach": "إرفاق",
+      "attachFiles": "ملفات…",
+      "attachImages": "صور…",
+      "remove": "إزالة",
+      "drop": "أفلت الملفات لإرفاقها إلى {{name}}",
+      "queued": "وُضعت في طابور {{name}}. ستُسلَّم حين يتفرّغ {{name}}.",
+      "failed": "لم تُرسَل: {{error}}",
+      "pasteFailed": "لا توجد صورة في الحافظة.",
+      "kind": {
+        "image": "صورة",
+        "file": "ملف"
+      }
+    },
+    "errors": {
+      "unknown-agent": "هذا الوكيل ليس على الأرضية",
+      "no-terminal": "ليست له طرفية",
+      "not-running": "إنه لا يعمل",
+      "main-window-unavailable": "النافذة الرئيسية غير متاحة",
+      "not-for-orchestrator": "يُنهى المنسّق من التطبيق الرئيسي",
+      "invalid-command": "لم يكن هذا طلبًا صالحًا",
+      "forbidden": "غير مسموح من هنا",
+      "timed-out": "استغرق وقتًا طويلًا"
+    },
+    "notifications": {
+      "bell": "الإشعارات",
+      "none": "لا شيء بحاجة إليك.",
+      "noneHistory": "لا إشعارات بعد.",
+      "unread": "{{count}} غير مقروء",
+      "pending": "{{count}} بانتظارك",
+      "markAllRead": "تعليم الكل كمقروء",
+      "clear": "مسح السجل",
+      "resolvedAt": "{{what}} · منذ {{when}}",
+      "repeated": "سُئل {{count}} مرات",
+      "openAgent": "افتح الوكيل",
+      "settings": "امنح الوصول من الإعدادات",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "alternative": "اقترح بديلًا…",
+      "answer": "أجب…",
+      "restart": "إعادة تشغيل",
+      "dismiss": "تجاهل",
+      "sendAlternative": "ارفض وأرسل",
+      "sendAnswer": "أرسل الإجابة",
+      "alternativePlaceholder": "أخبر {{agent}} بما يفعله بدلًا من ذلك…",
+      "answerPlaceholder": "إجابتك…",
+      "cancel": "إلغاء",
+      "failed": "لم ينجح ذلك: {{error}}",
+      "already-resolved": "سبقت الإجابة عنه",
+      "not-running": "الوكيل لم يعد يعمل",
+      "not-offered": "هذا الإجراء غير متاح لهذا الإشعار",
+      "no-such-option": "لم يعد هذا الخيار موجودًا",
+      "outcome": {
+        "approved": "تمت الموافقة",
+        "rejected": "تم الرفض",
+        "alternative": "تم الرفض وأُرسل بديل",
+        "option": "تمت الإجابة",
+        "answered": "تمت الإجابة",
+        "dismissed": "تم التجاهل",
+        "opened": "فُتح",
+        "resolved": "حُلّ"
+      },
+      "by": {
+        "user": "بواسطتك",
+        "agent": "بواسطة الوكيل",
+        "system": "تلقائيًا"
+      },
+      "category": {
+        "approval": "موافقة",
+        "input": "يلزم إدخال",
+        "intervention": "يحتاج انتباهًا",
+        "access": "يلزم وصول",
+        "completed": "اكتمل",
+        "info": "معلومة"
+      }
+    },
+    "prefs": {
+      "title": "الإشعارات",
+      "sound": "تشغيل صوت",
+      "desktop": "إظهار إشعارات سطح المكتب",
+      "routine": "إظهار التقدّم الاعتيادي (خامل، متوقف مؤقتًا، متوقف)",
+      "categories": "أخبرني عن",
+      "desktopStatus": {
+        "unknown": "لم تُجرَّب إشعارات سطح المكتب بعد. أرسل إشعارًا تجريبيًا للتحقق.",
+        "ok": "تُسلَّم الإشعارات إلى نظامك.",
+        "unsupported": "نظامك لا يدعم إشعارات سطح المكتب هنا. تبقى الأصوات ونافذة التجمّع تعمل.",
+        "blocked": "نظامك يرفض الإشعارات. تبقى الأصوات ونافذة التجمّع تعمل."
+      },
+      "test": "أرسل إشعارًا تجريبيًا",
+      "systemSettings": "افتح إعدادات إشعارات النظام",
+      "systemHint": "إن لم يظهر الاختبار، اسمح بالإشعارات لهذا التطبيق في إعدادات نظامك.",
+      "tested": "أُرسل. إن لم يظهر شيء على الشاشة فنظامك يحجب إشعارات هذا التطبيق.",
+      "sounds": {
+        "title": "الأصوات",
+        "volume": "مستوى الصوت",
+        "switch": "تشغيل الصوت أو إيقافه: {{name}}",
+        "previews": "معاينة الأصوات",
+        "play": "تشغيل: {{name}}",
+        "previewHint": "المعاينة تشغّل الصوت فقط. لا يُرسَل أي إشعار ولا يتأثر أي وكيل.",
+        "previewHintOff": "أصوات الإشعارات متوقفة. ما زالت المعاينة تعمل لتسمعها أولًا.",
+        "cue": {
+          "completed": { "name": "بيانو Mosbius المميّز — اكتملت المهمة", "hint": "لحن بيانو مشرق، نحو ثلاث ثوانٍ" },
+          "intervention": { "name": "يحتاج انتباهًا", "hint": "طَرْقتان ثم سؤال" },
+          "input": { "name": "يلزم إدخالك", "hint": "نغمتان دافئتان" },
+          "approval": { "name": "يلزم موافقتك", "hint": "سؤال من ثلاث نغمات" },
+          "access": { "name": "يلزم وصول", "hint": "نقرة وتر مكتومة وحبس نفس" },
+          "critical": { "name": "حدث خطأ", "hint": "هبوط لطيف" },
+          "started": { "name": "بدأ الوكيل", "hint": "شرارة صغيرة" },
+          "signature": { "name": "لحن Mosbius & Co", "hint": "اللحن الصغير الذي تتفرع منه بقية الأصوات" }
+        }
+      }
+    }
+  },
+  "notify": {
+    "approval": {
+      "title": "{{agent}} يحتاج موافقتك",
+      "body": "يريد استخدام {{tool}}.",
+      "bodyPlain": "ينتظر منك الموافقة على أمر ما."
+    },
+    "input": {
+      "title": "لدى {{agent}} سؤال",
+      "body": "يحتاج إجابة منك ليتابع.",
+      "bodyOptions": "اختر أحد خياراته ليتابع."
+    },
+    "ask": {
+      "title": "{{agent}} يحتاج إدخالك",
+      "body": "بخصوص: {{subject}}"
+    },
+    "completed": {
+      "title": "{{agent}} أنهى عمله",
+      "body": "عمل لمدة {{duration}}.",
+      "bodyTools": "عمل لمدة {{duration}} في {{tools}} خطوات."
+    },
+    "crashed": {
+      "title": "{{agent}} توقف على نحو غير متوقع",
+      "body": "رمز الخروج {{code}}. أعد تشغيله لمتابعة المحادثة.",
+      "bodyMessage": "رمز الخروج {{code}}."
+    },
+    "breaker": {
+      "title": "{{agent}} موقوف مؤقتًا",
+      "stoppedTitle": "أوقف القاطع {{agent}}",
+      "body": "يبدو أنه عالق في حلقة. ألقِ نظرة قبل أن يتابع."
+    },
+    "stuck": {
+      "title": "{{agent}} ينتظرك",
+      "body": "تظهر في طرفيته رسالة تنتظر ردًّا."
+    },
+    "access": {
+      "title": "{{agent}} يحتاج الوصول إلى {{integration}}",
+      "body": "حاول استخدام {{integration}} ولم يُمنح الوصول.",
+      "bodyTool": "حاول استخدام {{tool}} على {{integration}} ولم يُمنح الوصول."
+    },
+    "idle": {
+      "title": "{{agent}} ينتظر مهمته التالية",
+      "body": "أنهى عمله ولا شيء في طابوره."
+    },
+    "stopped": {
+      "title": "أُوقف {{agent}}",
+      "body": "انتهت جلسته."
+    },
+    "paused": {
+      "title": "أُوقف {{agent}} مؤقتًا",
+      "body": "أدواته محظورة حتى تستأنفه."
+    },
+    "resumed": {
+      "title": "{{agent}} يعمل من جديد",
+      "body": "أدواته مسموحة مجددًا."
+    },
+    "more": "{{count}} تحديثات أخرى. افتح التجمّع لرؤيتها.",
+    "moreTitle": "المزيد من وكلائك",
+    "test": {
+      "title": "إشعار تجريبي",
+      "body": "إشعارات سطح المكتب تعمل."
+    }
   }
 }

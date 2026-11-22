@@ -1,0 +1,3 @@
+/* The Huddle window's page: transparent, so the only thing that paints is the panel. (Only this window loads this file;
+   the components' own styles are in huddle-ui.css, which the main window shares for the notification cards.) */
+html, body, #root { background: transparent !important; overflow: hidden; }

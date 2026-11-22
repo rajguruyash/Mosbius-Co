@@ -39,6 +39,11 @@ export function withHiveRuntimeFallback(path: string, hiveRoot?: string): string
  *  agents cost kilobytes, not megabytes. */
 const TAIL_MAX = 8192;
 
+/** How much recent output to keep per session so a second window (the Huddle) can show what is already on the
+ *  screen when it starts watching. A hundred kilobytes is several screens of a TUI repaint; N idle agents cost
+ *  N of these, not more, because the ring never grows past it. */
+const RECENT_MAX = 96 * 1024;
+
 /** What the exit handler is told about a process that just died. Passed by
  *  value because the session is deleted from the map before the handler runs. */
 export interface PtyExitInfo {
@@ -75,6 +80,12 @@ interface PtySession {
   /** True after the child has emitted at least one frame. Automation waits for
    *  this before typing, so startup prompts cannot outrun the TUI subscription. */
   hasOutput: boolean;
+  /** The newest RECENT_MAX characters of output, for a window that starts watching late. */
+  recent: string;
+  /** True once `recent` has dropped its oldest bytes, so its first line may be cut mid-sequence. */
+  recentCut: boolean;
+  /** Extra windows that mirror this terminal (read-only), beside the owner. Removed when their window closes. */
+  taps: Set<WebContents>;
 }
 
 export interface SpawnOptions {
@@ -688,6 +699,9 @@ export class PtyManager {
         lastOutputAt: Date.now(),
         hasOutput: false,
         tail: '',
+        recent: '',
+        recentCut: false,
+        taps: new Set(),
         owner
       };
       this.sessions.set(opts.id, session);
@@ -701,14 +715,21 @@ export class PtyManager {
         // Keep only the trailing window; slice AFTER appending so a single
         // oversized write still leaves us its end (the part that explains a death).
         session.tail = (session.tail + data).slice(-TAIL_MAX);
+        const grown = session.recent + data;
+        if (grown.length > RECENT_MAX) { session.recent = grown.slice(-RECENT_MAX); session.recentCut = true; }
+        else session.recent = grown;
         // Route to the session's owner window (multi-window owner routing).
         this.safeSend(`pty:data:${opts.id}`, data, session.owner);
+        // ...and to any window mirroring it, on a channel of its own so the owner's stream is untouched.
+        this.fanOut(session, 'huddle:ptyData', { id: opts.id, data });
       });
       proc.onExit(({ exitCode, signal }) => {
         // Stale exit from a process whose id was reclaimed (kill()+respawn) — do
         // NOT touch the live session or tell the renderer the new pty died.
         if (this.sessions.get(opts.id) !== session) return;
         this.safeSend(`pty:exit:${opts.id}`, { exitCode, signal }, session.owner);
+        this.fanOut(session, 'huddle:ptyExit', { id: opts.id, exitCode, signal });
+        session.taps.clear();
         this.sessions.delete(opts.id);
         // Natural exit must run the same lifecycle teardown as an explicit kill.
         // Guarded so a teardown error can never crash node-pty's exit callback.
@@ -746,11 +767,51 @@ export class PtyManager {
     }
   }
 
+  /** Send to every mirroring window that is still alive; one that died is dropped, not retried. */
+  private fanOut(s: PtySession, channel: string, payload: unknown): void {
+    if (s.taps.size === 0) return;
+    for (const wc of [...s.taps]) {
+      if (wc.isDestroyed()) { s.taps.delete(wc); continue; }
+      try { wc.send(channel, payload); } catch { s.taps.delete(wc); }
+    }
+  }
+
+  /** Start mirroring a terminal into another window. Returns what is already on the screen and its size. */
+  addTap(id: string, wc: WebContents): { ok: true; replay: string; cols: number; rows: number } | { ok: false; error: string } {
+    const s = this.sessions.get(id);
+    if (!s) return { ok: false, error: `no pty: ${id}` };
+    s.taps.add(wc);
+    let replay = s.recent;
+    // the oldest line of a trimmed ring may begin inside an escape sequence
+    if (s.recentCut) { const nl = replay.indexOf('\n'); replay = nl >= 0 ? replay.slice(nl + 1) : ''; }
+    return { ok: true, replay, cols: s.proc.cols, rows: s.proc.rows };
+  }
+
+  removeTap(id: string, wc: WebContents): void {
+    this.sessions.get(id)?.taps.delete(wc);
+  }
+
+  /** A window is going away: stop mirroring into it, wherever it was attached. */
+  removeTapsFor(wc: WebContents): void {
+    for (const s of this.sessions.values()) s.taps.delete(wc);
+  }
+
+  /** How many windows are mirroring this terminal (for tests and diagnostics). */
+  tapCount(id: string): number {
+    return this.sessions.get(id)?.taps.size ?? 0;
+  }
+
+  geometry(id: string): { cols: number; rows: number } | null {
+    const s = this.sessions.get(id);
+    return s ? { cols: s.proc.cols, rows: s.proc.rows } : null;
+  }
+
   resize(id: string, cols: number, rows: number): { ok: boolean; error?: string } {
     const s = this.sessions.get(id);
     if (!s) return { ok: false, error: `no pty: ${id}` };
     try {
       s.proc.resize(cols, rows);
+      this.fanOut(s, 'huddle:ptyGeometry', { id, cols: s.proc.cols, rows: s.proc.rows });
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
