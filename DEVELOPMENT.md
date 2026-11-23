@@ -67,7 +67,7 @@ An honest table. "Checked" means a run is recorded in this repository; each row 
 |---|---|---|
 | macOS, Apple Silicon | Developed and tested: the automated suite, the real desktop app driven (development and packaged), the three agent CLIs | `evidence/ui-packaged/`, `evidence/ui/` |
 | macOS, Intel | A universal build is configured and was built; **never run on an Intel Mac** | `electron-builder.yml` |
-| Windows, x64 | Installer published (v1.0.0.0, before the platform in this page); cross-built on a Mac; **never run on Windows**; a manual CI workflow exists and has never run | `.github/workflows/platforms.yml` |
+| Windows, x64 | Installers published (v1.0.0.0, before the platform in this page, and v1.1.0.0, the Huddle release); cross-built on a Mac; **never run on Windows**; a manual CI workflow exists and has never run | `.github/workflows/platforms.yml` |
 | Linux | An AppImage target is configured; **not built, not run** | `electron-builder.yml` |
 | Claude Code, Codex CLI, Gemini CLI | Verified with the real CLIs; Codex and Gemini with a stand-in model and provider; no real Gemini login | the table under [Agent CLIs](#agent-clis-what-was-run)(#agent-clis-what-was-run) |
 | Local MCP servers | Locally tested on macOS (real tool calls) | `evidence/stage-b/` |
@@ -381,6 +381,7 @@ npm run test:focused   # the automated suite
 npm run build          # production build into out/
 npm run dist:mac       # build a Mac app and DMG into dist/
 npm run dist:win-on-mac  # cross-build the unsigned Windows installer on a Mac
+npm run check:links    # the README, the website and website/releases.html agree with package.json (add -- --live once the release is published)
 npm run docs:gen       # regenerate the generated parts of DEVELOPMENT.md and INTEGRATIONS.md
 npm run docs:check     # fail if those parts are out of date
 npm run website:build  # regenerate the website's data and check its links and claims
@@ -388,6 +389,8 @@ npm run website:check  # the same checks, writing nothing: fails if a generated 
 ```
 
 `npx vite --config vite.lab.config.ts` serves only the floor, with stand-in agents, at `http://localhost:5199/lab.html`.
+
+**A release.** Change `version` in `package.json`; put the new release's two cards (macOS `vX.Y.Z`, Windows `vX.Y.Z.0`) at the top of `website/releases.html`; point the buttons in the README and in `website/index.html` at the new release pages. `npm run website:check` fails until the Releases page has both cards, and `npm run check:links` fails while either page offers an older macOS release. After publishing, `npm run check:links -- --live` checks that every release page answers.
 
 Checks you can run against the real programs (each prints PASS or FAIL for every check and writes its evidence):
 

@@ -4,7 +4,15 @@ Changes to Mosbius & Co.
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-11-22
+### Added
+
+- **A Releases page on the website.** `website/releases.html`, opened from "Releases" in the top bar, lists every published release, newest first (macOS and Windows for 1.1.0, then for 1.0.0), each with its date, a short description and a button to its own page on GitHub. The website build checks it: it fails if the page does not list the macOS and Windows releases of the version in `package.json` (`v1.1.0` and `v1.1.0.0` today), if a card is incomplete, or if a card links anywhere but its own release.
+
+### Changed
+
+- **The download buttons open each release's page.** The README and the website send macOS to the `v1.1.0` release and Windows to the `v1.1.0.0` release on GitHub, instead of straight to a file. The Windows download is back for 1.1.0: its installer was published after the pages first went out macOS-only, and both pages now say it is new and has not been tried on a real Windows computer yet. `tools/check-release-links.cjs` checks release pages as well as files: a macOS link must offer the version in `package.json`, and a Windows link may lag it but never lead it.
+
+## [1.1.0] - 2026-11-23
 
 ### Added
 

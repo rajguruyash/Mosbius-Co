@@ -109,15 +109,19 @@ test('the homepage is a product page: its sections, its three agents, its calls 
   const agents = [...html.matchAll(/<article class="agent-card">[\s\S]*?<h3>([^<]+)<\/h3>/g)].map((m) => m[1]);
   assert.deepEqual(agents, ['Claude Code', 'OpenAI Codex', 'Google Gemini CLI']);
   assert.match(html, /Works with Claude Code, OpenAI Codex and Google Gemini CLI\. You only need one\./);
-  // download buttons point at the assets README.md gives, and README.md is what the releases really hold
-  const direct = [...html.matchAll(/href="(https:\/\/github\.com\/rajguruyash\/Mosbius-Co\/releases\/download\/[^"]+)"/g)].map((m) => m[1]);
-  assert.ok(direct.length >= 2, 'hero and download buttons');
+  // the download buttons open each release's own page on GitHub (macOS is tagged v1.1.0, its Windows installer v1.1.0.0), and README.md gives the same pages
+  const releasePages = [...html.matchAll(/href="(https:\/\/github\.com\/rajguruyash\/Mosbius-Co\/releases\/tag\/[^"]+)"/g)].map((m) => m[1]);
+  assert.ok(releasePages.length >= 4, 'the hero and the download section each have a button for macOS and one for Windows');
   const readme = read('README.md');
-  for (const url of direct) assert.ok(readme.includes(url), `${url} is not a download README.md gives`);
-  assert.deepEqual([...new Set(direct)].map((u) => u.split('/').pop()).sort(), ['Mosbius-Co-1.1.0-mac-arm64.dmg']);
-  // this release is for macOS on Apple silicon only, and the page says so: no Windows download is offered anywhere on it
-  assert.equal(/win-x64|\.exe\b|Download for Windows/i.test(html), false, 'no Windows download for this release');
-  assert.match(html, /macOS on Apple silicon only/);
+  for (const url of releasePages) assert.ok(readme.includes(url), `${url} is not a release page README.md gives`);
+  assert.deepEqual([...new Set(releasePages)].map((u) => u.split('/').pop()).sort(), ['v1.1.0', 'v1.1.0.0']);
+  assert.equal(/releases\/download\//.test(html), false, 'a button opens a release page, not a file');
+  // this release is for macOS on Apple silicon and Windows, and the page says so, and that the Windows installer is new
+  assert.match(html, /Download for macOS/);
+  assert.match(html, /Download for Windows/);
+  assert.match(html, /Version 1\.1\.0, the Huddle release, is for macOS on Apple silicon and Windows \(64-bit\)\./);
+  assert.match(html, /The Windows installer is new and has not been tried on a real Windows computer yet\./);
+  assert.match(html, /Intel Macs and Linux are not part of this release/);
   // the disclaimer and one credit stay
   assert.match(html, /a fan-made project, not affiliated with,\s+endorsed by, or connected to/);
   assert.equal((html.match(/Munder\s*Difflin/gi) ?? []).length, 1);
@@ -190,7 +194,7 @@ test('the Huddle section is simple: three points in the owner\'s own words, and 
   const points = [...section.matchAll(/<div class="feature"><h3>([^<]+)<\/h3><p>([^<]+)<\/p><\/div>/g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(points, HUDDLE_POINTS);
   assert.equal([...section.matchAll(/class="feature"/g)].length, 3, 'no more than the three points');
-  assert.match(section, /New in v1\.1\.0, for macOS on Apple silicon\./);
+  assert.match(section, /New in v1\.1\.0, for macOS on Apple silicon and Windows\./);
   assert.doesNotMatch(section, /Coming in the next release/, 'the Huddle is out: nothing says it is coming');
   assert.ok(site.proseOf(section).length < 900, 'the section stays short');
   assert.equal(site.engineeringTalk(site.proseOf(section), 'the Huddle section').length, 0);
@@ -232,7 +236,7 @@ test('the README shows the Huddle the same simple way: the three points, the vid
   const section = readme.slice(readme.indexOf('## Agent Huddle'), readme.indexOf('## Coding agents'));
   for (const [title, text] of HUDDLE_POINTS) assert.ok(section.includes(`**${title}.** ${text}`), `the README gives "${title}"`);
   assert.equal([...section.matchAll(/^- \*\*/gm)].length, 3, 'no more than the three points');
-  assert.match(section, /> New in v1\.1\.0, for macOS on Apple silicon\./);
+  assert.match(section, /> New in v1\.1\.0, for macOS on Apple silicon and Windows \(64-bit\)\./);
   assert.doesNotMatch(section, /Coming in the next release/, 'the Huddle is out: nothing says it is coming');
   const files = [...section.matchAll(/(?:src="|href=")(screenshots\/huddle\/[\w-]+\.(?:png|gif|mp4))/g)].map((m) => m[1]);
   for (const f of new Set(files)) assert.ok(fs.existsSync(path.join(ROOT, f)), `${f} is not in the repository`);

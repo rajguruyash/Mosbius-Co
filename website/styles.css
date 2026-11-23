@@ -131,7 +131,7 @@ section { padding: 64px 0; position: relative; overflow: hidden; }
 
 .band-light { background: rgba(190, 194, 204, 0.52); border-block: 2px solid rgba(58, 58, 80, 0.35); }
 .band-deep { background: rgba(58, 58, 80, 0.92); color: var(--paper); border-block: 2px solid var(--ink); }
-.band-deep h2, .band-deep h3 { color: var(--cream); }
+.band-deep h1, .band-deep h2, .band-deep h3 { color: var(--cream); }
 .band-deep p, .band-deep .section-head p { color: #cfd4e0; }
 .band-deep a { color: var(--yellow); }
 
@@ -439,6 +439,23 @@ code {
 .huddle-video { margin: 0; }
 .huddle-shot img { background: var(--navy); padding: 14px; }
 
+/* ─── the releases page ─────────────────────────────────────────────────── */
+
+.nav-links a[aria-current='page'] { border-bottom-color: var(--navy); }
+.releases-title { margin: 0 0 14px; }
+.releases { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); margin-bottom: 18px; }
+.release { display: flex; flex-direction: column; background: var(--paper); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--navy); padding: 16px; }
+.release-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 6px; }
+.release-head h3 { margin: 0; }
+.release .platform { font-family: var(--pixel); font-size: 8px; letter-spacing: .5px; color: var(--blue-ink); background: var(--bevel); border: 2px solid var(--navy); padding: 5px 8px; }
+.release-date { font-size: 13px; color: #4b4653; margin: 0 0 10px; }
+.release-text { font-size: 14.5px; color: #332e3a; margin: 0 0 16px; flex: 1; }
+.release .btn { align-self: flex-start; }
+/* a card on the deep band keeps its own dark type, as the feature cards do */
+.band-deep .release h3 { color: var(--ink); }
+.band-deep .release p { color: #332e3a; }
+.band-deep .release .release-date { color: #4b4653; }
+
 /* ─── footer ────────────────────────────────────────────────────────────── */
 
 footer { background: var(--ink); color: #b9bcc6; padding: 34px 0; border-top: 3px solid var(--navy); }
@@ -454,6 +471,7 @@ footer a { color: var(--yellow); }
 @media (max-width: 1279px) { .nav-xwide { display: none; } }
 @media (max-width: 1099px) { .nav-wide { display: none; } }
 @media (max-width: 880px) { .nav-links { gap: 12px; } }
+@media (max-width: 959px) { .nav-mid { display: none; } }
 @media (max-width: 767px) { .nav-more { display: none; } }
 
 @media (min-width: 961px) {
@@ -488,6 +506,13 @@ footer a { color: var(--yellow); }
   .nav-links a { font-size: 8px; white-space: nowrap; }
   .nav-more { display: none; }
   .btn { font-size: 9px; padding: 11px 12px; }
+}
+
+/* the narrowest phones: the brand and the two links that are left still have to share one line */
+@media (max-width: 359px) {
+  .nav .shell { gap: 6px; }
+  .brand { font-size: 8px; gap: 6px; }
+  .nav-links { gap: 8px; }
 }
 
 /* ─── reduced motion ────────────────────────────────────────────────────── */

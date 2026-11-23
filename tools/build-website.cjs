@@ -15,6 +15,8 @@
  *   3. fills every <!--gen:name-->value<!--/gen--> in website/index.html (counts, written as words) from that data;
  *   4. checks the files: every link, anchor, image, script and stylesheet resolves; every image has alt text; every
  *      script parses; no count is left typed by hand outside a generated marker; the rooms are the app's locations;
+ *      the releases page lists the macOS and Windows releases of the version in package.json, newest first, each with
+ *      a link to its own page on GitHub;
  *   5. runs the page's own scripts against that data on a stand-in page (tools/lib/site-dom.cjs) and reads what a
  *      visitor would get: every provider drawn once, each filter showing its own group, nothing rendered as
  *      "undefined", and no sentence that calls an account-based provider verified without saying it is not.
@@ -30,6 +32,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { buildCatalogue, ROOT } = require('./lib/catalogue.cjs');
 const { runSite, leaves, find, hasClass } = require('./lib/site-dom.cjs');
+const { compareVersions } = require('./check-release-links.cjs');
 
 const SITE = path.join(ROOT, 'website');
 
@@ -234,33 +237,44 @@ function attrValues(html, attr) {
 const KNOWN_EXTERNAL = [/^https:\/\/fonts\.googleapis\.com(\/|$)/, /^https:\/\/fonts\.gstatic\.com\/?$/];
 const REPO = 'https://github.com/rajguruyash/Mosbius-Co';
 
-function checkLinks(html, problems) {
+/**
+ * Every link, anchor, image and file a page names must exist. `label` is what the problems call the page. A link to a release
+ * page must be one README.md lists, or, where `tagsOk` is given (the releases page lists its own), one of those.
+ */
+function checkLinks(html, problems, { label = 'index.html', tagsOk = null } = {}) {
   const ids = new Set([...html.matchAll(/\sid\s*=\s*"([^"]+)"/g)].map((m) => m[1]));
   const targets = [...attrValues(html, 'href'), ...attrValues(html, 'src'), ...attrValues(html, 'poster')];
   const seen = { anchors: 0, files: 0, external: 0 };
   const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   const readmeDownloads = new Set([...readme.matchAll(/\((https:\/\/github\.com\/[^)\s]*\/releases\/download\/[^)\s]+)\)/g)].map((m) => m[1]));
-  const readmeTags = new Set([...fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8').matchAll(/releases\/tag\/(v[0-9.]+)/g)].map((m) => m[1]));
+  const readmeTags = new Set([...readme.matchAll(/releases\/tag\/(v[0-9]+(?:\.[0-9]+)+)/g)].map((m) => m[1]));
+  const tagListed = (tag) => (tagsOk ?? readmeTags).has(tag);
   for (const t of targets) {
     if (t.startsWith('#')) {
       seen.anchors++;
-      if (t.length > 1 && !ids.has(t.slice(1))) problems.push(`index.html links to ${t}, which no element has as its id`);
+      if (t.length > 1 && !ids.has(t.slice(1))) problems.push(`${label} links to ${t}, which no element has as its id`);
     } else if (/^https?:\/\//.test(t)) {
       seen.external++;
       if (KNOWN_EXTERNAL.some((re) => re.test(t))) continue;
       if (t === REPO || t === `${REPO}/releases`) continue;
-      if (new RegExp(`^${REPO}/releases/download/v[0-9.]+/[\\w.-]+$`).test(t)) { if (!readmeDownloads.has(t)) problems.push(`index.html links to the download ${t}, which README.md does not give`); continue; }
-      let m = new RegExp(`^${REPO}/releases/tag/(v[0-9.]+)$`).exec(t);
-      if (m) { if (!readmeTags.has(m[1])) problems.push(`index.html links to release ${m[1]}, which README.md does not list`); continue; }
+      if (new RegExp(`^${REPO}/releases/download/v[0-9.]+/[\\w.-]+$`).test(t)) { if (!readmeDownloads.has(t)) problems.push(`${label} links to the download ${t}, which README.md does not give`); continue; }
+      let m = new RegExp(`^${REPO}/releases/tag/(v[0-9]+(?:\\.[0-9]+)+)$`).exec(t);
+      if (m) { if (!tagListed(m[1])) problems.push(`${label} links to release ${m[1]}, which ${tagsOk ? 'none of its own cards is' : 'README.md does not list'}`); continue; }
       m = new RegExp(`^${REPO}/blob/main/([^#?]+)(?:#.*)?$`).exec(t);
-      if (m) { if (!fs.existsSync(path.join(ROOT, decodeURI(m[1])))) problems.push(`index.html links to ${t}, but ${m[1]} is not in the repository`); continue; }
-      problems.push(`index.html links to ${t}, an address this page is not allowed to point at (add it on purpose, here, if it is right)`);
+      if (m) { if (!fs.existsSync(path.join(ROOT, decodeURI(m[1])))) problems.push(`${label} links to ${t}, but ${m[1]} is not in the repository`); continue; }
+      problems.push(`${label} links to ${t}, an address this page is not allowed to point at (add it on purpose, here, if it is right)`);
     } else if (/^(mailto:|data:|tel:|javascript:)/i.test(t)) {
-      problems.push(`index.html uses ${t.slice(0, 30)}, which is not expected here`);
+      problems.push(`${label} uses ${t.slice(0, 30)}, which is not expected here`);
     } else {
       seen.files++;
       const file = path.join(SITE, t.split(/[?#]/)[0]);
-      if (!fs.existsSync(file)) problems.push(`index.html refers to ${t}, which does not exist under website/`);
+      if (!fs.existsSync(file)) problems.push(`${label} refers to ${t}, which does not exist under website/`);
+      else if (t.includes('#') && file.endsWith('.html')) {
+        // a link into another page of the site (index.html#download) must land on an element that is there
+        const fragment = t.split('#')[1];
+        const there = new Set([...fs.readFileSync(file, 'utf8').matchAll(/\sid\s*=\s*"([^"]+)"/g)].map((x) => x[1]));
+        if (fragment && !there.has(fragment)) problems.push(`${label} links to ${t}, but ${path.basename(file)} has no element with the id "${fragment}"`);
+      }
     }
   }
   return seen;
@@ -318,6 +332,50 @@ function checkRooms(catalogue, problems) {
   const rooms = Object.keys(sandbox.window.ROOMS?.rooms ?? {}).sort();
   const app = catalogue.locations.map((l) => l.id).sort();
   if (rooms.join(',') !== app.join(',')) problems.push(`the page's rooms (${rooms.join(', ')}) are not the app's locations (${app.join(', ')}): re-export them with tools/himym/export.py`);
+}
+
+// ─── the releases page ───────────────────────────────────────────────────────────────────────────────────────────────
+// website/releases.html lists every published release, newest first, one card each. The project's own tags: a macOS release
+// is v<version> (v1.1.0), and the Windows installer of the same version is v<version>.0 (v1.1.0.0), because it is built and
+// published on its own. So the page must carry both tags of the version in package.json, and this fails the build the day
+// package.json moves on without a card for the new release.
+const RELEASES_PAGE = 'releases.html';
+const RELEASE_TAG = /^v\d+\.\d+\.\d+(?:\.\d+)?$/;
+
+/** The cards of the releases page: <article class="release" data-tag="v1.1.0"> with a date, a platform, a text and its links. */
+function releaseCards(html) {
+  const clean = html.replace(/<!--[\s\S]*?-->/g, '');
+  return [...clean.matchAll(/<article class="release"[^>]*\sdata-tag="([^"]*)"[^>]*>([\s\S]*?)<\/article>/g)].map((m) => ({
+    tag: m[1],
+    date: /<time\b[^>]*\sdatetime="([^"]*)"/.exec(m[2])?.[1] ?? null,
+    platform: /<span class="platform">([^<]*)<\/span>/.exec(m[2])?.[1] ?? null,
+    text: (/<p class="release-text">([\s\S]*?)<\/p>/.exec(m[2])?.[1] ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+    links: [...m[2].matchAll(/<a\b[^>]*\shref="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((a) => ({ href: a[1], text: a[2].replace(/<[^>]+>/g, '').trim() }))
+  }));
+}
+
+/** What is wrong with the releases page: the current version's two releases are there, newest first, each complete and linked to its own page. */
+function checkReleasesPage(html, version, problems) {
+  const cards = releaseCards(html);
+  const tags = cards.map((c) => c.tag);
+  for (const want of [`v${version}`, `v${version}.0`]) {
+    if (!tags.includes(want)) problems.push(`${RELEASES_PAGE} does not list ${want}, the ${want.split('.').length === 4 ? 'Windows' : 'macOS'} release of the version in package.json (${version})`);
+  }
+  if (new Set(tags).size !== tags.length) problems.push(`${RELEASES_PAGE} lists a release twice: ${tags.join(', ')}`);
+  cards.forEach((c, i) => {
+    const where = `${RELEASES_PAGE}, ${c.tag || `card ${i + 1}`}`;
+    if (!RELEASE_TAG.test(c.tag)) { problems.push(`${where}: "${c.tag}" is not a release tag like v1.1.0 or v1.1.0.0`); return; }
+    const windows = c.tag.slice(1).split('.').length === 4;
+    if (i > 0 && RELEASE_TAG.test(cards[i - 1].tag) && compareVersions(cards[i - 1].tag.slice(1), c.tag.slice(1)) < 0) problems.push(`${where}: it is newer than the card above it, and the page lists the newest first`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(c.date ?? '') || Number.isNaN(Date.parse(c.date))) problems.push(`${where}: no release date (<time datetime="YYYY-MM-DD">)`);
+    if (!(windows ? /Windows/ : /macOS/).test(c.platform ?? '')) problems.push(`${where}: the platform label ("${c.platform}") does not name ${windows ? 'Windows' : 'macOS'}`);
+    if (c.text.length < 60 || c.text.length > 420) problems.push(`${where}: the description is ${c.text.length} characters; a small description is between 60 and 420`);
+    const url = `${REPO}/releases/tag/${c.tag}`;
+    const own = c.links.filter((l) => l.href === url);
+    if (own.length !== 1) problems.push(`${where}: it needs exactly one link to ${url}`);
+    else if (!own[0].text.includes(c.tag)) problems.push(`${where}: the link text ("${own[0].text}") does not name the release`);
+    for (const l of c.links) if (l.href !== url) problems.push(`${where}: a card links only to its own release page, not to ${l.href}`);
+  });
 }
 
 // ─── checks on the page as a visitor gets it ─────────────────────────────────────────────────────────────────────────
@@ -442,6 +500,19 @@ function build({ check = false } = {}) {
   checkHuddle(page, problems);
   checkRooms(catalogue, problems);
 
+  // 4b. the releases page: every published release, newest first, each linked to its own page on GitHub
+  const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const releasesFile = path.join(SITE, RELEASES_PAGE);
+  let releasePage = null;
+  if (!fs.existsSync(releasesFile)) problems.push(`website/${RELEASES_PAGE} is missing: the top bar of index.html links to it`);
+  else {
+    releasePage = fs.readFileSync(releasesFile, 'utf8');
+    checkLinks(releasePage, problems, { label: RELEASES_PAGE, tagsOk: new Set(releaseCards(releasePage).map((c) => c.tag)) });
+    checkImages(releasePage, problems);
+    checkReleasesPage(releasePage, version, problems);
+  }
+  if (!/<nav class="nav">[\s\S]*?href="releases\.html"[\s\S]*?<\/nav>/.test(page)) problems.push('the top bar of index.html has no link to releases.html');
+
   // the names that must never be called verified without saying they are not: every provider that is not a local server
   const accountLabels = catalogue.providers.filter((p) => p.chip !== 'locally-tested' && p.id !== 'custom-rest').map((p) => p.label);
 
@@ -449,6 +520,12 @@ function build({ check = false } = {}) {
   problems.push(...staleCountProblems(prose, 'index.html'));
   problems.push(...claimsProblems(prose, accountLabels, 'index.html'));
   problems.push(...engineeringTalk(prose, 'index.html'));
+  if (releasePage) {
+    const releaseProse = proseOf(releasePage);
+    problems.push(...staleCountProblems(releaseProse, RELEASES_PAGE));
+    problems.push(...claimsProblems(releaseProse, accountLabels, RELEASES_PAGE));
+    problems.push(...engineeringTalk(releaseProse, RELEASES_PAGE));
+  }
   for (const f of fs.readdirSync(path.join(SITE, 'js')).filter((x) => x.endsWith('.js') && !/manifest|catalogue/.test(x))) {
     const src = fs.readFileSync(path.join(SITE, 'js', f), 'utf8');
     problems.push(...staleCountProblems(commentsOf(src), `js/${f} (comments)`));
@@ -488,7 +565,8 @@ function build({ check = false } = {}) {
     problems, stale, data,
     summary: [
       `website: ${data.groups.flatMap((g) => g.providers).length} catalogue entries in ${data.groups.length} groups, ${data.locations.length} locations, ${SHOTS.length} screenshots`,
-      `checked: ${seen.anchors} anchors, ${seen.files} files, ${seen.external} external links, ${images} images, ${scripts} scripts, ${filled.used.size} generated markers; rendered ${rendered.page ? rendered.page.filled.length : 0} sections against the data`
+      `checked: ${seen.anchors} anchors, ${seen.files} files, ${seen.external} external links, ${images} images, ${scripts} scripts, ${filled.used.size} generated markers; rendered ${rendered.page ? rendered.page.filled.length : 0} sections against the data`,
+      `releases page: ${releasePage ? releaseCards(releasePage).length : 0} releases, newest first, each linked to its own page on GitHub`
     ]
   };
 }
@@ -505,4 +583,4 @@ if (require.main === module) {
   console.log(check ? 'the website\'s generated files are current and every check passed' : 'wrote the generated files; every check passed');
 }
 
-module.exports = { build, buildData, dataFileText, fillMarkers, markerValues, staleCountProblems, claimsProblems, engineeringTalk, ENGINEERING_TALK, proseOf, stringLiterals, renderedProblems, SHOTS, HUDDLE_MEDIA, word, SITE };
+module.exports = { build, buildData, dataFileText, fillMarkers, markerValues, staleCountProblems, claimsProblems, engineeringTalk, ENGINEERING_TALK, proseOf, stringLiterals, renderedProblems, releaseCards, checkReleasesPage, RELEASES_PAGE, SHOTS, HUDDLE_MEDIA, word, SITE };
